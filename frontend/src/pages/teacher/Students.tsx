@@ -158,9 +158,9 @@ const Students = () => {
         response = await secureApiClient.post('/students/', formData);
       }
       
-      // Show credentials dialog
+      // Show credentials dialog - use student_id for login (not the internal username)
       setNewStudentCredentials({
-        username: response.username || response.generated_username || `std_${formData.student_id}`,
+        username: response.student_id || formData.student_id,
         password: response.password || response.generated_password || 'Generated',
         name: `${formData.first_name} ${formData.last_name}`
       });
@@ -652,7 +652,7 @@ const Students = () => {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between bg-white dark:bg-gray-800 p-2 rounded border">
                     <div>
-                      <p className="text-xs text-muted-foreground">Username</p>
+                      <p className="text-xs text-muted-foreground">Student ID (for login)</p>
                       <p className="font-mono font-medium">{newStudentCredentials.username}</p>
                     </div>
                     <Button 
@@ -689,7 +689,7 @@ const Students = () => {
               </div>
               
               <p className="text-xs text-muted-foreground text-center">
-                Students can login at the Student Portal using these credentials
+                Students can login at the Student Portal using their Student ID and Password
               </p>
             </div>
           )}
