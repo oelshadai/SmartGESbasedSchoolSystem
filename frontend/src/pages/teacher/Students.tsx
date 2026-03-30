@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Eye, UserCheck, UserX, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Eye, UserCheck, UserX, Loader2, UserPlus, Copy, Check, Users } from 'lucide-react';
 import { secureApiClient } from '@/lib/secureApiClient';
 import { useToast } from '@/hooks/use-toast';
 
@@ -37,6 +39,26 @@ const Students = () => {
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const { toast } = useToast();
+
+  // Add Student Form State
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [addingStudent, setAddingStudent] = useState(false);
+  const [showCredentials, setShowCredentials] = useState(false);
+  const [newStudentCredentials, setNewStudentCredentials] = useState<{username: string, password: string, name: string} | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    student_id: '',
+    first_name: '',
+    last_name: '',
+    other_names: '',
+    gender: '',
+    date_of_birth: '',
+    guardian_name: '',
+    guardian_phone: '',
+    guardian_email: '',
+    guardian_address: '',
+    admission_date: new Date().toISOString().split('T')[0],
+  });
 
   useEffect(() => {
     fetchStudents();
@@ -88,6 +110,75 @@ const Students = () => {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleAddStudent = async () => {
+    // Validate required fields
+    if (!formData.student_id || !formData.first_name || !formData.last_name || 
+        !formData.gender || !formData.date_of_birth || !formData.guardian_name || 
+        !formData.guardian_phone || !formData.guardian_address || !formData.admission_date) {
+      toast({ 
+        title: "Validation Error", 
+        description: "Please fill all required fields", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    try {
+      setAddingStudent(true);
+      const response = await secureApiClient.post('/students/', formData);
+      
+      // Show credentials dialog
+      setNewStudentCredentials({
+        username: response.username || response.generated_username || `std_${formData.student_id}`,
+        password: response.password || response.generated_password || 'Generated',
+        name: `${formData.first_name} ${formData.last_name}`
+      });
+      setShowAddDialog(false);
+      setShowCredentials(true);
+      
+      // Reset form
+      setFormData({
+        student_id: '',
+        first_name: '',
+        last_name: '',
+        other_names: '',
+        gender: '',
+        date_of_birth: '',
+        guardian_name: '',
+        guardian_phone: '',
+        guardian_email: '',
+        guardian_address: '',
+        admission_date: new Date().toISOString().split('T')[0],
+      });
+      
+      await fetchStudents();
+      
+      toast({ 
+        title: "Success", 
+        description: "Student added successfully!" 
+      });
+    } catch (error: any) {
+      console.error('Failed to add student:', error);
+      const errorMsg = error.response?.data?.detail || 
+                       error.response?.data?.student_id?.[0] ||
+                       error.response?.data?.error ||
+                       "Failed to add student";
+      toast({ 
+        title: "Error", 
+        description: errorMsg, 
+        variant: "destructive" 
+      });
+    } finally {
+      setAddingStudent(false);
+    }
+  };
+
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
   };
 
   const columns = [
@@ -180,30 +271,50 @@ const Students = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
+          <p className="text-muted-foreground">Loading students...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader 
-        title="My Students" 
-        description="View and manage students in your class"
-      />
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">My Students</h1>
+          <p className="text-muted-foreground mt-1">View and manage students in your class</p>
+        </div>
+        <Button onClick={() => setShowAddDialog(true)} className="gap-2">
+          <UserPlus className="h-4 w-4" />
+          Add Student
+        </Button>
+      </div>
       
       {students.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <p>No students found in your class.</p>
-          <p className="text-sm mt-2">Students will appear here once they are assigned to your class.</p>
+        <div className="animated-border">
+          <div className="animated-border-content p-8 text-center">
+            <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-lg font-medium text-foreground">No students found in your class</p>
+            <p className="text-sm mt-2 text-muted-foreground">Click "Add Student" to add students to your class.</p>
+            <Button onClick={() => setShowAddDialog(true)} className="mt-4 gap-2">
+              <UserPlus className="h-4 w-4" />
+              Add Your First Student
+            </Button>
+          </div>
         </div>
       ) : (
-        <DataTable 
-          columns={columns} 
-          data={students} 
-          searchKey="full_name" 
-          searchPlaceholder="Search students..." 
-        />
+        <div className="animated-border">
+          <div className="animated-border-content p-4">
+            <DataTable 
+              columns={columns} 
+              data={students} 
+              searchKey="full_name" 
+              searchPlaceholder="Search students..." 
+            />
+          </div>
+        </div>
       )}
 
       {/* View Student Dialog */}
@@ -306,6 +417,230 @@ const Students = () => {
           )}
           <DialogFooter>
             <Button onClick={() => setShowViewDialog(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Student Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Student</DialogTitle>
+            <DialogDescription>
+              Fill in the student details. Login credentials will be auto-generated.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* Student ID */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="student_id">Student ID *</Label>
+                <Input
+                  id="student_id"
+                  placeholder="e.g., STD001"
+                  value={formData.student_id}
+                  onChange={(e) => setFormData({...formData, student_id: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admission_date">Admission Date *</Label>
+                <Input
+                  id="admission_date"
+                  type="date"
+                  value={formData.admission_date}
+                  onChange={(e) => setFormData({...formData, admission_date: e.target.value})}
+                />
+              </div>
+            </div>
+
+            {/* Name Fields */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="first_name">First Name *</Label>
+                <Input
+                  id="first_name"
+                  placeholder="First Name"
+                  value={formData.first_name}
+                  onChange={(e) => setFormData({...formData, first_name: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="last_name">Last Name *</Label>
+                <Input
+                  id="last_name"
+                  placeholder="Last Name"
+                  value={formData.last_name}
+                  onChange={(e) => setFormData({...formData, last_name: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="other_names">Other Names</Label>
+                <Input
+                  id="other_names"
+                  placeholder="Other Names"
+                  value={formData.other_names}
+                  onChange={(e) => setFormData({...formData, other_names: e.target.value})}
+                />
+              </div>
+            </div>
+
+            {/* Gender & DOB */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="gender">Gender *</Label>
+                <Select value={formData.gender} onValueChange={(v) => setFormData({...formData, gender: v})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="M">Male</SelectItem>
+                    <SelectItem value="F">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="date_of_birth">Date of Birth *</Label>
+                <Input
+                  id="date_of_birth"
+                  type="date"
+                  value={formData.date_of_birth}
+                  onChange={(e) => setFormData({...formData, date_of_birth: e.target.value})}
+                />
+              </div>
+            </div>
+
+            {/* Guardian Info */}
+            <div className="border-t pt-4">
+              <h3 className="font-semibold mb-3">Guardian Information</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="guardian_name">Guardian Name *</Label>
+                  <Input
+                    id="guardian_name"
+                    placeholder="Parent/Guardian Name"
+                    value={formData.guardian_name}
+                    onChange={(e) => setFormData({...formData, guardian_name: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="guardian_phone">Guardian Phone *</Label>
+                  <Input
+                    id="guardian_phone"
+                    placeholder="Phone Number"
+                    value={formData.guardian_phone}
+                    onChange={(e) => setFormData({...formData, guardian_phone: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="guardian_email">Guardian Email</Label>
+                  <Input
+                    id="guardian_email"
+                    type="email"
+                    placeholder="Email (optional)"
+                    value={formData.guardian_email}
+                    onChange={(e) => setFormData({...formData, guardian_email: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="guardian_address">Guardian Address *</Label>
+                  <Input
+                    id="guardian_address"
+                    placeholder="Home Address"
+                    value={formData.guardian_address}
+                    onChange={(e) => setFormData({...formData, guardian_address: e.target.value})}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+            <Button onClick={handleAddStudent} disabled={addingStudent}>
+              {addingStudent ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Add Student
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Credentials Dialog */}
+      <Dialog open={showCredentials} onOpenChange={setShowCredentials}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-600">
+              <Check className="h-5 w-5" />
+              Student Added Successfully!
+            </DialogTitle>
+            <DialogDescription>
+              Share these login credentials with the student for portal access.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {newStudentCredentials && (
+            <div className="space-y-4 py-4">
+              <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                <p className="font-semibold text-green-800 dark:text-green-200 mb-3">
+                  {newStudentCredentials.name}
+                </p>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between bg-white dark:bg-gray-800 p-2 rounded border">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Username</p>
+                      <p className="font-mono font-medium">{newStudentCredentials.username}</p>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => copyToClipboard(newStudentCredentials.username, 'username')}
+                    >
+                      {copiedField === 'username' ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                  
+                  <div className="flex items-center justify-between bg-white dark:bg-gray-800 p-2 rounded border">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Password</p>
+                      <p className="font-mono font-medium">{newStudentCredentials.password}</p>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => copyToClipboard(newStudentCredentials.password, 'password')}
+                    >
+                      {copiedField === 'password' ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              
+              <p className="text-xs text-muted-foreground text-center">
+                Students can login at the Student Portal using these credentials
+              </p>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button onClick={() => setShowCredentials(false)}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
