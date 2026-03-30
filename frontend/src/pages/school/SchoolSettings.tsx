@@ -148,6 +148,15 @@ const SchoolSettings = () => {
     setSettings({ ...settings, [key]: value });
   };
 
+  const getCurrentTermDisplay = () => {
+    if (!settings.current_term || !terms.length) return '';
+    const currentTerm = terms.find(term => term.id === settings.current_term);
+    if (!currentTerm) return '';
+    return currentTerm.name === 'FIRST' ? '1' : 
+           currentTerm.name === 'SECOND' ? '2' : 
+           currentTerm.name === 'THIRD' ? '3' : '';
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -334,19 +343,25 @@ const SchoolSettings = () => {
             <div>
               <Label>Current Term</Label>
               <Select 
-                value={settings.current_term?.toString() || ''} 
-                onValueChange={(value) => updateSetting('current_term', value ? parseInt(value) : null)}
+                value={getCurrentTermDisplay()} 
+                onValueChange={(value) => {
+                  // Find the term ID based on the selected term name
+                  const selectedTerm = terms.find(term => {
+                    const termNumber = term.name === 'FIRST' ? '1' : 
+                                     term.name === 'SECOND' ? '2' : 
+                                     term.name === 'THIRD' ? '3' : '';
+                    return termNumber === value;
+                  });
+                  updateSetting('current_term', selectedTerm ? selectedTerm.id : null);
+                }}
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Select current term" />
                 </SelectTrigger>
                 <SelectContent>
-                  {terms.map((term) => (
-                    <SelectItem key={term.id} value={term.id.toString()}>
-                      {term.display_name || `${term.academic_year} - ${term.name}`}
-                      {term.is_current && ' (Current)'}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="1">1st Term</SelectItem>
+                  <SelectItem value="2">2nd Term</SelectItem>
+                  <SelectItem value="3">3rd Term</SelectItem>
                 </SelectContent>
               </Select>
             </div>

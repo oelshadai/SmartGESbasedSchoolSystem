@@ -22,16 +22,16 @@ const AnimatedLogoBackground = () => {
     // Initialize 3 logos with random positions and velocities
     const initLogos = () => {
       const containerRect = container.getBoundingClientRect();
-      const logoSize = 120;
+      const logoSize = 150; // Larger size for better visibility
       
       logosRef.current = Array.from({ length: 3 }, (_, i) => ({
         x: Math.random() * (containerRect.width - logoSize),
         y: Math.random() * (containerRect.height - logoSize),
-        vx: (Math.random() - 0.5) * 2, // Random velocity between -1 and 1
-        vy: (Math.random() - 0.5) * 2,
+        vx: (Math.random() - 0.5) * 1.5, // Slightly slower for smoother animation
+        vy: (Math.random() - 0.5) * 1.5,
         size: logoSize,
         rotation: Math.random() * 360,
-        rotationSpeed: (Math.random() - 0.5) * 2, // Random rotation speed
+        rotationSpeed: (Math.random() - 0.5) * 1.5, // Slower rotation
       }));
     };
 
@@ -115,20 +115,35 @@ const AnimatedLogoBackground = () => {
       className="fixed inset-0 overflow-hidden pointer-events-none"
       style={{ zIndex: 0 }}
     >
-      {/* 3 animated logos */}
+      {/* 3 animated logos with enhanced visibility */}
       {Array.from({ length: 3 }).map((_, index) => (
-        <img
+        <div
           key={index}
-          src="/EliteTech logo with 3D cube design.png"
-          alt=""
-          className="absolute opacity-20 transition-opacity duration-1000"
+          className="absolute"
           style={{
-            width: '120px',
-            height: '120px',
-            objectFit: 'contain',
+            width: '150px',
+            height: '150px',
             willChange: 'transform',
           }}
-        />
+        >
+          <img
+            src="/EliteTech logo with 3D cube design.png"
+            alt=""
+            className="w-full h-full object-contain"
+            style={{
+              opacity: 0.45,
+              filter: 'drop-shadow(0 0 15px rgba(59, 130, 246, 0.6)) drop-shadow(0 0 30px rgba(59, 130, 246, 0.4)) brightness(1.2) contrast(1.1)',
+            }}
+          />
+          {/* Glow pulse overlay */}
+          <div 
+            className="absolute inset-0 rounded-full animate-pulse"
+            style={{
+              background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%)',
+              animationDuration: `${2 + index * 0.5}s`,
+            }}
+          />
+        </div>
       ))}
     </div>
   );

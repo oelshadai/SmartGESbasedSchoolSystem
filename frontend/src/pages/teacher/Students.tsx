@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, UserCheck, UserX, Loader2, UserPlus, Copy, Check, Users } from 'lucide-react';
+import { Eye, UserCheck, UserX, Loader2, UserPlus, Copy, Check, Users, Camera } from 'lucide-react';
 import { secureApiClient } from '@/lib/secureApiClient';
 import { useToast } from '@/hooks/use-toast';
 
@@ -46,6 +46,8 @@ const Students = () => {
   const [showCredentials, setShowCredentials] = useState(false);
   const [newStudentCredentials, setNewStudentCredentials] = useState<{username: string, password: string, name: string} | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     student_id: '',
     first_name: '',
@@ -112,6 +114,18 @@ const Students = () => {
     }
   };
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleAddStudent = async () => {
     // Validate required fields
     if (!formData.student_id || !formData.first_name || !formData.last_name || 
@@ -127,7 +141,22 @@ const Students = () => {
 
     try {
       setAddingStudent(true);
-      const response = await secureApiClient.post('/students/', formData);
+      
+      // Use FormData if there's a photo, otherwise use JSON
+      let response;
+      if (photoFile) {
+        const formDataToSend = new FormData();
+        Object.entries(formData).forEach(([key, value]) => {
+          formDataToSend.append(key, value);
+        });
+        formDataToSend.append('photo', photoFile);
+        
+        response = await secureApiClient.post('/students/', formDataToSend, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      } else {
+        response = await secureApiClient.post('/students/', formData);
+      }
       
       // Show credentials dialog
       setNewStudentCredentials({
@@ -152,6 +181,8 @@ const Students = () => {
         guardian_address: '',
         admission_date: new Date().toISOString().split('T')[0],
       });
+      setPhotoFile(null);
+      setPhotoPreview(null);
       
       await fetchStudents();
       
@@ -432,6 +463,30 @@ const Students = () => {
           </DialogHeader>
           
           <div className="space-y-4 py-4">
+            {/* Photo Upload */}
+            <div className="flex justify-center">
+              <div className="relative">
+                <div className="w-24 h-24 rounded-full bg-muted border-2 border-dashed border-primary/50 flex items-center justify-center overflow-hidden">
+                  {photoPreview ? (
+                    <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <Camera className="h-8 w-8 text-muted-foreground" />
+                  )}
+                </div>
+                <label htmlFor="photo-upload" className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-1.5 cursor-pointer hover:bg-primary/90 transition-colors">
+                  <Camera className="h-4 w-4" />
+                  <input
+                    id="photo-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handlePhotoChange}
+                  />
+                </label>
+              </div>
+            </div>
+            <p className="text-xs text-center text-muted-foreground">Upload student photo (for report card)</p>
+
             {/* Student ID */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
