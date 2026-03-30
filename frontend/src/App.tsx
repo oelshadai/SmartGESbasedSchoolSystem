@@ -73,6 +73,7 @@ import StudentProfile from "./pages/student/StudentProfile";
 import StudentReports from "./pages/student/StudentReports";
 
 import StudentList from "./pages/shared/StudentList";
+import { PWAInstallPrompt } from "./components/pwa/PWAInstallPrompt";
 
 const queryClient = new QueryClient();
 
@@ -91,6 +92,7 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <PWAInstallPrompt />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             <Route path="/" element={<HomeRedirect />} />
