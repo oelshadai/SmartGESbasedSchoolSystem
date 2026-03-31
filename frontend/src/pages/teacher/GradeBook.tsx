@@ -81,7 +81,8 @@ const GradeBook = () => {
 
   const fetchAssignments = async () => {
     try {
-      const response = await secureApiClient.get('/assignments/');
+      // Fetch assignments that have submissions needing manual grading
+      const response = await secureApiClient.get('/assignments/grading/pending-grading/');
       setAssignments(response.results || response || []);
     } catch (error) {
       console.error('Failed to fetch assignments:', error);
@@ -96,7 +97,7 @@ const GradeBook = () => {
     
     try {
       setLoading(true);
-      const response = await secureApiClient.get(`/assignments/${selectedAssignment}/submissions/`);
+      const response = await secureApiClient.get(`/assignments/grading/${selectedAssignment}/submissions/`);
       setSubmissions(response.results || response || []);
     } catch (error) {
       console.error('Failed to fetch submissions:', error);
@@ -117,10 +118,10 @@ const GradeBook = () => {
 
     setSaving(true);
     try {
-      await secureApiClient.patch(`/assignments/submissions/${gradingSubmission.id}/`, {
+      await secureApiClient.patch('/assignments/grading/grade-submission/', {
+        submission_id: gradingSubmission.id,
         score: parseFloat(score) || 0,
-        feedback: feedback,
-        status: 'graded'
+        feedback: feedback
       });
       
       toast.success('Grade saved successfully');
@@ -179,16 +180,20 @@ const GradeBook = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>Assignment</Label>
-              <Select value={selectedAssignment} onValueChange={setSelectedAssignment}>
+              <Select value={selectedAssignment} onValueChange={(value) => value !== 'no-assignments' && setSelectedAssignment(value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select assignment to grade" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.isArray(assignments) && assignments.map(assignment => (
-                    <SelectItem key={assignment.id} value={assignment.id.toString()}>
-                      {assignment.title} - {assignment.subject.name} ({assignment.class_instance.name})
-                    </SelectItem>
-                  ))}
+                  {Array.isArray(assignments) && assignments.length > 0 ? (
+                    assignments.map(assignment => (
+                      <SelectItem key={assignment.id} value={assignment.id.toString()}>
+                        {assignment.title} - {assignment.subject.name} ({assignment.class_instance.name})
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-assignments" disabled>No assignments pending manual grading</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>

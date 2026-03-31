@@ -289,7 +289,11 @@ const ScoreEntry = () => {
 
       const assignments = Array.isArray(assignmentsResponse) ? assignmentsResponse : assignmentsResponse.results || [];
       
-      const formClassAssignment = assignments.find((assignment: any) => assignment.type === 'form_class');
+      // FIXED: Look for both form_class and class assignments
+      const formClassAssignment = assignments.find((assignment: any) => 
+        assignment.type === 'form_class' || assignment.type === 'class_teacher'
+      );
+      
       if (formClassAssignment?.class) {
         setTeacherClass(formClassAssignment.class);
         
@@ -308,6 +312,34 @@ const ScoreEntry = () => {
           }
         }));
         setClassSubjects(mappedSubjects);
+      } else {
+        // FALLBACK: If no form class assignment, try to get teacher's subject assignments
+        const subjectAssignments = assignments.filter((assignment: any) => 
+          assignment.type === 'subject_class' && assignment.class
+        );
+        
+        if (subjectAssignments.length > 0) {
+          // Use the first class from subject assignments
+          const firstClass = subjectAssignments[0].class;
+          setTeacherClass(firstClass);
+          
+          // Get all subjects for this class
+          const classSubjectsResponse = await secureApiClient.get(`/schools/class-subjects/?class_instance=${firstClass.id}`);
+          const classSubjectsData = Array.isArray(classSubjectsResponse) ? classSubjectsResponse : classSubjectsResponse.results || [];
+          
+          const mappedSubjects = classSubjectsData.map((cs: any) => ({
+            id: cs.id,
+            subject: {
+              id: cs.subject?.id || cs.subject_id,
+              name: cs.subject?.name || cs.subject_name
+            },
+            class_instance: {
+              id: cs.class_instance?.id || firstClass.id,
+              name: cs.class_instance?.name || firstClass.name
+            }
+          }));
+          setClassSubjects(mappedSubjects);
+        }
       }
 
       if (currentTermResponse && currentTermResponse.id) {
@@ -992,14 +1024,24 @@ const ScoreEntry = () => {
                   Back
                 </Button>
               </div>
+              
+              {classSubjects.length === 0 ? (
+                <Alert className="mb-4">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    No subjects found for your assigned class. Please ensure you have been assigned to teach subjects in this class.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              
               {entryMode === 'single' ? (
                 <div className="space-y-4">
-                  <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                  <Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={classSubjects.length === 0}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select subject and class" />
+                      <SelectValue placeholder={classSubjects.length === 0 ? "No subjects available" : "Select subject and class"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {classSubjects.map(cs => (
+                      {classSubjects.length > 0 && classSubjects.map(cs => (
                         <SelectItem key={cs.id} value={cs.id.toString()}>
                           {cs.subject.name} - {cs.class_instance.name}
                         </SelectItem>
@@ -1015,33 +1057,44 @@ const ScoreEntry = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {classSubjects.map(cs => (
-                      <div key={cs.id} className="animated-border-subtle">
-                        <div className="animated-border-subtle-content flex items-center space-x-2 p-3">
-                          <Checkbox
-                            id={`subject-${cs.id}`}
-                            checked={selectedSubjects.includes(cs.id.toString())}
-                            onCheckedChange={() => handleSubjectToggle(cs.id.toString())}
-                          />
-                          <Label htmlFor={`subject-${cs.id}`} className="flex-1 cursor-pointer">
-                            <div className="font-medium">{cs.subject.name}</div>
-                            <div className="text-sm text-muted-foreground">{cs.class_instance.name}</div>
-                          </Label>
-                        </div>
+                  {classSubjects.length === 0 ? (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        No subjects found. Please ensure you have been assigned to teach in this class before entering scores.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {classSubjects.map(cs => (
+                          <div key={cs.id} className="animated-border-subtle">
+                            <div className="animated-border-subtle-content flex items-center space-x-2 p-3">
+                              <Checkbox
+                                id={`subject-${cs.id}`}
+                                checked={selectedSubjects.includes(cs.id.toString())}
+                                onCheckedChange={() => handleSubjectToggle(cs.id.toString())}
+                              />
+                              <Label htmlFor={`subject-${cs.id}`} className="flex-1 cursor-pointer">
+                                <div className="font-medium">{cs.subject.name}</div>
+                                <div className="text-sm text-muted-foreground">{cs.class_instance.name}</div>
+                              </Label>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                  {selectedSubjects.length > 0 && (
-                    <div className="space-y-3">
-                      <Badge variant="secondary" className="text-sm">
-                        {selectedSubjects.length} subject(s) selected
-                      </Badge>
-                      <Button onClick={proceedToEntry} className="w-full" size="lg">
-                        <ArrowRight className="h-4 w-4 mr-2" />
-                        Proceed to Score Entry
-                      </Button>
-                    </div>
+                      {selectedSubjects.length > 0 && (
+                        <div className="space-y-3">
+                          <Badge variant="secondary" className="text-sm">
+                            {selectedSubjects.length} subject(s) selected
+                          </Badge>
+                          <Button onClick={proceedToEntry} className="w-full" size="lg">
+                            <ArrowRight className="h-4 w-4 mr-2" />
+                            Proceed to Score Entry
+                          </Button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}

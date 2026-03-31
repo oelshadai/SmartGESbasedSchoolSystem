@@ -22,6 +22,8 @@ interface Assignment {
   max_attempts: number;
   status: string;
   class_instance: number;
+  has_mcq_questions: boolean;
+  has_short_answer_questions: boolean;
 }
 
 interface Question {
@@ -66,7 +68,11 @@ const AssignmentEdit = () => {
         due_date: response.due_date ? new Date(response.due_date).toISOString().slice(0, 16) : ''
       };
       
-      setAssignment(formattedAssignment);
+      setAssignment({
+        ...formattedAssignment,
+        has_mcq_questions: response.has_mcq_questions ?? false,
+        has_short_answer_questions: response.has_short_answer_questions ?? false,
+      });
       
       // Fetch questions if it's a quiz/exam
       if (response.assignment_type === 'QUIZ' || response.assignment_type === 'EXAM') {
@@ -116,7 +122,9 @@ const AssignmentEdit = () => {
         due_date: dueDateISO,
         max_score: assignment.max_score,
         time_limit: assignment.time_limit,
-        max_attempts: assignment.max_attempts
+        max_attempts: assignment.max_attempts,
+        has_mcq_questions: assignment.has_mcq_questions,
+        has_short_answer_questions: assignment.has_short_answer_questions
       });
       
       // Save only new (unsaved) questions
@@ -348,28 +356,55 @@ const AssignmentEdit = () => {
           </div>
           
           {(assignment.assignment_type === 'QUIZ' || assignment.assignment_type === 'EXAM') && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="time_limit">Time Limit (minutes)</Label>
-                <Input
-                  id="time_limit"
-                  type="number"
-                  min="1"
-                  value={assignment.time_limit || ''}
-                  onChange={(e) => setAssignment({...assignment, time_limit: parseInt(e.target.value) || null})}
-                />
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="time_limit">Time Limit (minutes)</Label>
+                  <Input
+                    id="time_limit"
+                    type="number"
+                    min="1"
+                    value={assignment.time_limit || ''}
+                    onChange={(e) => setAssignment({...assignment, time_limit: parseInt(e.target.value) || null})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="max_attempts">Max Attempts</Label>
+                  <Input
+                    id="max_attempts"
+                    type="number"
+                    min="1"
+                    value={assignment.max_attempts}
+                    onChange={(e) => setAssignment({...assignment, max_attempts: parseInt(e.target.value)})}
+                  />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="max_attempts">Max Attempts</Label>
-                <Input
-                  id="max_attempts"
-                  type="number"
-                  min="1"
-                  value={assignment.max_attempts}
-                  onChange={(e) => setAssignment({...assignment, max_attempts: parseInt(e.target.value)})}
-                />
+
+              <div className="border rounded-lg p-4 bg-blue-50/20">
+                <Label className="font-semibold text-sm">Quiz/Exam Question Types</Label>
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={assignment.has_mcq_questions}
+                      onChange={(e) => setAssignment({...assignment, has_mcq_questions: e.target.checked})}
+                    />
+                    <span>Multiple Choice (auto-graded)</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={assignment.has_short_answer_questions}
+                      onChange={(e) => setAssignment({...assignment, has_short_answer_questions: e.target.checked})}
+                    />
+                    <span>Short Answer (manual grade)</span>
+                  </label>
+                </div>
+                {(!assignment.has_mcq_questions && !assignment.has_short_answer_questions) && (
+                  <p className="text-sm text-red-700 mt-2">Please select at least one question type before saving.</p>
+                )}
               </div>
-            </div>
+            </>
           )}
         </CardContent>
       </Card>

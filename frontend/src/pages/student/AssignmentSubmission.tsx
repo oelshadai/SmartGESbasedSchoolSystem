@@ -126,10 +126,10 @@ const AssignmentSubmission = () => {
       console.log('Submit response:', response);
       
       if (response.status === 'GRADED') {
-        // Quiz/Exam - show results immediately
+        // Quiz/Exam - show results immediately (MCQ-only)
         toast.success(`Assignment submitted! Score: ${response.score}/${assignment?.max_score}`);
       } else {
-        // Homework/Project - wait for teacher grading
+        // Hybrid quiz or manual grading required
         toast.success('Assignment submitted successfully! Waiting for teacher to grade.');
       }
       

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Clock, CheckCircle, AlertCircle, FileText, Loader2, Play } from 'lucide-react';
+import { Clock, CheckCircle, AlertCircle, FileText, Loader2, Play, Eye } from 'lucide-react';
 import { secureApiClient } from '@/lib/secureApiClient';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -61,6 +61,24 @@ const StudentAssignments = () => {
       navigate(`/student/assignments/${assignment.id}`);
     } else {
       navigate(`/student/assignments/${assignment.id}`);
+    }
+  };
+
+  const handleReviewAssignment = async (assignment: Assignment) => {
+    try {
+      // First get the student assignment ID for review
+      const response = await secureApiClient.get('/assignments/review/my-submissions/');
+      const submissions = response || [];
+      const submission = submissions.find((s: any) => s.assignment.id === assignment.id);
+      
+      if (submission && submission.can_review) {
+        navigate(`/student/assignments/review/${submission.id}`);
+      } else {
+        toast.error('Review not available yet. Please wait for grading.');
+      }
+    } catch (error) {
+      console.error('Failed to get submission for review:', error);
+      toast.error('Failed to access review');
     }
   };
 
@@ -161,13 +179,17 @@ const StudentAssignments = () => {
                       variant={assignment.status === 'GRADED' ? 'outline' : 'default'}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleStartAssignment(assignment);
+                        if (assignment.status === 'GRADED' || assignment.status === 'SUBMITTED') {
+                          handleReviewAssignment(assignment);
+                        } else {
+                          handleStartAssignment(assignment);
+                        }
                       }}
                     >
                       {assignment.status === 'GRADED' ? (
-                        <>View Results</>
+                        <><Eye className="h-4 w-4 mr-1" />Review</>
                       ) : assignment.status === 'SUBMITTED' ? (
-                        <>Submitted</>
+                        <><Eye className="h-4 w-4 mr-1" />Review</>
                       ) : assignment.status === 'IN_PROGRESS' ? (
                         <>Continue</>
                       ) : (

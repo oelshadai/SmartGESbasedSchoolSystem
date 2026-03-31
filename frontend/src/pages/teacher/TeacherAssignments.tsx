@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Clock, FileText, Users, Calendar, Loader2, Eye, Edit, Trash2, Copy, MoreHorizontal } from 'lucide-react';
 import { secureApiClient } from '@/lib/secureApiClient';
 import { useNavigate } from 'react-router-dom';
@@ -76,7 +77,11 @@ const TeacherAssignments = () => {
     is_timed: false,
     auto_grade: false,
     allow_file_submission: true,
-    allow_text_submission: true
+    allow_text_submission: true,
+    allow_review: true,
+    review_available_after: 'GRADED',
+    has_mcq_questions: false,
+    has_short_answer_questions: false
   });
   const [selectedAssignments, setSelectedAssignments] = useState<number[]>([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
@@ -272,7 +277,11 @@ const TeacherAssignments = () => {
       is_timed: false,
       auto_grade: false,
       allow_file_submission: true,
-      allow_text_submission: true
+      allow_text_submission: true,
+      allow_review: true,
+      review_available_after: 'GRADED',
+      has_mcq_questions: false,
+      has_short_answer_questions: false
     });
     setCurrentStep(1);
     setCreatedAssignmentId(null);
@@ -586,6 +595,147 @@ const TeacherAssignments = () => {
                     />
                   </div>
                 </div>
+
+                {/* Quiz Question Types - Only for QUIZ/EXAM */}
+                {(formData.assignment_type === 'QUIZ' || formData.assignment_type === 'EXAM') && (
+                  <div className="border rounded-lg p-4 space-y-3 bg-blue-50/50 border-blue-200">
+                    <h4 className="font-semibold text-sm">Question Types</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Select what types of questions this quiz will contain. This affects how and when results are shown to students.
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="has_mcq"
+                          checked={formData.has_mcq_questions}
+                          onCheckedChange={(checked) => setFormData({...formData, has_mcq_questions: checked as boolean})}
+                        />
+                        <Label htmlFor="has_mcq" className="font-normal cursor-pointer">
+                          <div className="font-medium">Multiple Choice Questions</div>
+                          <div className="text-xs text-muted-foreground">Auto-graded immediately</div>
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="has_short_answer"
+                          checked={formData.has_short_answer_questions}
+                          onCheckedChange={(checked) => setFormData({...formData, has_short_answer_questions: checked as boolean})}
+                        />
+                        <Label htmlFor="has_short_answer" className="font-normal cursor-pointer">
+                          <div className="font-medium">Short Answer Questions</div>
+                          <div className="text-xs text-muted-foreground">You grade these manually</div>
+                        </Label>
+                      </div>
+                    </div>
+                    
+                    {/* Show grading info based on selection */}
+                    {formData.has_mcq_questions && !formData.has_short_answer_questions && (
+                      <div className="bg-green-50 border border-green-200 rounded p-2 text-sm">
+                        <p className="font-medium text-green-900">✅ Results shown immediately</p>
+                        <p className="text-xs text-green-800">All MCQ questions are auto-graded. Students see results right after submitting.</p>
+                      </div>
+                    )}
+                    
+                    {!formData.has_mcq_questions && formData.has_short_answer_questions && (
+                      <div className="bg-amber-50 border border-amber-200 rounded p-2 text-sm">
+                        <p className="font-medium text-amber-900">⏳ Wait for teacher grading</p>
+                        <p className="text-xs text-amber-800">Students cannot see results until you grade all their answers.</p>
+                      </div>
+                    )}
+                    
+                    {formData.has_mcq_questions && formData.has_short_answer_questions && (
+                      <div className="bg-purple-50 border border-purple-200 rounded p-2 text-sm">
+                        <p className="font-medium text-purple-900">🔄 Hybrid grading</p>
+                        <p className="text-xs text-purple-800">MCQ auto-graded immediately, but students won't see full results until you grade their short answers.</p>
+                      </div>
+                    )}
+                    
+                    {!formData.has_mcq_questions && !formData.has_short_answer_questions && (
+                      <div className="bg-red-50 border border-red-200 rounded p-2 text-sm">
+                        <p className="font-medium text-red-900">⚠️ Select at least one question type</p>
+                        <p className="text-xs text-red-800">Your quiz must contain either multiple choice or short answer questions.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Submission Options */}
+                <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                  <h4 className="font-semibold text-sm">Submission Options</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="allow_file"
+                        checked={formData.allow_file_submission}
+                        onCheckedChange={(checked) => setFormData({...formData, allow_file_submission: checked as boolean})}
+                      />
+                      <Label htmlFor="allow_file" className="font-normal cursor-pointer">
+                        Allow file submissions
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="allow_text"
+                        checked={formData.allow_text_submission}
+                        onCheckedChange={(checked) => setFormData({...formData, allow_text_submission: checked as boolean})}
+                      />
+                      <Label htmlFor="allow_text" className="font-normal cursor-pointer">
+                        Allow text submissions
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Student Review Controls */}
+                <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                  <h4 className="font-semibold text-sm">Student Review Access</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="allow_review"
+                        checked={formData.allow_review}
+                        onCheckedChange={(checked) => setFormData({...formData, allow_review: checked as boolean})}
+                      />
+                      <Label htmlFor="allow_review" className="font-normal cursor-pointer">
+                        Allow students to review submissions
+                      </Label>
+                    </div>
+                    
+                    {formData.allow_review && (
+                      <div>
+                        <Label htmlFor="review_after" className="text-sm mb-2 block">
+                          When can students review?
+                        </Label>
+                        <Select value={formData.review_available_after} onValueChange={(value) => setFormData({...formData, review_available_after: value})}>
+                          <SelectTrigger id="review_after">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="IMMEDIATE">
+                              <span>Immediately after submission</span>
+                            </SelectItem>
+                            <SelectItem value="GRADED">
+                              <span>After you grade the assignment</span>
+                            </SelectItem>
+                            <SelectItem value="MANUAL">
+                              <span>Only when you manually enable it</span>
+                            </SelectItem>
+                            <SelectItem value="NEVER">
+                              <span>Never allow review</span>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {formData.review_available_after === 'IMMEDIATE' && 'Students see correct answers and feedback right away'}
+                          {formData.review_available_after === 'GRADED' && 'Students can review after you finish grading'}
+                          {formData.review_available_after === 'MANUAL' && 'You control exactly when students can see results'}
+                          {formData.review_available_after === 'NEVER' && 'Students cannot review submissions or see results'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="flex gap-2 pt-4">
                   <Button type="submit" className="flex-1">
                     {formData.assignment_type === 'QUIZ' || formData.assignment_type === 'EXAM' 

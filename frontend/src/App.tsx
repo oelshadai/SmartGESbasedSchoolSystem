@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore, getRoleDashboardPath } from "@/stores/authStore";
 
-import LoginPage from "./pages/LoginPage";
+import LoginPage from "./pages/ProfessionalLoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import AuthShowcase from "./pages/AuthShowcase";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
@@ -52,7 +52,7 @@ import AssignmentSubmissions from "./pages/teacher/AssignmentSubmissions";
 import AssignmentEdit from "./pages/teacher/AssignmentEdit";
 import MyClasses from "./pages/teacher/MyClasses";
 import CreateAssignment from "./pages/teacher/CreateAssignment";
-import GradeBook from "./pages/teacher/GradeBook";
+import GradeBook from "./pages/teacher/EnhancedGradeBook";
 import AttendanceManagement from "./pages/teacher/AttendanceManagement";
 import StudentBehavior from "./pages/teacher/StudentBehavior";
 import Students from "./pages/teacher/Students";
