@@ -40,6 +40,8 @@ interface Submission {
   score?: number;
   feedback?: string;
   status: 'submitted' | 'graded';
+  needs_grading?: boolean;
+  ungraded_count?: number;
   quiz_attempt_id?: number;
 }
 
@@ -163,7 +165,7 @@ const EnhancedGradeBook = () => {
     setScore(submission.score?.toString() || '');
     setFeedback(submission.feedback || '');
     
-    if (submission.id.startsWith('quiz_')) {
+    if (String(submission.id).startsWith('quiz_')) {
       await fetchQuizDetails(submission.id);
     }
   };
@@ -206,7 +208,7 @@ const EnhancedGradeBook = () => {
 
     setSaving(true);
     try {
-      if (gradingSubmission.id.startsWith('quiz_')) {
+      if (String(gradingSubmission.id).startsWith('quiz_')) {
         for (const [answerId, grading] of Object.entries(gradingAnswers)) {
           await secureApiClient.patch('/assignments/grading/grade-quiz-answer/', {
             answer_id: parseInt(answerId),
@@ -316,13 +318,13 @@ const EnhancedGradeBook = () => {
                         {submission.status}
                       </Badge>
                       <Button size="sm" onClick={() => handleGradeSubmission(submission)}>
-                        {submission.id.startsWith('quiz_') ? (
+                        {String(submission.id).startsWith('quiz_') ? (
                           <>
                             <BookOpen className="h-4 w-4 mr-1" />
-                            Inspect & Grade
+                            {submission.needs_grading !== false ? 'Inspect & Grade' : 'Re-inspect'}
                           </>
                         ) : (
-                          'Grade'
+                          submission.status === 'graded' ? 'Re-grade' : 'Grade'
                         )}
                       </Button>
                     </div>
@@ -339,7 +341,7 @@ const EnhancedGradeBook = () => {
         setQuizDetails(null);
         setGradingAnswers({});
       }}>
-        <DialogContent className={gradingSubmission?.id.startsWith('quiz_') ? "max-w-4xl max-h-[90vh] overflow-y-auto" : "max-w-md"}>
+        <DialogContent className={String(gradingSubmission?.id).startsWith('quiz_') ? "max-w-4xl max-h-[90vh] overflow-y-auto" : "max-w-md"}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {gradingSubmission?.id.startsWith('quiz_') ? (
@@ -366,7 +368,7 @@ const EnhancedGradeBook = () => {
                 </div>
               </div>
 
-              {gradingSubmission.id.startsWith('quiz_') && (
+              {String(gradingSubmission.id).startsWith('quiz_') && (
                 <div>
                   {loadingQuizDetails ? (
                     <div className="flex items-center justify-center py-8">
@@ -446,8 +448,8 @@ const EnhancedGradeBook = () => {
                               )}
 
                               {answer.question.type === 'mcq' && (
-                                <div className="flex items-center justify-between p-3 bg-green-50 rounded-md">
-                                  <span className="text-sm font-medium text-green-800">Auto-graded</span>
+                                <div className="flex items-center justify-between p-3 bg-green-950/50 border border-green-700 rounded-md">
+                                  <span className="text-sm font-medium text-green-300">Auto-graded</span>
                                   <Badge>{answer.points_earned}/{answer.question.points} pts</Badge>
                                 </div>
                               )}
@@ -506,7 +508,7 @@ const EnhancedGradeBook = () => {
                 </div>
               )}
 
-              {!gradingSubmission.id.startsWith('quiz_') && (
+              {!String(gradingSubmission.id).startsWith('quiz_') && (
                 <div className="space-y-4">
                   <div>
                     <Label>Score (out of {selectedAssignmentData?.max_score})</Label>

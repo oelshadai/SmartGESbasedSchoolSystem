@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { GraduationCap, Loader2, BookOpen, Lock, Shield, Eye, EyeOff, CheckCircle2, ArrowRight } from 'lucide-react';
 
-type LoginRole = 'student' | 'teacher' | 'admin' | 'superadmin';
+type LoginRole = 'student' | 'teacher' | 'admin';
 
 interface RoleConfig {
   key: LoginRole;
@@ -47,15 +47,6 @@ const ROLE_CONFIGS: RoleConfig[] = [
     placeholder: 'admin@school.edu',
     description: 'Oversee school operations and manage users'
   },
-  {
-    key: 'superadmin',
-    label: 'Super Admin',
-    icon: Lock,
-    loginMethod: authService.superadminLogin,
-    inputType: 'email',
-    placeholder: 'superadmin@platform.com',
-    description: 'Platform-wide administration and analytics'
-  }
 ];
 
 const ProfessionalLoginPage = () => {
@@ -109,9 +100,9 @@ const ProfessionalLoginPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-orange-600/10 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
       </div>
 
       {/* Grid pattern overlay */}
@@ -125,8 +116,8 @@ const ProfessionalLoginPage = () => {
               {/* Logo */}
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl blur-xl opacity-50" />
-                  <div className="relative bg-gradient-to-br from-blue-600 to-cyan-600 p-4 rounded-2xl">
+                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl blur-xl opacity-50" />
+                  <div className="relative bg-gradient-to-br from-orange-500 to-amber-500 p-4 rounded-2xl">
                     <GraduationCap className="h-8 w-8 text-white" />
                   </div>
                 </div>
@@ -141,7 +132,7 @@ const ProfessionalLoginPage = () => {
                 <h2 className="text-4xl font-bold text-white leading-tight">
                   Modern School
                   <br />
-                  <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
                     Management System
                   </span>
                 </h2>
@@ -159,8 +150,8 @@ const ProfessionalLoginPage = () => {
                   'Secure cloud-based platform'
                 ].map((feature, index) => (
                   <div key={index} className="flex items-center gap-3 text-slate-300">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
-                      <CheckCircle2 className="h-4 w-4 text-cyan-400" />
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-orange-500/20 to-amber-500/20 flex items-center justify-center">
+                      <CheckCircle2 className="h-4 w-4 text-orange-400" />
                     </div>
                     <span className="text-sm">{feature}</span>
                   </div>
@@ -189,8 +180,8 @@ const ProfessionalLoginPage = () => {
               {/* Mobile logo */}
               <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl blur-lg opacity-50" />
-                  <div className="relative bg-gradient-to-br from-blue-600 to-cyan-600 p-3 rounded-xl">
+                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl blur-lg opacity-50" />
+                  <div className="relative bg-gradient-to-br from-orange-500 to-amber-500 p-3 rounded-xl">
                     <GraduationCap className="h-6 w-6 text-white" />
                   </div>
                 </div>
@@ -220,7 +211,7 @@ const ProfessionalLoginPage = () => {
                         onClick={() => handleRoleChange(role.key)}
                         className={`relative group p-4 rounded-xl transition-all duration-200 ${
                           isActive
-                            ? 'bg-gradient-to-br from-blue-600 to-cyan-600 shadow-lg shadow-blue-500/25'
+                            ? 'bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg shadow-orange-500/25'
                             : 'bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50'
                         }`}
                       >
@@ -231,7 +222,7 @@ const ProfessionalLoginPage = () => {
                           </span>
                         </div>
                         {isActive && (
-                          <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-400/20 to-cyan-400/20 animate-pulse" />
+                          <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-orange-400/20 to-amber-400/20 animate-pulse" />
                         )}
                       </button>
                     );
@@ -264,7 +255,7 @@ const ProfessionalLoginPage = () => {
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value)}
                       required
-                      className="pl-11 h-12 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-blue-500/20"
+                      className="pl-11 h-12 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-orange-500 focus:ring-orange-500/20"
                     />
                   </div>
                 </div>
@@ -280,7 +271,7 @@ const ProfessionalLoginPage = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="pl-11 pr-11 h-12 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-blue-500/20"
+                      className="pl-11 pr-11 h-12 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-orange-500 focus:ring-orange-500/20"
                     />
                     <button
                       type="button"
@@ -295,7 +286,7 @@ const ProfessionalLoginPage = () => {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full h-12 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-medium rounded-xl shadow-lg shadow-blue-500/25 transition-all duration-200 hover:shadow-blue-500/40"
+                  className="w-full h-12 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-blue-700 hover:to-cyan-700 text-white font-medium rounded-xl shadow-lg shadow-orange-500/25 transition-all duration-200 hover:shadow-orange-500/40"
                 >
                   {loading ? (
                     <>
@@ -349,7 +340,7 @@ const ProfessionalLoginPage = () => {
             </div>
 
             {/* Decorative elements */}
-            <div className="absolute -top-4 -right-4 w-24 h-24 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full blur-2xl" />
+            <div className="absolute -top-4 -right-4 w-24 h-24 bg-gradient-to-br from-orange-500/20 to-amber-500/20 rounded-full blur-2xl" />
             <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-2xl" />
           </div>
         </div>

@@ -115,9 +115,9 @@ const AssignmentReview = () => {
   };
 
   const getScoreColor = (percentage: number) => {
-    if (percentage >= 80) return 'text-green-600';
-    if (percentage >= 60) return 'text-yellow-600';
-    return 'text-red-600';
+    if (percentage >= 80) return 'text-green-400';
+    if (percentage >= 60) return 'text-yellow-400';
+    return 'text-red-400';
   };
 
   const getScoreBadgeVariant = (isCorrect: boolean) => {
@@ -207,13 +207,13 @@ const AssignmentReview = () => {
                 <div className="text-sm text-muted-foreground">Accuracy</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">
+                <div className="text-2xl font-bold text-green-400">
                   {reviewData.quiz_summary.correct_answers}
                 </div>
                 <div className="text-sm text-muted-foreground">Correct</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">
+                <div className="text-2xl font-bold text-red-400">
                   {reviewData.quiz_summary.wrong_answers}
                 </div>
                 <div className="text-sm text-muted-foreground">Wrong</div>
@@ -287,9 +287,9 @@ const AssignmentReview = () => {
                         {question.points_earned}/{question.points} pts
                       </Badge>
                       {question.is_correct ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <CheckCircle className="h-4 w-4 text-green-400" />
                       ) : (
-                        <XCircle className="h-4 w-4 text-red-600" />
+                        <XCircle className="h-4 w-4 text-red-400" />
                       )}
                     </div>
                     <p className="text-sm font-medium">{question.question_text}</p>
@@ -306,11 +306,11 @@ const AssignmentReview = () => {
                       
                       let optionClass = 'p-3 rounded border ';
                       if (isCorrectAnswer) {
-                        optionClass += 'bg-green-50 border-green-200 text-green-800';
+                        optionClass += 'bg-green-950/50 border-green-700 text-green-300';
                       } else if (isStudentChoice && !isCorrectAnswer) {
-                        optionClass += 'bg-red-50 border-red-200 text-red-800';
+                        optionClass += 'bg-red-950/50 border-red-700 text-red-300';
                       } else {
-                        optionClass += 'bg-gray-50 border-gray-200';
+                        optionClass += 'bg-muted/30 border-border text-foreground';
                       }
                       
                       return (
@@ -340,25 +340,25 @@ const AssignmentReview = () => {
                 {question.question_type === 'short_answer' && (
                   <div className="space-y-3">
                     <div>
-                      <div className="text-sm font-medium text-green-700 mb-1">Correct Answer:</div>
-                      <div className="p-3 bg-green-50 border border-green-200 rounded text-sm">
+                      <div className="text-sm font-medium text-green-400 mb-1">Correct Answer:</div>
+                      <div className="p-3 bg-green-950/50 border border-green-700 rounded text-sm text-green-300">
                         {question.expected_answer}
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-blue-700 mb-1">Your Answer:</div>
+                      <div className="text-sm font-medium text-blue-400 mb-1">Your Answer:</div>
                       <div className={`p-3 border rounded text-sm ${
                         question.is_correct 
-                          ? 'bg-green-50 border-green-200 text-green-800' 
-                          : 'bg-red-50 border-red-200 text-red-800'
+                          ? 'bg-green-950/50 border-green-700 text-green-300' 
+                          : 'bg-red-950/50 border-red-700 text-red-300'
                       }`}>
                         {question.student_answer || 'No answer provided'}
                       </div>
                     </div>
                     {question.teacher_comment && (
                       <div>
-                        <div className="text-sm font-medium text-purple-700 mb-1">Teacher Comment:</div>
-                        <div className="p-3 bg-purple-50 border border-purple-200 rounded text-sm">
+                        <div className="text-sm font-medium text-purple-400 mb-1">Teacher Comment:</div>
+                        <div className="p-3 bg-purple-950/50 border border-purple-700 rounded text-sm text-purple-300">
                           {question.teacher_comment}
                         </div>
                       </div>
@@ -371,8 +371,8 @@ const AssignmentReview = () => {
                   <div className="space-y-3">
                     {question.student_answer && (
                       <div>
-                        <div className="text-sm font-medium text-blue-700 mb-1">Your Response:</div>
-                        <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+                        <div className="text-sm font-medium text-blue-400 mb-1">Your Response:</div>
+                        <div className="p-3 bg-blue-950/50 border border-blue-700 rounded text-sm text-blue-200">
                           {question.student_answer}
                         </div>
                       </div>
@@ -383,7 +383,7 @@ const AssignmentReview = () => {
                         <div className="text-sm font-medium text-blue-700 mb-2">Uploaded Files:</div>
                         <div className="space-y-2">
                           {question.uploaded_files.map((file) => (
-                            <div key={file.id} className="flex items-center justify-between p-2 bg-gray-50 border rounded">
+                          <div className="flex items-center justify-between p-2 bg-muted/40 border border-border rounded">
                               <div className="flex items-center gap-2">
                                 <FileText className="h-4 w-4" />
                                 <span className="text-sm">{file.filename}</span>
@@ -406,8 +406,8 @@ const AssignmentReview = () => {
                     
                     {question.teacher_comment && (
                       <div>
-                        <div className="text-sm font-medium text-purple-700 mb-1">Teacher Feedback:</div>
-                        <div className="p-3 bg-purple-50 border border-purple-200 rounded text-sm">
+                        <div className="text-sm font-medium text-purple-400 mb-1">Teacher Feedback:</div>
+                        <div className="p-3 bg-purple-950/50 border border-purple-700 rounded text-sm text-purple-300">
                           {question.teacher_comment}
                         </div>
                       </div>
@@ -417,9 +417,9 @@ const AssignmentReview = () => {
 
                 {/* Question Explanation */}
                 {question.explanation && (
-                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
-                    <div className="text-sm font-medium text-blue-700 mb-1">Explanation:</div>
-                    <div className="text-sm text-blue-800">{question.explanation}</div>
+                  <div className="mt-3 p-3 bg-blue-950/50 border border-blue-700 rounded">
+                    <div className="text-sm font-medium text-blue-400 mb-1">Explanation:</div>
+                    <div className="text-sm text-blue-200">{question.explanation}</div>
                   </div>
                 )}
               </CardContent>
@@ -452,7 +452,7 @@ const AssignmentReview = () => {
             {reviewData.submission_content.file_url && (
               <div>
                 <div className="text-sm font-medium mb-2">File Submission:</div>
-                <div className="flex items-center justify-between p-3 bg-gray-50 border rounded">
+                <div className="flex items-center justify-between p-3 bg-muted/40 border border-border rounded">
                   <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4" />
                     <span className="text-sm">{reviewData.submission_content.file_name}</span>

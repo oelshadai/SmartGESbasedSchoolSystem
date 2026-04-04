@@ -14,19 +14,9 @@ import AppLayout from "./components/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Dashboards
-import SuperAdminDashboard from "./pages/dashboards/SuperAdminDashboard";
 import SchoolAdminDashboard from "./pages/dashboards/SchoolAdminDashboard";
 import TeacherDashboard from "./pages/dashboards/TeacherDashboard";
 import StudentDashboard from "./pages/dashboards/StudentDashboard";
-
-// Super Admin
-import SchoolsManagement from "./pages/admin/SchoolsManagement";
-import UsersManagement from "./pages/admin/UsersManagement";
-import SystemAnalytics from "./pages/admin/SystemAnalytics";
-import SubscriptionManagement from "./pages/admin/SubscriptionManagement";
-import SystemSettings from "./pages/admin/SystemSettings";
-import AuditLogs from "./pages/admin/AuditLogs";
-import SupportTickets from "./pages/admin/SupportTickets";
 
 // School Admin
 import AcademicYearManagement from "./pages/school/AcademicYearManagement";
@@ -65,6 +55,7 @@ import HelpSupport from "./pages/teacher/HelpSupport";
 // Student
 import StudentAssignments from "./pages/student/StudentAssignments";
 import AssignmentSubmission from "./pages/student/AssignmentSubmission";
+import AssignmentReview from "./pages/student/AssignmentReview";
 import MyGrades from "./pages/student/MyGrades";
 import AttendanceRecords from "./pages/student/AttendanceRecords";
 import ClassSchedule from "./pages/student/ClassSchedule";
@@ -100,18 +91,6 @@ const App = () => {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/auth-demo" element={<AuthShowcase />} />
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
-
-          {/* Super Admin */}
-          <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']}><AppLayout /></ProtectedRoute>}>
-            <Route path="/admin/dashboard" element={<SuperAdminDashboard />} />
-            <Route path="/admin/schools" element={<SchoolsManagement />} />
-            <Route path="/admin/users" element={<UsersManagement />} />
-            <Route path="/admin/analytics" element={<SystemAnalytics />} />
-            <Route path="/admin/subscriptions" element={<SubscriptionManagement />} />
-            <Route path="/admin/settings" element={<SystemSettings />} />
-            <Route path="/admin/audit-logs" element={<AuditLogs />} />
-            <Route path="/admin/support" element={<SupportTickets />} />
-          </Route>
 
           {/* School Admin / Principal */}
           <Route element={<ProtectedRoute allowedRoles={['SCHOOL_ADMIN', 'PRINCIPAL']}><AppLayout /></ProtectedRoute>}>
@@ -158,6 +137,7 @@ const App = () => {
             <Route path="/student/dashboard" element={<StudentDashboard />} />
             <Route path="/student/assignments" element={<StudentAssignments />} />
             <Route path="/student/assignments/:id" element={<AssignmentSubmission />} />
+            <Route path="/student/assignments/review/:submissionId" element={<AssignmentReview />} />
             <Route path="/student/grades" element={<MyGrades />} />
             <Route path="/student/attendance" element={<AttendanceRecords />} />
             <Route path="/student/schedule" element={<ClassSchedule />} />

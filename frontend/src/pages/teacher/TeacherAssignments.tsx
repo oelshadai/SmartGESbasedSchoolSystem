@@ -23,6 +23,7 @@ interface Assignment {
   status: string;
   max_score: number;
   class_name: string;
+  class_id: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -375,12 +376,16 @@ const TeacherAssignments = () => {
   };
 
   const handleDuplicateAssignment = async (assignment: Assignment) => {
+    if (!assignment.class_id) {
+      toast.error('Cannot duplicate: assignment has no class assigned');
+      return;
+    }
     try {
       const duplicateData = {
         title: `${assignment.title} (Copy)`,
         description: assignment.description,
         assignment_type: assignment.assignment_type,
-        class_instance: '1', // Will need to get proper class ID
+        class_instance: assignment.class_id.toString(),
         due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
         max_score: assignment.max_score,
         instructions: 'Duplicated assignment - please review and update as needed'

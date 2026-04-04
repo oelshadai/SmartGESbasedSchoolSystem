@@ -134,9 +134,9 @@ const AppLayout = () => {
                 key={item.path}
                 to={item.path}
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                   active
-                    ? 'bg-sidebar-accent text-sidebar-primary'
+                    ? 'bg-sidebar-accent text-orange-400 border-l-[3px] border-orange-500 pl-[9px] shadow-sm'
                     : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
                 }`}
               >

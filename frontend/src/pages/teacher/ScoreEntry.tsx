@@ -283,48 +283,33 @@ const ScoreEntry = () => {
         secureApiClient.get('/schools/settings/')
       ]);
 
+      // Get school's score entry mode setting
+      let schoolScoreEntryMode = 'SUBJECT_TEACHER'; // default
       if (schoolSettingsResponse?.score_entry_mode) {
+        schoolScoreEntryMode = schoolSettingsResponse.score_entry_mode;
         setScoreEntryMode(schoolSettingsResponse.score_entry_mode);
       }
 
       const assignments = Array.isArray(assignmentsResponse) ? assignmentsResponse : assignmentsResponse.results || [];
       
-      // FIXED: Look for both form_class and class assignments
+      // Check if teacher is a class teacher (has form_class assignment)
       const formClassAssignment = assignments.find((assignment: any) => 
         assignment.type === 'form_class' || assignment.type === 'class_teacher'
       );
       
-      if (formClassAssignment?.class) {
-        setTeacherClass(formClassAssignment.class);
-        
-        const classSubjectsResponse = await secureApiClient.get(`/schools/class-subjects/?class_instance=${formClassAssignment.class.id}`);
-        const classSubjectsData = Array.isArray(classSubjectsResponse) ? classSubjectsResponse : classSubjectsResponse.results || [];
-        
-        const mappedSubjects = classSubjectsData.map((cs: any) => ({
-          id: cs.id,
-          subject: {
-            id: cs.subject?.id || cs.subject_id,
-            name: cs.subject?.name || cs.subject_name
-          },
-          class_instance: {
-            id: cs.class_instance?.id || formClassAssignment.class.id,
-            name: cs.class_instance?.name || formClassAssignment.class.name
-          }
-        }));
-        setClassSubjects(mappedSubjects);
-      } else {
-        // FALLBACK: If no form class assignment, try to get teacher's subject assignments
-        const subjectAssignments = assignments.filter((assignment: any) => 
-          assignment.type === 'subject_class' && assignment.class
-        );
-        
-        if (subjectAssignments.length > 0) {
-          // Use the first class from subject assignments
-          const firstClass = subjectAssignments[0].class;
-          setTeacherClass(firstClass);
+      // Get subject assignments (subjects teacher teaches)
+      const subjectAssignments = assignments.filter((assignment: any) => 
+        assignment.type === 'subject_class' && assignment.class
+      );
+
+      // FIXED LOGIC: Determine what classes/subjects teacher can access based on school setting
+      if (schoolScoreEntryMode === 'CLASS_TEACHER') {
+        // CLASS_TEACHER mode: Only class teachers can enter scores, and they can enter for ALL subjects in their class
+        if (formClassAssignment?.class) {
+          setTeacherClass(formClassAssignment.class);
           
-          // Get all subjects for this class
-          const classSubjectsResponse = await secureApiClient.get(`/schools/class-subjects/?class_instance=${firstClass.id}`);
+          // Get ALL subjects for this class (not just what teacher teaches)
+          const classSubjectsResponse = await secureApiClient.get(`/schools/class-subjects/?class_instance=${formClassAssignment.class.id}`);
           const classSubjectsData = Array.isArray(classSubjectsResponse) ? classSubjectsResponse : classSubjectsResponse.results || [];
           
           const mappedSubjects = classSubjectsData.map((cs: any) => ({
@@ -334,11 +319,75 @@ const ScoreEntry = () => {
               name: cs.subject?.name || cs.subject_name
             },
             class_instance: {
-              id: cs.class_instance?.id || firstClass.id,
-              name: cs.class_instance?.name || firstClass.name
+              id: cs.class_instance?.id || formClassAssignment.class.id,
+              name: cs.class_instance?.name || formClassAssignment.class.name
             }
           }));
           setClassSubjects(mappedSubjects);
+        } else {
+          // Teacher is not a class teacher, show error
+          toast({ 
+            title: 'Access Denied', 
+            description: 'School is set to Class Teacher mode. Only class teachers can enter scores.', 
+            variant: 'destructive' 
+          });
+          setClassSubjects([]);
+        }
+      } else {
+        // SUBJECT_TEACHER mode: Teachers can enter scores for subjects they teach
+        if (subjectAssignments.length > 0) {
+          // Use the first class from subject assignments (or could show multiple classes)
+          const firstClass = subjectAssignments[0].class;
+          setTeacherClass(firstClass);
+          
+          // Get only the subjects this teacher is assigned to teach
+          const teacherSubjectIds = subjectAssignments.map(sa => sa.subject?.id).filter(Boolean);
+          
+          const classSubjectsResponse = await secureApiClient.get(`/schools/class-subjects/?class_instance=${firstClass.id}`);
+          const classSubjectsData = Array.isArray(classSubjectsResponse) ? classSubjectsResponse : classSubjectsResponse.results || [];
+          
+          // Filter to only subjects this teacher teaches
+          const mappedSubjects = classSubjectsData
+            .filter((cs: any) => teacherSubjectIds.includes(cs.subject?.id || cs.subject_id))
+            .map((cs: any) => ({
+              id: cs.id,
+              subject: {
+                id: cs.subject?.id || cs.subject_id,
+                name: cs.subject?.name || cs.subject_name
+              },
+              class_instance: {
+                id: cs.class_instance?.id || firstClass.id,
+                name: cs.class_instance?.name || firstClass.name
+              }
+            }));
+          setClassSubjects(mappedSubjects);
+        } else if (formClassAssignment?.class) {
+          // Fallback: If teacher is class teacher but no subject assignments, allow all subjects
+          setTeacherClass(formClassAssignment.class);
+          
+          const classSubjectsResponse = await secureApiClient.get(`/schools/class-subjects/?class_instance=${formClassAssignment.class.id}`);
+          const classSubjectsData = Array.isArray(classSubjectsResponse) ? classSubjectsResponse : classSubjectsResponse.results || [];
+          
+          const mappedSubjects = classSubjectsData.map((cs: any) => ({
+            id: cs.id,
+            subject: {
+              id: cs.subject?.id || cs.subject_id,
+              name: cs.subject?.name || cs.subject_name
+            },
+            class_instance: {
+              id: cs.class_instance?.id || formClassAssignment.class.id,
+              name: cs.class_instance?.name || formClassAssignment.class.name
+            }
+          }));
+          setClassSubjects(mappedSubjects);
+        } else {
+          // Teacher has no assignments
+          toast({ 
+            title: 'No Assignments', 
+            description: 'You have not been assigned to teach any subjects or classes.', 
+            variant: 'destructive' 
+          });
+          setClassSubjects([]);
         }
       }
 
@@ -854,14 +903,30 @@ const ScoreEntry = () => {
         description="Enter continuous assessment and exam scores for students"
       />
 
-      {/* Current Term Display */}
+      {/* Score Entry Mode Display */}
       {currentTerm && (
         <div className="animated-border-subtle">
           <div className="animated-border-subtle-content">
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                <strong>Active Term:</strong> {currentTerm.name} {currentTerm.academic_year && `(${currentTerm.academic_year})`}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <strong>Active Term:</strong> {currentTerm.name} {currentTerm.academic_year && `(${currentTerm.academic_year})`}
+                  </div>
+                  <div className="text-sm">
+                    <strong>Score Entry Mode:</strong> 
+                    <Badge variant="outline" className="ml-2">
+                      {scoreEntryMode === 'CLASS_TEACHER' ? 'Class Teacher Mode' : 'Subject Teacher Mode'}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="mt-2 text-sm text-muted-foreground">
+                  {scoreEntryMode === 'CLASS_TEACHER' 
+                    ? 'Class teachers can enter scores for all subjects in their assigned class'
+                    : 'Teachers can only enter scores for subjects they are assigned to teach'
+                  }
+                </div>
               </AlertDescription>
             </Alert>
           </div>

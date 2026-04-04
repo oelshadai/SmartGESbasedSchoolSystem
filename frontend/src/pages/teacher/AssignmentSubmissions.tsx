@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle, Download, Eye, Edit, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle, Download, Eye, Edit, RotateCcw, Send, FileDown } from 'lucide-react';
 import { secureApiClient } from '@/lib/secureApiClient';
 import { toast } from 'sonner';
 
@@ -91,6 +91,52 @@ const AssignmentSubmissions = () => {
       console.error('Failed to grade submission:', error);
       toast.error('Failed to grade submission');
     }
+  };
+
+  const handleAutoSubmitOverdue = async () => {
+    if (!assignment) return;
+    const overdueStudents = submissions.filter(s => s.is_overdue && ['NOT_STARTED', 'IN_PROGRESS'].includes(s.status));
+    if (overdueStudents.length === 0) {
+      toast.info('No overdue unsubmitted students found');
+      return;
+    }
+    if (!confirm(`Auto-submit ${overdueStudents.length} overdue student(s) with zero/empty submission? This cannot be undone.`)) return;
+
+    try {
+      const response = await secureApiClient.post(`/assignments/teacher/${assignmentId}/auto-submit-overdue/`, {});
+      toast.success(response.message || `Auto-submitted ${overdueStudents.length} student(s)`);
+      fetchSubmissions();
+    } catch (error: any) {
+      console.error('Failed to auto-submit overdue:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to auto-submit overdue students';
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleDownloadReport = () => {
+    if (!assignment || submissions.length === 0) return;
+    const rows: string[][] = [
+      ['Student Name', 'Student ID', 'Status', 'Submitted At', 'Score', 'Attempts']
+    ];
+    submissions.forEach(s => {
+      rows.push([
+        s.student.name,
+        s.student.student_id,
+        s.is_overdue && s.status === 'NOT_STARTED' ? 'OVERDUE' : s.status,
+        s.submitted_at ? new Date(s.submitted_at).toLocaleString() : 'Not submitted',
+        s.score !== null ? String(s.score) : '-',
+        String(s.attempts_count)
+      ]);
+    });
+    const csv = rows.map(r => r.map(cell => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${assignment.title.replace(/[^a-z0-9]/gi, '_')}_submissions.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Report downloaded');
   };
 
   const handleReopenSubmission = async (submission: Submission) => {
@@ -178,6 +224,28 @@ const AssignmentSubmissions = () => {
               Due: {new Date(assignment.due_date).toLocaleDateString()} • Max Score: {assignment.max_score}
             </p>
           </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {overdueCount > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleAutoSubmitOverdue}
+              title={`Auto-submit ${overdueCount} overdue student(s) with zero score`}
+            >
+              <Send className="h-4 w-4 mr-2" />
+              Auto-Submit Overdue ({overdueCount})
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadReport}
+            title="Download submission report as CSV"
+          >
+            <FileDown className="h-4 w-4 mr-2" />
+            Download Report
+          </Button>
         </div>
       </div>
 

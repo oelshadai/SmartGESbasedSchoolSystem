@@ -223,8 +223,8 @@ const StudentDashboard = () => {
           {recentAlerts.map((alert) => (
             <div key={alert.id} className={`rounded-lg border p-4 flex items-start gap-3 ${
               alert.activity_type === 'assignment_created' || alert.type === 'assignment'
-                ? 'bg-blue-50 border-blue-200 text-blue-800'
-                : 'bg-green-50 border-green-200 text-green-800'
+                ? 'bg-blue-950/50 border-blue-700 text-blue-200'
+                : 'bg-green-950/50 border-green-700 text-green-200'
             }`}>
               <div className="shrink-0 mt-0.5">
                 {alert.activity_type === 'assignment_created' || alert.type === 'assignment' ? (

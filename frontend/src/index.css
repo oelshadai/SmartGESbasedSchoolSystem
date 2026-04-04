@@ -52,47 +52,47 @@
   }
 
   .dark {
-    --background: 222 30% 8%;
-    --foreground: 210 40% 92%;
+    --background: 222 32% 7%;
+    --foreground: 210 40% 95%;
 
-    --card: 222 25% 12%;
-    --card-foreground: 210 40% 92%;
+    --card: 222 28% 11%;
+    --card-foreground: 210 40% 95%;
 
-    --popover: 222 25% 12%;
-    --popover-foreground: 210 40% 92%;
+    --popover: 222 28% 11%;
+    --popover-foreground: 210 40% 95%;
 
-    --primary: 175 42% 46%;
+    --primary: 25 95% 53%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 55% 24%;
+    --secondary: 222 25% 18%;
     --secondary-foreground: 210 40% 92%;
 
-    --muted: 222 20% 18%;
-    --muted-foreground: 215 15% 55%;
+    --muted: 222 22% 16%;
+    --muted-foreground: 215 18% 65%;
 
-    --accent: 36 90% 55%;
-    --accent-foreground: 220 30% 12%;
+    --accent: 25 95% 53%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62% 35%;
+    --destructive: 0 62% 40%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 222 20% 20%;
-    --input: 222 20% 20%;
-    --ring: 175 42% 46%;
+    --border: 222 20% 18%;
+    --input: 222 20% 18%;
+    --ring: 25 95% 53%;
 
-    --sidebar-background: 222 30% 6%;
-    --sidebar-foreground: 210 40% 85%;
-    --sidebar-primary: 175 42% 46%;
+    --sidebar-background: 222 35% 5%;
+    --sidebar-foreground: 210 40% 88%;
+    --sidebar-primary: 25 95% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 25% 14%;
-    --sidebar-accent-foreground: 210 40% 85%;
-    --sidebar-border: 222 20% 16%;
-    --sidebar-ring: 175 42% 46%;
+    --sidebar-accent: 222 28% 12%;
+    --sidebar-accent-foreground: 210 40% 88%;
+    --sidebar-border: 222 22% 14%;
+    --sidebar-ring: 25 95% 53%;
 
     --success: 152 55% 35%;
     --success-foreground: 0 0% 100%;
-    --warning: 36 80% 50%;
-    --warning-foreground: 220 30% 12%;
+    --warning: 36 90% 55%;
+    --warning-foreground: 0 0% 100%;
     --info: 205 70% 45%;
     --info-foreground: 0 0% 100%;
   }
@@ -136,10 +136,10 @@
 
 @keyframes pulseGlow {
   0%, 100% {
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5), 0 0 20px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 0 10px rgba(249, 115, 22, 0.5), 0 0 20px rgba(249, 115, 22, 0.3);
   }
   50% {
-    box-shadow: 0 0 30px rgba(59, 130, 246, 0.8), 0 0 50px rgba(59, 130, 246, 0.6), 0 0 70px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 30px rgba(249, 115, 22, 0.8), 0 0 50px rgba(249, 115, 22, 0.6), 0 0 70px rgba(249, 115, 22, 0.4);
   }
 }
 
@@ -147,16 +147,16 @@
 .animated-border {
   position: relative;
   background: linear-gradient(45deg, 
-    rgba(59, 130, 246, 0.2), 
-    rgba(147, 197, 253, 0.2), 
-    rgba(59, 130, 246, 0.2), 
-    rgba(147, 197, 253, 0.2)
+    rgba(249, 115, 22, 0.2), 
+    rgba(251, 191, 36, 0.2), 
+    rgba(249, 115, 22, 0.2), 
+    rgba(251, 191, 36, 0.2)
   );
   background-size: 400% 400%;
   animation: runningBorder 3s linear infinite;
   border-radius: 1rem;
   padding: 3px;
-  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 15px rgba(249, 115, 22, 0.3);
 }
 
 .animated-border::before {
@@ -165,10 +165,10 @@
   inset: 0;
   padding: 3px;
   background: linear-gradient(45deg, 
-    rgba(59, 130, 246, 1), 
-    rgba(147, 197, 253, 0.8), 
-    rgba(59, 130, 246, 1), 
-    rgba(147, 197, 253, 0.8)
+    rgba(249, 115, 22, 1), 
+    rgba(251, 191, 36, 0.8), 
+    rgba(249, 115, 22, 1), 
+    rgba(251, 191, 36, 0.8)
   );
   background-size: 400% 400%;
   border-radius: inherit;
@@ -199,7 +199,7 @@
 /* Hover enhanced glow */
 .animated-border:hover {
   animation-duration: 1.5s;
-  box-shadow: 0 0 25px rgba(59, 130, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 25px rgba(249, 115, 22, 0.5), 0 0 40px rgba(249, 115, 22, 0.3);
 }
 
 .animated-border:hover::before {
@@ -211,16 +211,16 @@
 .animated-border-subtle {
   position: relative;
   background: linear-gradient(45deg, 
-    rgba(59, 130, 246, 0.15), 
-    rgba(147, 197, 253, 0.15), 
-    rgba(59, 130, 246, 0.15), 
-    rgba(147, 197, 253, 0.15)
+    rgba(249, 115, 22, 0.15), 
+    rgba(251, 191, 36, 0.15), 
+    rgba(249, 115, 22, 0.15), 
+    rgba(251, 191, 36, 0.15)
   );
   background-size: 400% 400%;
   animation: runningBorder 4s linear infinite;
   border-radius: 1rem;
   padding: 2px;
-  box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.2);
 }
 
 .animated-border-subtle::before {
@@ -229,10 +229,10 @@
   inset: 0;
   padding: 2px;
   background: linear-gradient(45deg, 
-    rgba(59, 130, 246, 0.6), 
-    rgba(147, 197, 253, 0.4), 
-    rgba(59, 130, 246, 0.6), 
-    rgba(147, 197, 253, 0.4)
+    rgba(249, 115, 22, 0.6), 
+    rgba(251, 191, 36, 0.4), 
+    rgba(249, 115, 22, 0.6), 
+    rgba(251, 191, 36, 0.4)
   );
   background-size: 400% 400%;
   border-radius: inherit;
@@ -258,22 +258,22 @@
 .animated-quick-action {
   position: relative;
   background: linear-gradient(45deg, 
-    rgba(59, 130, 246, 0.2), 
-    rgba(147, 197, 253, 0.2), 
-    rgba(59, 130, 246, 0.2)
+    rgba(249, 115, 22, 0.2), 
+    rgba(251, 191, 36, 0.2), 
+    rgba(249, 115, 22, 0.2)
   );
   background-size: 300% 300%;
   animation: runningBorder 2.5s linear infinite;
   border-radius: 1.5rem;
   padding: 2px;
   transition: all 0.3s ease;
-  box-shadow: 0 0 10px rgba(59, 130, 246, 0.25);
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.25);
 }
 
 .animated-quick-action:hover {
   animation-duration: 1s;
   transform: scale(1.02);
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4), 0 0 30px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.4), 0 0 30px rgba(249, 115, 22, 0.2);
 }
 
 .animated-quick-action-content {
@@ -293,16 +293,16 @@
 .animated-stats-card {
   position: relative;
   background: linear-gradient(135deg, 
-    rgba(59, 130, 246, 0.25), 
-    rgba(147, 197, 253, 0.2), 
-    rgba(59, 130, 246, 0.25), 
-    rgba(147, 197, 253, 0.2)
+    rgba(249, 115, 22, 0.25), 
+    rgba(251, 191, 36, 0.2), 
+    rgba(249, 115, 22, 0.25), 
+    rgba(251, 191, 36, 0.2)
   );
   background-size: 400% 400%;
   animation: runningBorder 3.5s linear infinite;
   border-radius: 1.5rem;
   padding: 3px;
-  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 15px rgba(249, 115, 22, 0.3);
 }
 
 .animated-stats-card::before {
@@ -311,10 +311,10 @@
   inset: 0;
   padding: 3px;
   background: linear-gradient(135deg, 
-    rgba(59, 130, 246, 0.8), 
-    rgba(147, 197, 253, 0.6), 
-    rgba(59, 130, 246, 0.8), 
-    rgba(147, 197, 253, 0.6)
+    rgba(249, 115, 22, 0.8), 
+    rgba(251, 191, 36, 0.6), 
+    rgba(249, 115, 22, 0.8), 
+    rgba(251, 191, 36, 0.6)
   );
   background-size: 400% 400%;
   border-radius: inherit;
@@ -340,21 +340,21 @@
 .animated-assignment-card {
   position: relative;
   background: linear-gradient(90deg, 
-    rgba(59, 130, 246, 0.15), 
-    rgba(147, 197, 253, 0.15), 
-    rgba(59, 130, 246, 0.15)
+    rgba(249, 115, 22, 0.15), 
+    rgba(251, 191, 36, 0.15), 
+    rgba(249, 115, 22, 0.15)
   );
   background-size: 300% 300%;
   animation: runningBorder 4s linear infinite;
   border-radius: 1.5rem;
   padding: 2px;
   transition: all 0.3s ease;
-  box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.2);
 }
 
 .animated-assignment-card:hover {
   animation-duration: 2s;
-  box-shadow: 0 4px 25px rgba(59, 130, 246, 0.25), 0 0 15px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 25px rgba(249, 115, 22, 0.25), 0 0 15px rgba(249, 115, 22, 0.3);
 }
 
 .animated-assignment-card-content {
