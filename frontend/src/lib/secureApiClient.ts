@@ -96,10 +96,21 @@ class SecureApiClient {
       async (error) => {
         const originalRequest = error.config;
 
-        // Handle 401 Unauthorized - immediately logout and redirect
-        if (error.response?.status === 401) {
-          this.handleAuthFailure();
-          return Promise.reject(new Error('Authentication required. Please login again.'));
+        // Handle 401 Unauthorized - try token refresh first, then logout
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+          try {
+            await this.refreshAuthToken();
+            // Update the Authorization header with the new token
+            const newToken = this.getStoredToken();
+            if (newToken) {
+              originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            }
+            return this.client(originalRequest);
+          } catch {
+            this.handleAuthFailure();
+            return Promise.reject(new Error('Session expired. Please login again.'));
+          }
         }
 
         // Handle rate limiting
@@ -182,10 +193,16 @@ class SecureApiClient {
         refresh: deobfuscatedToken
       });
 
-      const { access } = response.data;
+      const { access, refresh: newRefreshRaw } = response.data;
       const obfuscatedAccess = btoa(access).split('').reverse().join('');
       sessionStorage.setItem('access_token', obfuscatedAccess);
-      useAuthStore.getState().setTokens(access, deobfuscatedToken);
+
+      // If backend rotated the refresh token, persist the new one
+      const updatedRefresh = newRefreshRaw || deobfuscatedToken;
+      const obfuscatedRefresh = btoa(updatedRefresh).split('').reverse().join('');
+      localStorage.setItem('refresh_token', obfuscatedRefresh);
+
+      useAuthStore.getState().setTokens(access, updatedRefresh);
     } catch (error) {
       // If refresh fails, clear everything and force login
       this.handleAuthFailure();
