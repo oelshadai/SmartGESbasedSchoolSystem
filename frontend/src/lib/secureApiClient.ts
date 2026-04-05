@@ -97,7 +97,9 @@ class SecureApiClient {
         const originalRequest = error.config;
 
         // Handle 401 Unauthorized - try token refresh first, then logout
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Skip refresh logic for auth endpoints (login, token obtain/refresh)
+        const isAuthEndpoint = originalRequest?.url?.includes('/auth/');
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
           originalRequest._retry = true;
           try {
             await this.refreshAuthToken();
