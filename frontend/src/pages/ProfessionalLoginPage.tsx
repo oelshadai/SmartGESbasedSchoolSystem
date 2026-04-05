@@ -97,7 +97,7 @@ const ProfessionalLoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-3 sm:p-4 relative overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl animate-pulse" />
@@ -109,7 +109,7 @@ const ProfessionalLoginPage = () => {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
 
       <div className="relative w-full max-w-6xl">
-        <div className="grid lg:grid-cols-2 gap-8 items-center">
+        <div className="grid lg:grid-cols-2 gap-4 lg:gap-8 items-center">
           {/* Left side - Branding */}
           <div className="hidden lg:block space-y-8 p-8">
             <div className="space-y-6">
@@ -176,31 +176,31 @@ const ProfessionalLoginPage = () => {
 
           {/* Right side - Login Form */}
           <div className="relative">
-            <div className="bg-slate-900/50 backdrop-blur-xl rounded-3xl border border-slate-800/50 shadow-2xl p-8 lg:p-10">
+            <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-slate-800/50 shadow-2xl p-5 sm:p-8 lg:p-10">
               {/* Mobile logo */}
-              <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
+              <div className="lg:hidden flex items-center justify-center gap-3 mb-5 sm:mb-8">
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl blur-lg opacity-50" />
-                  <div className="relative bg-gradient-to-br from-orange-500 to-amber-500 p-3 rounded-xl">
-                    <GraduationCap className="h-6 w-6 text-white" />
+                  <div className="relative bg-gradient-to-br from-orange-500 to-amber-500 p-2.5 sm:p-3 rounded-xl">
+                    <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                   </div>
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold text-white">School Report</h1>
+                  <h1 className="text-lg sm:text-xl font-bold text-white">School Report</h1>
                   <p className="text-xs text-slate-400">SaaS Platform</p>
                 </div>
               </div>
 
               {/* Header */}
-              <div className="text-center mb-8">
-                <h3 className="text-2xl font-bold text-white mb-2">Welcome Back</h3>
+              <div className="text-center mb-5 sm:mb-8">
+                <h3 className="text-xl sm:text-2xl font-bold text-white mb-1">Welcome Back</h3>
                 <p className="text-slate-400 text-sm">Sign in to access your dashboard</p>
               </div>
 
               {/* Role Selection */}
-              <div className="mb-6">
-                <Label className="text-slate-300 text-sm font-medium mb-3 block">Select Your Role</Label>
-                <div className="grid grid-cols-2 gap-3">
+              <div className="mb-4 sm:mb-6">
+                <Label className="text-slate-300 text-xs sm:text-sm font-medium mb-2 sm:mb-3 block">Select Your Role</Label>
+                <div className="grid grid-cols-3 sm:grid-cols-3 gap-2 sm:gap-3">
                   {ROLE_CONFIGS.map((role) => {
                     const RoleIcon = role.icon;
                     const isActive = loginRole === role.key;
@@ -209,15 +209,15 @@ const ProfessionalLoginPage = () => {
                         key={role.key}
                         type="button"
                         onClick={() => handleRoleChange(role.key)}
-                        className={`relative group p-4 rounded-xl transition-all duration-200 ${
+                        className={`relative group px-2 py-3 sm:p-4 rounded-xl transition-all duration-200 ${
                           isActive
                             ? 'bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg shadow-orange-500/25'
                             : 'bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50'
                         }`}
                       >
-                        <div className="flex flex-col items-center gap-2">
-                          <RoleIcon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-300'}`} />
-                          <span className={`text-sm font-medium ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-300'}`}>
+                        <div className="flex flex-col items-center gap-1.5 sm:gap-2">
+                          <RoleIcon className={`h-4 w-4 sm:h-5 sm:w-5 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-300'}`} />
+                          <span className={`text-xs sm:text-sm font-medium ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-300'}`}>
                             {role.label}
                           </span>
                         </div>
@@ -228,11 +228,11 @@ const ProfessionalLoginPage = () => {
                     );
                   })}
                 </div>
-                <p className="text-xs text-slate-500 mt-3 text-center">{currentRole.description}</p>
+                <p className="text-xs text-slate-500 mt-2 sm:mt-3 text-center">{currentRole.description}</p>
               </div>
 
               {/* Login Form */}
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
                 {error && (
                   <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-start gap-3">
                     <div className="flex-shrink-0 w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center mt-0.5">
