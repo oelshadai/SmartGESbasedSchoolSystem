@@ -5,7 +5,8 @@ import { authService } from '@/services/authService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { GraduationCap, Loader2, BookOpen, Lock, Shield, Eye, EyeOff, CheckCircle2, ArrowRight } from 'lucide-react';
+import { GraduationCap, Loader2, BookOpen, Lock, Shield, Eye, EyeOff, CheckCircle2, ArrowRight, X } from 'lucide-react';
+import { secureApiClient } from '@/lib/secureApiClient';
 
 type LoginRole = 'student' | 'teacher' | 'admin';
 
@@ -56,6 +57,14 @@ const ProfessionalLoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Forgot password state
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState('');
+  const [forgotError, setForgotError] = useState('');
+
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
 
@@ -94,6 +103,22 @@ const ProfessionalLoginPage = () => {
     setIdentifier('');
     setPassword('');
     setError('');
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError('');
+    setForgotMessage('');
+    setForgotLoading(true);
+    try {
+      await secureApiClient.post('/auth/forgot-password/', { email: forgotEmail });
+      setForgotMessage('If that email exists, a reset link has been sent. Check your inbox.');
+      setForgotEmail('');
+    } catch {
+      setForgotError('Something went wrong. Please try again.');
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
   return (
@@ -301,6 +326,19 @@ const ProfessionalLoginPage = () => {
                   )}
                 </Button>
 
+                <div className="text-right -mt-2">
+                  {loginRole === 'student' ? (
+                    <span className="text-xs text-slate-500">Forgot password? Contact your class teacher or admin.</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => { setShowForgot(true); setForgotMessage(''); setForgotError(''); }}
+                      className="text-xs text-orange-400 hover:text-orange-300 transition-colors"
+                    >
+                      Forgot Password?
+                    </button>
+                  )}
+                </div>
                 {loading && (
                   <p className="text-xs text-slate-500 text-center animate-pulse">
                     Establishing secure connection...
@@ -345,6 +383,47 @@ const ProfessionalLoginPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      {showForgot && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-white font-semibold text-lg">Reset Password</h2>
+              <button onClick={() => setShowForgot(false)} className="text-slate-400 hover:text-white transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-slate-400 text-sm mb-4">Enter your email address and we'll send you a link to reset your password.</p>
+            {forgotMessage ? (
+              <div className="bg-green-950/50 border border-green-800 rounded-lg p-3 text-green-300 text-sm">{forgotMessage}</div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div>
+                  <Label htmlFor="forgot-email" className="text-slate-300 text-sm">Email Address</Label>
+                  <Input
+                    id="forgot-email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    required
+                    className="mt-1 bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-orange-500"
+                  />
+                </div>
+                {forgotError && <p className="text-red-400 text-xs">{forgotError}</p>}
+                <Button
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-xl"
+                >
+                  {forgotLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending...</> : 'Send Reset Link'}
+                </Button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

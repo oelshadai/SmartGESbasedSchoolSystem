@@ -7,6 +7,7 @@ import { useAuthStore, getRoleDashboardPath } from "@/stores/authStore";
 
 import LoginPage from "./pages/ProfessionalLoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AuthShowcase from "./pages/AuthShowcase";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 import NotFound from "./pages/NotFound";
@@ -89,6 +90,7 @@ const App = () => {
             <Route path="/" element={<HomeRedirect />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/auth-demo" element={<AuthShowcase />} />
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
