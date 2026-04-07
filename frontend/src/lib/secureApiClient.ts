@@ -171,13 +171,18 @@ class SecureApiClient {
   }
 
   private getStoredToken(): string | null {
-    const token = sessionStorage.getItem('access_token');
+    // Try sessionStorage first; fall back to localStorage (survives page refresh)
+    let token = sessionStorage.getItem('access_token');
+    if (!token) {
+      token = localStorage.getItem('access_token');
+      // Restore into sessionStorage for this tab
+      if (token) sessionStorage.setItem('access_token', token);
+    }
     if (token) {
       try {
-        // Deobfuscate using the same method as authService
         return atob(token.split('').reverse().join(''));
       } catch {
-        return token; // Return as-is if not obfuscated
+        return token;
       }
     }
     return null;
@@ -197,7 +202,12 @@ class SecureApiClient {
 
       const { access, refresh: newRefreshRaw } = response.data;
       const obfuscatedAccess = btoa(access).split('').reverse().join('');
+      const timestamp = Date.now().toString();
+      // Write to both storages so the token survives page refreshes
       sessionStorage.setItem('access_token', obfuscatedAccess);
+      sessionStorage.setItem('token_timestamp', timestamp);
+      localStorage.setItem('access_token', obfuscatedAccess);
+      localStorage.setItem('token_timestamp', timestamp);
 
       // If backend rotated the refresh token, persist the new one
       const updatedRefresh = newRefreshRaw || deobfuscatedToken;
@@ -213,9 +223,13 @@ class SecureApiClient {
   }
 
   private handleAuthFailure(): void {
-    // Clear all auth data completely
-    sessionStorage.clear();
-    localStorage.clear();
+    // Clear auth data only — don't wipe unrelated localStorage keys
+    sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('token_timestamp');
+    sessionStorage.removeItem('user_data');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('token_timestamp');
+    localStorage.removeItem('refresh_token');
     useAuthStore.getState().logout();
 
     // Force redirect to login

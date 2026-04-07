@@ -3,7 +3,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, Eye, KeyRound, Copy, Check } from 'lucide-react';
+import { Edit, Trash2, Eye, KeyRound, Copy, Check, Bell, CheckCircle2, XCircle } from 'lucide-react';
 import secureApiClient from '@/lib/secureApiClient';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -41,9 +41,63 @@ const StudentsManagement = () => {
   const [credentials, setCredentials] = useState<{ student_name: string; username: string; password: string; class_name: string } | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
+  // Profile change requests
+  const [profileRequests, setProfileRequests] = useState<any[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [showRequestsPanel, setShowRequestsPanel] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectingRequest, setRejectingRequest] = useState<any>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [processingRequest, setProcessingRequest] = useState(false);
+
   const handleViewStudent = (student: any) => {
     setSelectedStudent(student);
     setShowViewDialog(true);
+  };
+
+  const fetchProfileRequests = async () => {
+    setLoadingRequests(true);
+    try {
+      const res = await secureApiClient.get('/students/profile-change-requests/?status=PENDING');
+      setProfileRequests(Array.isArray(res) ? res : res.results || []);
+    } catch (err) {
+      console.error('Failed to load profile requests:', err);
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  const handleApproveRequest = async (req: any) => {
+    setProcessingRequest(true);
+    try {
+      await secureApiClient.post(`/students/profile-change-requests/${req.id}/approve/`);
+      setProfileRequests(prev => prev.filter(r => r.id !== req.id));
+    } catch (err: any) {
+      alert(err?.message || 'Failed to approve request');
+    } finally {
+      setProcessingRequest(false);
+    }
+  };
+
+  const handleOpenReject = (req: any) => {
+    setRejectingRequest(req);
+    setRejectReason('');
+    setShowRejectDialog(true);
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectingRequest) return;
+    setProcessingRequest(true);
+    try {
+      await secureApiClient.post(`/students/profile-change-requests/${rejectingRequest.id}/reject/`, { reason: rejectReason });
+      setProfileRequests(prev => prev.filter(r => r.id !== rejectingRequest.id));
+      setShowRejectDialog(false);
+      setRejectingRequest(null);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to reject request');
+    } finally {
+      setProcessingRequest(false);
+    }
   };
 
   const handleViewCredentials = async (student: any) => {
@@ -241,6 +295,87 @@ const StudentsManagement = () => {
         actionLabel="Add Student"
         onAction={handleOpenDialog}
       />
+
+      {/* Profile Change Requests Panel */}
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() => {
+            setShowRequestsPanel(v => !v);
+            if (!showRequestsPanel) fetchProfileRequests();
+          }}
+        >
+          <Bell className="h-4 w-4" />
+          Profile Change Requests
+          {profileRequests.length > 0 && (
+            <Badge className="bg-amber-500 text-white border-0 text-xs ml-1">{profileRequests.length}</Badge>
+          )}
+        </Button>
+      </div>
+
+      {showRequestsPanel && (
+        <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-sm">Pending Profile Change Requests</h3>
+            <Button variant="ghost" size="sm" onClick={fetchProfileRequests} disabled={loadingRequests}>
+              {loadingRequests ? 'Loading…' : 'Refresh'}
+            </Button>
+          </div>
+          {loadingRequests ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">Loading requests…</p>
+          ) : profileRequests.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No pending requests.</p>
+          ) : (
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {profileRequests.map((req: any) => (
+                <div key={req.id} className="border border-border rounded-lg p-3 bg-muted/30">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-sm">{req.requester_name}</span>
+                        <Badge variant="outline" className="text-xs">{req.requester_type}</Badge>
+                      </div>
+                      <div className="space-y-0.5">
+                        {Object.entries(req.requested_changes || {}).map(([k, v]) => (
+                          <p key={k} className="text-xs text-muted-foreground">
+                            <span className="font-medium capitalize">{k.replace(/_/g, ' ')}:</span>{' '}
+                            <span className="text-foreground">{String(v)}</span>
+                          </p>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(req.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                        onClick={() => handleApproveRequest(req)}
+                        disabled={processingRequest}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1 text-xs text-destructive border-destructive/30 hover:bg-destructive/5"
+                        onClick={() => handleOpenReject(req)}
+                        disabled={processingRequest}
+                      >
+                        <XCircle className="h-3.5 w-3.5" /> Reject
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       
       {loading ? (
         <div className="bg-muted/50 rounded-lg p-8 text-center text-muted-foreground">Loading students...</div>
@@ -433,6 +568,31 @@ const StudentsManagement = () => {
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
             <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
               {deleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Profile Change Dialog */}
+      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Reject Profile Change</DialogTitle>
+            <DialogDescription>
+              Optionally provide a reason for rejecting this request.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Input
+              placeholder="Reason (optional)"
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRejectDialog(false)} disabled={processingRequest}>Cancel</Button>
+            <Button variant="destructive" onClick={handleConfirmReject} disabled={processingRequest}>
+              {processingRequest ? 'Rejecting…' : 'Reject Request'}
             </Button>
           </DialogFooter>
         </DialogContent>

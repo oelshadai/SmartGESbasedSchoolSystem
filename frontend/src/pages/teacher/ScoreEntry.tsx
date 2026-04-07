@@ -60,13 +60,18 @@ const ScoreEntry = () => {
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [teacherClass, setTeacherClass] = useState<any>(null);
+  const [availableClasses, setAvailableClasses] = useState<any[]>([]);
+  const [selectedClass, setSelectedClass] = useState<any>(null);
+  const [formClassId, setFormClassId] = useState<number | null>(null);
+  const [teacherSubjectsByClass, setTeacherSubjectsByClass] = useState<Record<number, number[]>>({});
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [scoreEntryMode, setScoreEntryMode] = useState<'CLASS_TEACHER' | 'SUBJECT_TEACHER'>('SUBJECT_TEACHER');
   const [entryMode, setEntryMode] = useState<'single' | 'multiple'>('single');
   const [scores, setScores] = useState<Record<string, ScoreData>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loadingStudents, setLoadingStudents] = useState(false);
-  const [currentStep, setCurrentStep] = useState<'mode' | 'subjects' | 'entry'>('mode');
+  const [currentStep, setCurrentStep] = useState<'mode' | 'class' | 'subjects' | 'entry'>('mode');
   const [currentStudentIndex, setCurrentStudentIndex] = useState(0);
   const [savedScores, setSavedScores] = useState<Set<string>>(new Set());
   const [showPreview, setShowPreview] = useState(false);
@@ -81,6 +86,10 @@ const ScoreEntry = () => {
   const [loadingPublished, setLoadingPublished] = useState(false);
   const [showPublishedReports, setShowPublishedReports] = useState(false);
   const { toast } = useToast();
+
+  const proceedToClassStep = () => {
+    setCurrentStep('class');
+  };
 
   const proceedToSubjects = () => {
     setCurrentStep('subjects');
@@ -98,6 +107,10 @@ const ScoreEntry = () => {
 
   const goBackToMode = () => {
     setCurrentStep('mode');
+  };
+
+  const goBackToClass = () => {
+    setCurrentStep('class');
   };
 
   const goBackToSubjects = () => {
@@ -269,10 +282,10 @@ const ScoreEntry = () => {
   }, []);
 
   useEffect(() => {
-    if (currentTerm && ((entryMode === 'single' && selectedSubject) || (entryMode === 'multiple' && selectedSubjects.length > 0))) {
+    if (currentTerm && selectedClass && ((entryMode === 'single' && selectedSubject) || (entryMode === 'multiple' && selectedSubjects.length > 0))) {
       fetchStudents();
     }
-  }, [selectedSubject, selectedSubjects, currentTerm, entryMode]);
+  }, [selectedSubject, selectedSubjects, currentTerm, entryMode, selectedClass]);
 
   const fetchData = async () => {
     try {
@@ -283,119 +296,67 @@ const ScoreEntry = () => {
         secureApiClient.get('/schools/settings/')
       ]);
 
-      // Get school's score entry mode setting
-      let schoolScoreEntryMode = 'SUBJECT_TEACHER'; // default
       if (schoolSettingsResponse?.score_entry_mode) {
-        schoolScoreEntryMode = schoolSettingsResponse.score_entry_mode;
         setScoreEntryMode(schoolSettingsResponse.score_entry_mode);
       }
 
       const assignments = Array.isArray(assignmentsResponse) ? assignmentsResponse : assignmentsResponse.results || [];
-      
-      // Check if teacher is a class teacher (has form_class assignment)
-      const formClassAssignment = assignments.find((assignment: any) => 
-        assignment.type === 'form_class' || assignment.type === 'class_teacher'
-      );
-      
-      // Get subject assignments (subjects teacher teaches)
-      const subjectAssignments = assignments.filter((assignment: any) => 
-        assignment.type === 'subject_class' && assignment.class
+
+      // Find form-class (class teacher) assignment
+      const formClassAssignment = assignments.find((a: any) =>
+        a.type === 'form_class' || a.type === 'class_teacher'
       );
 
-      // FIXED LOGIC: Determine what classes/subjects teacher can access based on school setting
-      if (schoolScoreEntryMode === 'CLASS_TEACHER') {
-        // CLASS_TEACHER mode: Only class teachers can enter scores, and they can enter for ALL subjects in their class
-        if (formClassAssignment?.class) {
-          setTeacherClass(formClassAssignment.class);
-          
-          // Get ALL subjects for this class (not just what teacher teaches)
-          const classSubjectsResponse = await secureApiClient.get(`/schools/class-subjects/?class_instance=${formClassAssignment.class.id}`);
-          const classSubjectsData = Array.isArray(classSubjectsResponse) ? classSubjectsResponse : classSubjectsResponse.results || [];
-          
-          const mappedSubjects = classSubjectsData.map((cs: any) => ({
-            id: cs.id,
-            subject: {
-              id: cs.subject?.id || cs.subject_id,
-              name: cs.subject?.name || cs.subject_name
-            },
-            class_instance: {
-              id: cs.class_instance?.id || formClassAssignment.class.id,
-              name: cs.class_instance?.name || formClassAssignment.class.name
-            }
-          }));
-          setClassSubjects(mappedSubjects);
-        } else {
-          // Teacher is not a class teacher, show error
-          toast({ 
-            title: 'Access Denied', 
-            description: 'School is set to Class Teacher mode. Only class teachers can enter scores.', 
-            variant: 'destructive' 
-          });
-          setClassSubjects([]);
-        }
-      } else {
-        // SUBJECT_TEACHER mode: Teachers can enter scores for subjects they teach
-        if (subjectAssignments.length > 0) {
-          // Use the first class from subject assignments (or could show multiple classes)
-          const firstClass = subjectAssignments[0].class;
-          setTeacherClass(firstClass);
-          
-          // Get only the subjects this teacher is assigned to teach
-          const teacherSubjectIds = subjectAssignments.map(sa => sa.subject?.id).filter(Boolean);
-          
-          const classSubjectsResponse = await secureApiClient.get(`/schools/class-subjects/?class_instance=${firstClass.id}`);
-          const classSubjectsData = Array.isArray(classSubjectsResponse) ? classSubjectsResponse : classSubjectsResponse.results || [];
-          
-          // Filter to only subjects this teacher teaches
-          const mappedSubjects = classSubjectsData
-            .filter((cs: any) => teacherSubjectIds.includes(cs.subject?.id || cs.subject_id))
-            .map((cs: any) => ({
-              id: cs.id,
-              subject: {
-                id: cs.subject?.id || cs.subject_id,
-                name: cs.subject?.name || cs.subject_name
-              },
-              class_instance: {
-                id: cs.class_instance?.id || firstClass.id,
-                name: cs.class_instance?.name || firstClass.name
-              }
-            }));
-          setClassSubjects(mappedSubjects);
-        } else if (formClassAssignment?.class) {
-          // Fallback: If teacher is class teacher but no subject assignments, allow all subjects
-          setTeacherClass(formClassAssignment.class);
-          
-          const classSubjectsResponse = await secureApiClient.get(`/schools/class-subjects/?class_instance=${formClassAssignment.class.id}`);
-          const classSubjectsData = Array.isArray(classSubjectsResponse) ? classSubjectsResponse : classSubjectsResponse.results || [];
-          
-          const mappedSubjects = classSubjectsData.map((cs: any) => ({
-            id: cs.id,
-            subject: {
-              id: cs.subject?.id || cs.subject_id,
-              name: cs.subject?.name || cs.subject_name
-            },
-            class_instance: {
-              id: cs.class_instance?.id || formClassAssignment.class.id,
-              name: cs.class_instance?.name || formClassAssignment.class.name
-            }
-          }));
-          setClassSubjects(mappedSubjects);
-        } else {
-          // Teacher has no assignments
-          toast({ 
-            title: 'No Assignments', 
-            description: 'You have not been assigned to teach any subjects or classes.', 
-            variant: 'destructive' 
-          });
-          setClassSubjects([]);
-        }
+      // Find subject (non-form) class assignments
+      const subjectAssignments = assignments.filter((a: any) =>
+        a.type === 'subject_class' && a.class
+      );
+
+      // Store form class id — determines "all subjects" access
+      const fClassId = formClassAssignment?.class?.id || null;
+      setFormClassId(fClassId);
+      if (formClassAssignment?.class) {
+        setTeacherClass(formClassAssignment.class);
       }
 
-      if (currentTermResponse && currentTermResponse.id) {
+      // Build map: classId → subjectIds teacher is assigned to teach
+      const subjectsByClass: Record<number, number[]> = {};
+      subjectAssignments.forEach((sa: any) => {
+        const cId = sa.class?.id;
+        const sId = sa.subject?.id;
+        if (cId && sId) {
+          if (!subjectsByClass[cId]) subjectsByClass[cId] = [];
+          if (!subjectsByClass[cId].includes(sId)) subjectsByClass[cId].push(sId);
+        }
+      });
+      setTeacherSubjectsByClass(subjectsByClass);
+
+      // Build deduplicated list of accessible classes
+      const classMap: Record<number, any> = {};
+      if (formClassAssignment?.class) {
+        classMap[formClassAssignment.class.id] = { ...formClassAssignment.class, isFormClass: true };
+      }
+      subjectAssignments.forEach((sa: any) => {
+        if (sa.class?.id && !classMap[sa.class.id]) {
+          classMap[sa.class.id] = { ...sa.class, isFormClass: false };
+        }
+      });
+      const classes = Object.values(classMap);
+      setAvailableClasses(classes);
+
+      if (classes.length === 0) {
+        toast({
+          title: 'No Assignments',
+          description: 'You have not been assigned to any class or subject.',
+          variant: 'destructive',
+        });
+      }
+
+      if (currentTermResponse?.id) {
         setCurrentTerm({
           id: currentTermResponse.id,
           name: currentTermResponse.name || 'Current Term',
-          academic_year: currentTermResponse.academic_year_name || ''
+          academic_year: currentTermResponse.academic_year_name || '',
         });
       }
     } catch (error) {
@@ -409,14 +370,7 @@ const ScoreEntry = () => {
   const fetchStudents = async () => {
     try {
       setLoadingStudents(true);
-      let classId;
-      
-      if (entryMode === 'single') {
-        const selectedSubjectData = classSubjects.find(cs => cs.id.toString() === selectedSubject);
-        classId = selectedSubjectData?.class_instance?.id;
-      } else {
-        classId = teacherClass?.id;
-      }
+      const classId = selectedClass?.id || teacherClass?.id;
 
       if (!classId || !currentTerm) return;
 
@@ -431,6 +385,44 @@ const ScoreEntry = () => {
       toast({ title: 'Error', description: 'Failed to load students', variant: 'destructive' });
     } finally {
       setLoadingStudents(false);
+    }
+  };
+
+  const handleClassSelect = async (cls: any) => {
+    setSelectedClass(cls);
+    setTeacherClass(cls);
+    setSelectedSubject('');
+    setSelectedSubjects([]);
+    setClassSubjects([]);
+    try {
+      setLoadingSubjects(true);
+      const response = await secureApiClient.get(`/schools/class-subjects/?class_instance=${cls.id}`);
+      const data = Array.isArray(response) ? response : response.results || [];
+      let subjects;
+      if (cls.id === formClassId) {
+        // Assigned (form) class → show ALL subjects
+        subjects = data.map((cs: any) => ({
+          id: cs.id,
+          subject: { id: cs.subject?.id || cs.subject_id, name: cs.subject?.name || cs.subject_name },
+          class_instance: { id: cls.id, name: cls.name },
+        }));
+      } else {
+        // Not the form class → only teacher's assigned subjects
+        const assignedSubjectIds = teacherSubjectsByClass[cls.id] || [];
+        subjects = data
+          .filter((cs: any) => assignedSubjectIds.includes(cs.subject?.id || cs.subject_id))
+          .map((cs: any) => ({
+            id: cs.id,
+            subject: { id: cs.subject?.id || cs.subject_id, name: cs.subject?.name || cs.subject_name },
+            class_instance: { id: cls.id, name: cls.name },
+          }));
+      }
+      setClassSubjects(subjects);
+    } catch (error) {
+      console.error('Failed to fetch class subjects:', error);
+      toast({ title: 'Error', description: 'Failed to load subjects for selected class', variant: 'destructive' });
+    } finally {
+      setLoadingSubjects(false);
     }
   };
 
@@ -1067,11 +1059,85 @@ const ScoreEntry = () => {
               </div>
               
               <div className="flex justify-center mt-6">
-                <Button onClick={proceedToSubjects} disabled={!entryMode} size="lg">
+                <Button onClick={proceedToClassStep} disabled={!entryMode} size="lg">
                   <ArrowRight className="h-4 w-4 mr-2" />
                   Continue
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Class Selection Step */}
+      {currentStep === 'class' && currentTerm && (
+        <div className="space-y-6">
+          <div className="animated-border">
+            <div className="animated-border-content p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold">Select Class</h3>
+                <Button variant="outline" size="sm" onClick={goBackToMode}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back
+                </Button>
+              </div>
+
+              {availableClasses.length === 0 ? (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    No classes found. Please ensure you have been assigned to a class or subject.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {availableClasses.map(cls => (
+                    <div
+                      key={cls.id}
+                      className={`animated-quick-action cursor-pointer transition-all ${selectedClass?.id === cls.id ? 'ring-2 ring-primary' : ''}`}
+                      onClick={() => handleClassSelect(cls)}
+                    >
+                      <div className="animated-quick-action-content p-5">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-semibold">{cls.name}</div>
+                            {cls.isFormClass ? (
+                              <Badge variant="default" className="mt-1 text-xs">Assigned Class</Badge>
+                            ) : (
+                              <Badge variant="outline" className="mt-1 text-xs">Subject Class</Badge>
+                            )}
+                          </div>
+                          {selectedClass?.id === cls.id && <CheckCircle className="h-5 w-5 text-primary" />}
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {cls.isFormClass
+                            ? 'All class subjects available (you are class teacher)'
+                            : 'Your assigned subjects only'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {loadingSubjects && (
+                <div className="text-center py-4 text-sm text-muted-foreground">Loading subjects...</div>
+              )}
+
+              {selectedClass && !loadingSubjects && (
+                <div className="mt-6 flex justify-center">
+                  <Button
+                    onClick={proceedToSubjects}
+                    size="lg"
+                    disabled={classSubjects.length === 0}
+                  >
+                    <ArrowRight className="h-4 w-4 mr-2" />
+                    {classSubjects.length === 0
+                      ? 'No subjects available'
+                      : `Continue (${classSubjects.length} subject${classSubjects.length === 1 ? '' : 's'})`}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1084,7 +1150,7 @@ const ScoreEntry = () => {
             <div className="animated-border-content p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold">Select {entryMode === 'single' ? 'Subject' : 'Subjects'}</h3>
-                <Button variant="outline" size="sm" onClick={goBackToMode}>
+                <Button variant="outline" size="sm" onClick={goBackToClass}>
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back
                 </Button>
@@ -1103,12 +1169,12 @@ const ScoreEntry = () => {
                 <div className="space-y-4">
                   <Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={classSubjects.length === 0}>
                     <SelectTrigger>
-                      <SelectValue placeholder={classSubjects.length === 0 ? "No subjects available" : "Select subject and class"} />
+                      <SelectValue placeholder={classSubjects.length === 0 ? "No subjects available" : "Select a subject"} />
                     </SelectTrigger>
                     <SelectContent>
                       {classSubjects.length > 0 && classSubjects.map(cs => (
                         <SelectItem key={cs.id} value={cs.id.toString()}>
-                          {cs.subject.name} - {cs.class_instance.name}
+                          {cs.subject.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

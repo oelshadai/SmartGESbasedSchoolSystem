@@ -53,16 +53,26 @@ const ReportPreviewModal = ({
   };
 
   const handlePrint = () => {
-    const iframe = document.querySelector('iframe');
-    if (iframe && iframe.contentWindow) {
-      iframe.contentWindow.print();
-    } else {
+    // Browsers block cross-origin iframe.contentWindow.print().
+    // Open the report URL in a new popup so we own the window and can call print().
+    const src = getIframeSrc();
+    const printUrl = src.includes('#') ? src : `${src}#print`;
+    const popup = window.open(printUrl, '_blank', 'width=900,height=700');
+    if (!popup) {
       toast({
         title: 'Print Error',
-        description: 'Unable to print. Please try again.',
-        variant: 'destructive'
+        description: 'Pop-up was blocked. Please allow pop-ups for this site and try again.',
+        variant: 'destructive',
       });
+      return;
     }
+    popup.onload = () => {
+      try {
+        popup.print();
+      } catch {
+        // If print() is still blocked (rare), just leave the window open for manual print
+      }
+    };
   };
 
   const handleSavePDF = async () => {

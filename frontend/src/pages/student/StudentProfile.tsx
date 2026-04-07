@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { secureApiClient } from '@/lib/secureApiClient';
 import { toast } from 'sonner';
 import {
   User, GraduationCap, Shield, Loader2, AlertCircle,
-  RefreshCw, Eye, EyeOff, Save, Phone, Mail
+  RefreshCw, Eye, EyeOff, Save, Phone, Pencil, X, Clock
 } from 'lucide-react';
 
 interface StudentData {
@@ -27,6 +28,13 @@ interface StudentData {
   admission_date: string | null;
 }
 
+interface PendingRequest {
+  id: number;
+  status: string;
+  requested_changes: Record<string, string>;
+  created_at: string;
+}
+
 const formatDate = (iso: string | null) => {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -42,11 +50,29 @@ const Row = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
+const EDITABLE_FIELD_LABELS: Record<string, string> = {
+  guardian_name: 'Guardian Name',
+  guardian_phone: 'Guardian Phone',
+  guardian_email: 'Guardian Email',
+  guardian_address: 'Guardian Address',
+};
+
 const StudentProfile = () => {
   const [student, setStudent] = useState<StudentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingRequest, setPendingRequest] = useState<PendingRequest | null>(null);
+
+  // Edit mode
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState<Record<string, string>>({
+    guardian_name: '',
+    guardian_phone: '',
+    guardian_email: '',
+    guardian_address: '',
+  });
+  const [submitting, setSubmitting] = useState(false);
 
   // Password change
   const [currentPw, setCurrentPw] = useState('');
@@ -59,8 +85,21 @@ const StudentProfile = () => {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const res = await secureApiClient.get('/students/auth/dashboard/');
-      setStudent(res?.student ?? null);
+      const [dashRes, pendingRes] = await Promise.all([
+        secureApiClient.get('/students/auth/dashboard/'),
+        secureApiClient.get('/students/auth/pending-profile-change/'),
+      ]);
+      const s = dashRes?.student ?? null;
+      setStudent(s);
+      if (s) {
+        setEditForm({
+          guardian_name: s.guardian_name || '',
+          guardian_phone: s.guardian_phone || '',
+          guardian_email: s.guardian_email || '',
+          guardian_address: '',
+        });
+      }
+      setPendingRequest(pendingRes ?? null);
       setError(null);
     } catch (err: any) {
       setError(err?.response?.data?.error || err?.message || 'Failed to load profile');
@@ -71,6 +110,28 @@ const StudentProfile = () => {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  const handleSubmitChanges = async () => {
+    const changes: Record<string, string> = {};
+    Object.entries(editForm).forEach(([k, v]) => {
+      if (v.trim()) changes[k] = v.trim();
+    });
+    if (Object.keys(changes).length === 0) {
+      toast.error('No changes to submit');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await secureApiClient.post('/students/auth/request-profile-change/', changes);
+      toast.success('Change request submitted — awaiting admin approval');
+      setEditMode(false);
+      fetchData(true);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to submit request');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleChangePassword = async () => {
     if (!currentPw || !newPw || !confirmPw) {
@@ -138,6 +199,17 @@ const StudentProfile = () => {
         </Button>
       </div>
 
+      {/* Pending request banner */}
+      {pendingRequest && (
+        <Alert className="border-amber-200 bg-amber-50">
+          <Clock className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800 text-sm">
+            <strong>Profile update pending admin approval</strong> — submitted {formatDate(pendingRequest.created_at)}.
+            Changes: {Object.keys(pendingRequest.requested_changes).map(k => EDITABLE_FIELD_LABELS[k] || k).join(', ')}.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Avatar card */}
       <div className="bg-card border border-border rounded-2xl p-5">
         <div className="flex items-center gap-4">
@@ -184,22 +256,61 @@ const StudentProfile = () => {
         <Row label="Class" value={student.class} />
       </div>
 
-      {/* Guardian info */}
+      {/* Guardian info – editable */}
       <div className="bg-card border border-border rounded-2xl p-5 space-y-1">
-        <div className="flex items-center gap-2 mb-3">
-          <Phone className="h-4 w-4 text-primary" />
-          <p className="text-sm font-semibold text-foreground">Guardian Information</p>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Phone className="h-4 w-4 text-primary" />
+            <p className="text-sm font-semibold text-foreground">Guardian Information</p>
+          </div>
+          {!editMode && !pendingRequest && (
+            <Button variant="ghost" size="sm" onClick={() => setEditMode(true)} className="h-7 px-2 text-xs gap-1">
+              <Pencil className="h-3 w-3" /> Edit
+            </Button>
+          )}
         </div>
-        <Row label="Name" value={student.guardian_name} />
-        <Row label="Phone" value={student.guardian_phone} />
-        {student.guardian_email && <Row label="Email" value={student.guardian_email} />}
+
+        {editMode ? (
+          <div className="space-y-3 mt-2">
+            <p className="text-xs text-muted-foreground bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              Changes will be reviewed by admin before taking effect.
+            </p>
+            {(Object.keys(editForm) as Array<keyof typeof editForm>).map(field => (
+              <div key={field}>
+                <Label className="text-xs text-muted-foreground">{EDITABLE_FIELD_LABELS[field]}</Label>
+                <Input
+                  className="mt-1 text-sm"
+                  value={editForm[field]}
+                  onChange={e => setEditForm(prev => ({ ...prev, [field]: e.target.value }))}
+                  placeholder={EDITABLE_FIELD_LABELS[field]}
+                />
+              </div>
+            ))}
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" onClick={handleSubmitChanges} disabled={submitting} className="flex-1">
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+                Submit for Approval
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setEditMode(false)} disabled={submitting}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <Row label="Name" value={student.guardian_name} />
+            <Row label="Phone" value={student.guardian_phone} />
+            {student.guardian_email && <Row label="Email" value={student.guardian_email} />}
+          </>
+        )}
       </div>
 
-      {/* Change password */}
+      {/* Change password — no approval needed */}
       <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-primary" />
           <p className="text-sm font-semibold text-foreground">Change Password</p>
+          <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px] ml-auto">No approval needed</Badge>
         </div>
 
         <div className="space-y-3">
@@ -222,7 +333,6 @@ const StudentProfile = () => {
               </button>
             </div>
           </div>
-
           <div>
             <Label className="text-xs text-muted-foreground">New Password</Label>
             <Input
@@ -233,7 +343,6 @@ const StudentProfile = () => {
               placeholder="At least 6 characters"
             />
           </div>
-
           <div>
             <Label className="text-xs text-muted-foreground">Confirm New Password</Label>
             <Input
@@ -244,18 +353,17 @@ const StudentProfile = () => {
               placeholder="Repeat new password"
             />
           </div>
-
           <Button
-            className="w-full gap-2"
             onClick={handleChangePassword}
             disabled={savingPw || !currentPw || !newPw || !confirmPw}
+            className="w-full"
+            size="sm"
           >
-            {savingPw ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            {savingPw ? 'Updating…' : 'Update Password'}
+            {savingPw ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+            Update Password
           </Button>
         </div>
       </div>
-
     </div>
   );
 };

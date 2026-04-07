@@ -132,6 +132,10 @@ export const useAuthStore = create<AuthState>()(
         
         // Clear tokens from storage
         sessionStorage.removeItem('access_token');
+        sessionStorage.removeItem('token_timestamp');
+        sessionStorage.removeItem('user_data');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('token_timestamp');
         localStorage.removeItem('refresh_token');
       },
       

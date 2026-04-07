@@ -24,27 +24,42 @@ class SecureTokenStorage {
   static setTokens(access: string, refresh: string): void {
     const timestamp = Date.now().toString();
     
-    // Store access token in sessionStorage (cleared on tab close)
-    sessionStorage.setItem(this.ACCESS_TOKEN_KEY, this.obfuscate(access));
+    // Store access token in BOTH sessionStorage and localStorage so it
+    // survives page refreshes (the server lifetime is 8 hours).
+    const obfuscatedAccess = this.obfuscate(access);
+    sessionStorage.setItem(this.ACCESS_TOKEN_KEY, obfuscatedAccess);
     sessionStorage.setItem(this.TOKEN_TIMESTAMP_KEY, timestamp);
+    localStorage.setItem(this.ACCESS_TOKEN_KEY, obfuscatedAccess);
+    localStorage.setItem(this.TOKEN_TIMESTAMP_KEY, timestamp);
     
     // Store refresh token in localStorage with obfuscation
     localStorage.setItem(this.REFRESH_TOKEN_KEY, this.obfuscate(refresh));
   }
   
   static getAccessToken(): string | null {
-    const token = sessionStorage.getItem(this.ACCESS_TOKEN_KEY);
-    const timestamp = sessionStorage.getItem(this.TOKEN_TIMESTAMP_KEY);
-    
+    // Try sessionStorage first; fall back to localStorage (survives page refresh)
+    let token = sessionStorage.getItem(this.ACCESS_TOKEN_KEY);
+    let timestamp = sessionStorage.getItem(this.TOKEN_TIMESTAMP_KEY);
+
+    if (!token || !timestamp) {
+      token = localStorage.getItem(this.ACCESS_TOKEN_KEY);
+      timestamp = localStorage.getItem(this.TOKEN_TIMESTAMP_KEY);
+      // Restore back into sessionStorage for this tab
+      if (token && timestamp) {
+        sessionStorage.setItem(this.ACCESS_TOKEN_KEY, token);
+        sessionStorage.setItem(this.TOKEN_TIMESTAMP_KEY, timestamp);
+      }
+    }
+
     if (!token || !timestamp) return null;
-    
-    // Check if token is too old (1 hour)
+
+    // Discard only if older than 8 hours (matches server ACCESS_TOKEN_LIFETIME)
     const tokenAge = Date.now() - parseInt(timestamp);
-    if (tokenAge > 60 * 60 * 1000) {
+    if (tokenAge > 8 * 60 * 60 * 1000) {
       this.clearAccessToken();
       return null;
     }
-    
+
     return this.deobfuscate(token);
   }
   
@@ -66,12 +81,16 @@ class SecureTokenStorage {
   static clearAccessToken(): void {
     sessionStorage.removeItem(this.ACCESS_TOKEN_KEY);
     sessionStorage.removeItem(this.TOKEN_TIMESTAMP_KEY);
+    localStorage.removeItem(this.ACCESS_TOKEN_KEY);
+    localStorage.removeItem(this.TOKEN_TIMESTAMP_KEY);
   }
   
   static clearAll(): void {
     sessionStorage.removeItem(this.ACCESS_TOKEN_KEY);
     sessionStorage.removeItem(this.USER_KEY);
     sessionStorage.removeItem(this.TOKEN_TIMESTAMP_KEY);
+    localStorage.removeItem(this.ACCESS_TOKEN_KEY);
+    localStorage.removeItem(this.TOKEN_TIMESTAMP_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
   }
   

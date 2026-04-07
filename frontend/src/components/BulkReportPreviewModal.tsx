@@ -89,16 +89,20 @@ const BulkReportPreviewModal = ({
   };
 
   const handlePrint = () => {
-    const iframe = document.querySelector('#bulk-reports-iframe') as HTMLIFrameElement;
-    if (iframe && iframe.contentWindow) {
-      iframe.contentWindow.print();
-    } else {
+    const src = getIframeSrc();
+    const printUrl = src.includes('#') ? src : `${src}#print`;
+    const popup = window.open(printUrl, '_blank', 'width=900,height=700');
+    if (!popup) {
       toast({
         title: 'Print Error',
-        description: 'Unable to print. Please try again.',
-        variant: 'destructive'
+        description: 'Pop-up was blocked. Please allow pop-ups for this site and try again.',
+        variant: 'destructive',
       });
+      return;
     }
+    popup.onload = () => {
+      try { popup.print(); } catch { /* leave window open for manual print */ }
+    };
   };
 
   const handleSavePDF = async () => {

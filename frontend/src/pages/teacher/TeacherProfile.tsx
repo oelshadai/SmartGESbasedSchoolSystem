@@ -3,8 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Save, User, BookOpen, Loader2, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Save, User, BookOpen, Loader2, AlertCircle, Clock } from 'lucide-react';
 import { teacherService, type TeacherProfile, type UpdateTeacherProfile, type ChangePasswordRequest } from '@/services/teacherService';
+import { secureApiClient } from '@/lib/secureApiClient';
 import { useAuthStore } from '@/stores/authStore';
 
 const TeacherProfile = () => {
@@ -14,6 +17,7 @@ const TeacherProfile = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  const [pendingRequest, setPendingRequest] = useState<any>(null);
   
   // Form states
   const [formData, setFormData] = useState<UpdateTeacherProfile>({
@@ -41,8 +45,12 @@ const TeacherProfile = () => {
     try {
       setLoading(true);
       setError('');
-      const profileData = await teacherService.getProfile();
+      const [profileData, pendingRes] = await Promise.all([
+        teacherService.getProfile(),
+        secureApiClient.get('/students/auth/teacher-pending-profile-change/').catch(() => null),
+      ]);
       setProfile(profileData);
+      setPendingRequest(pendingRes ?? null);
       
       // Initialize form data
       setFormData({
@@ -66,14 +74,13 @@ const TeacherProfile = () => {
       setError('');
       setSuccess('');
       
-      const updatedProfile = await teacherService.updateProfile(formData);
-      setProfile(updatedProfile);
-      setSuccess('Profile updated successfully!');
+      await secureApiClient.post('/students/auth/teacher-request-profile-change/', formData);
+      setSuccess('Change request submitted — awaiting admin approval.');
+      setPendingRequest({ requested_changes: formData, created_at: new Date().toISOString() });
       
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(''), 3000);
+      setTimeout(() => setSuccess(''), 4000);
     } catch (err: any) {
-      setError(err.message || 'Failed to update profile');
+      setError(err.message || 'Failed to submit change request');
     } finally {
       setSaving(false);
     }
@@ -175,6 +182,22 @@ const TeacherProfile = () => {
         </div>
       </div>
 
+      <div className="stat-card">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-foreground flex items-center gap-2">
+            Profile Information
+          </h3>
+          {pendingRequest && (
+            <Alert className="border-amber-200 bg-amber-50 py-2 px-3">
+              <Clock className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800 text-xs">
+                Profile update <strong>pending admin approval</strong>
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="stat-card space-y-4">
           <h3 className="font-semibold text-foreground flex items-center gap-2">
@@ -268,7 +291,10 @@ const TeacherProfile = () => {
       </div>
 
       <div className="stat-card space-y-4">
-        <h3 className="font-semibold text-foreground">Change Password</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-foreground">Change Password</h3>
+          <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">No approval needed</Badge>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Label>Current Password</Label>
@@ -314,14 +340,15 @@ const TeacherProfile = () => {
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <Button onClick={handleSaveProfile} disabled={saving}>
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">Changes will be reviewed by admin before taking effect.</p>
+        <Button onClick={handleSaveProfile} disabled={saving || !!pendingRequest}>
           {saving ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           ) : (
             <Save className="h-4 w-4 mr-2" />
           )}
-          Save Changes
+          {saving ? 'Submitting…' : pendingRequest ? 'Request Pending' : 'Request Changes'}
         </Button>
       </div>
     </div>
