@@ -1,41 +1,676 @@
+﻿import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Save, Users, MessageSquare, Shield } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Save, Users, Shield, Loader2, Trash2, Eye, EyeOff,
+  AlertCircle, RefreshCw, GraduationCap, Link2, UserPlus, Copy, CheckCircle2,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import secureApiClient from '@/lib/secureApiClient';
 
-const ParentPortalSettings = () => (
-  <div className="space-y-6 animate-fade-in">
-    <div>
-      <h1 className="text-2xl font-bold text-foreground">Parent Portal Settings</h1>
-      <p className="text-muted-foreground mt-1">Configure parent access and communication preferences</p>
-    </div>
+// -------------------------------------------------------------------------
+// Types
+// -------------------------------------------------------------------------
+interface PortalSettings {
+  parent_portal_enabled: boolean;
+  parent_can_view_grades: boolean;
+  parent_can_view_attendance: boolean;
+  parent_can_view_fees: boolean;
+  parent_can_view_reports: boolean;
+  parent_can_pay_fees_online: boolean;
+  parent_can_message_teachers: boolean;
+  parent_support_email: string;
+  paystack_public_key: string;
+  paystack_secret_key_saved: boolean;
+}
 
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="stat-card space-y-4">
-        <div className="flex items-center gap-2 mb-2"><Users className="h-5 w-5 text-secondary" /><h3 className="font-semibold text-foreground">Access Settings</h3></div>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between"><div><Label>Enable Parent Portal</Label><p className="text-xs text-muted-foreground">Allow parents to access the portal</p></div><Switch defaultChecked /></div>
-          <div className="flex items-center justify-between"><div><Label>View Grades</Label><p className="text-xs text-muted-foreground">Parents can view student grades</p></div><Switch defaultChecked /></div>
-          <div className="flex items-center justify-between"><div><Label>View Attendance</Label><p className="text-xs text-muted-foreground">Parents can view attendance records</p></div><Switch defaultChecked /></div>
-          <div className="flex items-center justify-between"><div><Label>View Report Cards</Label><p className="text-xs text-muted-foreground">Parents can download report cards</p></div><Switch defaultChecked /></div>
-          <div className="flex items-center justify-between"><div><Label>View Fee Status</Label><p className="text-xs text-muted-foreground">Parents can see fee payment status</p></div><Switch /></div>
-        </div>
+interface ChildLink {
+  link_id: number;
+  student_id: string;
+  student_name: string;
+  class: string;
+  relationship: string;
+  is_primary_guardian: boolean;
+}
+
+interface ParentAccount {
+  id: number;
+  name: string;
+  email: string;
+  phone_number: string;
+  is_active: boolean;
+  children: ChildLink[];
+}
+
+interface StudentWithoutParent {
+  id: number;
+  student_id: string;
+  name: string;
+  class: string;
+  guardian_name: string;
+  guardian_email: string;
+  guardian_phone: string;
+}
+
+interface GeneratedCreds {
+  student_name: string;
+  parent_name: string;
+  email: string;
+  password: string | null;
+}
+
+// -------------------------------------------------------------------------
+// Default state
+// -------------------------------------------------------------------------
+const DEFAULT_SETTINGS: PortalSettings = {
+  parent_portal_enabled: false,
+  parent_can_view_grades: true,
+  parent_can_view_attendance: true,
+  parent_can_view_fees: true,
+  parent_can_view_reports: true,
+  parent_can_pay_fees_online: false,
+  parent_can_message_teachers: false,
+  parent_support_email: '',
+  paystack_public_key: '',
+  paystack_secret_key_saved: false,
+};
+
+// -------------------------------------------------------------------------
+// Component
+// -------------------------------------------------------------------------
+const ParentPortalSettings = () => {
+  const [section, setSection] = useState<'settings' | 'accounts'>('settings');
+
+  // ---- Settings state ----
+  const [settings, setSettings] = useState<PortalSettings>(DEFAULT_SETTINGS);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [newSecretKey, setNewSecretKey] = useState('');
+  const [showSecret, setShowSecret] = useState(false);
+
+  // ---- Accounts: students without parent ----
+  const [studentsWithout, setStudentsWithout] = useState<StudentWithoutParent[]>([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [creatingForId, setCreatingForId] = useState<string | null>(null);
+  const [generatedCreds, setGeneratedCreds] = useState<GeneratedCreds | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // ---- Accounts: existing parents ----
+  const [parents, setParents] = useState<ParentAccount[]>([]);
+  const [accountsLoading, setAccountsLoading] = useState(false);
+
+  // Link child form
+  const [linkingParentId, setLinkingParentId] = useState<number | null>(null);
+  const [linkStudentId, setLinkStudentId] = useState('');
+  const [linkRelationship, setLinkRelationship] = useState('Guardian');
+  const [linkSaving, setLinkSaving] = useState(false);
+
+  // ---- Load on section switch ----
+  useEffect(() => { loadSettings(); }, []);
+  useEffect(() => {
+    if (section === 'accounts') {
+      loadStudentsWithout();
+      loadParents();
+    }
+  }, [section]);
+
+  // ---- Settings ----
+  const loadSettings = async () => {
+    setSettingsLoading(true);
+    try {
+      const resp = await secureApiClient.get('/schools/parent-portal-settings/');
+      setSettings(resp.data || DEFAULT_SETTINGS);
+    } catch {
+      toast.error('Failed to load portal settings');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const saveSettings = async () => {
+    setSettingsSaving(true);
+    try {
+      const payload: Record<string, unknown> = { ...settings };
+      delete payload.paystack_secret_key_saved;
+      if (newSecretKey.trim()) payload.paystack_secret_key = newSecretKey.trim();
+      const resp = await secureApiClient.patch('/schools/parent-portal-settings/', payload);
+      setSettings(resp.data.data || resp.data);
+      setNewSecretKey('');
+      toast.success('Parent portal settings saved');
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || e.message || 'Save failed');
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  // ---- Students without parent accounts ----
+  const loadStudentsWithout = async () => {
+    setStudentsLoading(true);
+    try {
+      const resp = await secureApiClient.get('/schools/parent-accounts/students_without_parent/');
+      setStudentsWithout(resp.data || []);
+    } catch {
+      toast.error('Failed to load students list');
+    } finally {
+      setStudentsLoading(false);
+    }
+  };
+
+  const createForStudent = async (student: StudentWithoutParent) => {
+    setCreatingForId(student.student_id);
+    try {
+      const resp = await secureApiClient.post('/schools/parent-accounts/create_for_student/', {
+        student_id: student.student_id,
+      });
+      const data = resp.data;
+      setGeneratedCreds({
+        student_name: student.name,
+        parent_name: student.guardian_name || data.email,
+        email: data.email,
+        password: data.generated_password,
+      });
+      // Refresh both lists
+      loadStudentsWithout();
+      loadParents();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || e.message || 'Failed to create account');
+    } finally {
+      setCreatingForId(null);
+    }
+  };
+
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    });
+  };
+
+  // ---- Existing parents ----
+  const loadParents = async () => {
+    setAccountsLoading(true);
+    try {
+      const resp = await secureApiClient.get('/schools/parent-accounts/');
+      setParents(resp.data || []);
+    } catch {
+      toast.error('Failed to load parent accounts');
+    } finally {
+      setAccountsLoading(false);
+    }
+  };
+
+  const linkChild = async (parentId: number) => {
+    if (!linkStudentId.trim()) { toast.error('Enter a student ID'); return; }
+    setLinkSaving(true);
+    try {
+      await secureApiClient.post('/schools/parent-accounts/link_child/', {
+        parent_id: parentId, student_id: linkStudentId.trim(), relationship: linkRelationship,
+      });
+      toast.success('Child linked');
+      setLinkingParentId(null); setLinkStudentId(''); setLinkRelationship('Guardian');
+      loadParents();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || e.message || 'Failed to link child');
+    } finally {
+      setLinkSaving(false);
+    }
+  };
+
+  const unlinkChild = async (linkId: number) => {
+    if (!confirm('Remove this parentâ€“child link?')) return;
+    try {
+      await secureApiClient.delete('/schools/parent-accounts/unlink_child/', { data: { link_id: linkId } });
+      toast.success('Link removed');
+      loadParents();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Failed to remove link');
+    }
+  };
+
+  const deleteParent = async (parentId: number, name: string) => {
+    if (!confirm(`Delete account for ${name}? This cannot be undone.`)) return;
+    try {
+      await secureApiClient.delete(`/schools/parent-accounts/${parentId}/`);
+      toast.success('Parent account deleted');
+      setParents(prev => prev.filter(p => p.id !== parentId));
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Failed to delete account');
+    }
+  };
+
+  const toggle = (key: keyof PortalSettings) =>
+    setSettings(prev => ({ ...prev, [key]: !prev[key] }));
+
+  // =========================================================================
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-2xl font-bold">Parent Portal Settings</h1>
+        <p className="text-muted-foreground mt-1">
+          Configure what parents can access and manage parent accounts
+        </p>
       </div>
 
-      <div className="stat-card space-y-4">
-        <div className="flex items-center gap-2 mb-2"><MessageSquare className="h-5 w-5 text-info" /><h3 className="font-semibold text-foreground">Communication</h3></div>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between"><div><Label>Message Teachers</Label><p className="text-xs text-muted-foreground">Parents can send messages to teachers</p></div><Switch defaultChecked /></div>
-          <div className="flex items-center justify-between"><div><Label>Receive Announcements</Label><p className="text-xs text-muted-foreground">Parents receive school announcements</p></div><Switch defaultChecked /></div>
-          <div className="flex items-center justify-between"><div><Label>SMS Notifications</Label><p className="text-xs text-muted-foreground">Send SMS for important updates</p></div><Switch /></div>
-          <div><Label>Parent Support Email</Label><Input defaultValue="parents@elite.edu" className="mt-1" /></div>
-        </div>
+      {/* Sub-nav */}
+      <div className="flex gap-2">
+        <Button
+          variant={section === 'settings' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setSection('settings')}
+        >
+          <Shield className="h-4 w-4 mr-1" /> Portal Configuration
+        </Button>
+        <Button
+          variant={section === 'accounts' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setSection('accounts')}
+        >
+          <Users className="h-4 w-4 mr-1" /> Parent Accounts
+        </Button>
       </div>
-    </div>
 
-    <div className="flex justify-end"><Button><Save className="h-4 w-4 mr-2" />Save Settings</Button></div>
-  </div>
-);
+      {/* ================================================================
+          SECTION 1 â€” Portal Configuration
+          ================================================================ */}
+      {section === 'settings' && (
+        <div className="space-y-5">
+          {settingsLoading ? (
+            <div className="space-y-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+          ) : (
+            <>
+              {/* Master switch */}
+              <Card className={settings.parent_portal_enabled ? 'border-green-400' : 'border-dashed'}>
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-base">Enable Parent Portal</p>
+                      <p className="text-sm text-muted-foreground">
+                        Master switch â€” when off, no parent login is possible
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant={settings.parent_portal_enabled ? 'default' : 'secondary'}>
+                        {settings.parent_portal_enabled ? 'ACTIVE' : 'DISABLED'}
+                      </Badge>
+                      <Switch
+                        checked={settings.parent_portal_enabled}
+                        onCheckedChange={() => toggle('parent_portal_enabled')}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {/* Access */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <GraduationCap className="h-4 w-4" /> What Parents Can See
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {([
+                      ['parent_can_view_grades', 'View Grades & Scores', 'CA and exam scores per subject'],
+                      ['parent_can_view_attendance', 'View Attendance', 'Daily and term attendance records'],
+                      ['parent_can_view_fees', 'View Fee Status', 'Outstanding balance and payment history'],
+                      ['parent_can_view_reports', 'Download Report Cards', 'PDF report cards per term'],
+                    ] as [keyof PortalSettings, string, string][]).map(([key, label, desc]) => (
+                      <div key={key} className="flex items-center justify-between">
+                        <div>
+                          <Label>{label}</Label>
+                          <p className="text-xs text-muted-foreground">{desc}</p>
+                        </div>
+                        <Switch checked={!!settings[key]} onCheckedChange={() => toggle(key)} />
+                      </div>
+                    ))}
+                    <Separator />
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Message Teachers</Label>
+                        <p className="text-xs text-muted-foreground">Parents can send messages to their child's teachers</p>
+                      </div>
+                      <Switch checked={settings.parent_can_message_teachers} onCheckedChange={() => toggle('parent_can_message_teachers')} />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Payments */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Shield className="h-4 w-4" /> Online Fee Payments (Paystack)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Enable Online Payments</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Parents pay via Paystack (MoMo, Visa, etc.)
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.parent_can_pay_fees_online}
+                        onCheckedChange={() => toggle('parent_can_pay_fees_online')}
+                      />
+                    </div>
+
+                    {settings.parent_can_pay_fees_online && (
+                      <>
+                        <Separator />
+                        <div className="space-y-2">
+                          <Label>Paystack Public Key</Label>
+                          <Input
+                            placeholder="pk_live_... or pk_test_..."
+                            value={settings.paystack_public_key}
+                            onChange={e => setSettings(s => ({ ...s, paystack_public_key: e.target.value }))}
+                          />
+                          <p className="text-xs text-muted-foreground">Visible in the browser â€” safe to expose</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Paystack Secret Key</Label>
+                          <div className="relative">
+                            <Input
+                              type={showSecret ? 'text' : 'password'}
+                              placeholder={settings.paystack_secret_key_saved ? 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢ (saved)' : 'sk_live_... or sk_test_...'}
+                              value={newSecretKey}
+                              onChange={e => setNewSecretKey(e.target.value)}
+                              className="pr-10"
+                            />
+                            <button
+                              type="button"
+                              className="absolute right-3 top-2.5 text-muted-foreground"
+                              onClick={() => setShowSecret(s => !s)}
+                            >
+                              {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Stored server-side only, never sent to the browser.
+                            {settings.paystack_secret_key_saved && ' Leave blank to keep existing key.'}
+                          </p>
+                          {settings.parent_can_pay_fees_online && !settings.paystack_secret_key_saved && !newSecretKey && (
+                            <Alert variant="destructive" className="py-2">
+                              <AlertCircle className="h-4 w-4" />
+                              <AlertDescription className="text-xs">Secret key required for online payments.</AlertDescription>
+                            </Alert>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    <Separator />
+                    <div className="space-y-2">
+                      <Label>Parent Support Email</Label>
+                      <Input
+                        type="email"
+                        placeholder="parents@yourschool.edu.gh"
+                        value={settings.parent_support_email}
+                        onChange={e => setSettings(s => ({ ...s, parent_support_email: e.target.value }))}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={saveSettings} disabled={settingsSaving}>
+                  {settingsSaving
+                    ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Savingâ€¦</>
+                    : <><Save className="h-4 w-4 mr-2" />Save Settings</>}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ================================================================
+          SECTION 2 â€” Parent Accounts
+          ================================================================ */}
+      {section === 'accounts' && (
+        <div className="space-y-6">
+
+          {/* ---- Students without a parent account ---- */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <UserPlus className="h-4 w-4 text-orange-500" />
+                    Students Without a Parent Account
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    When you add a student with a guardian email, the parent account is created automatically.
+                    Use this list for existing students who were added before the parent portal.
+                  </p>
+                </div>
+                <Button size="sm" variant="outline" onClick={loadStudentsWithout} disabled={studentsLoading}>
+                  <RefreshCw className={`h-3 w-3 mr-1 ${studentsLoading ? 'animate-spin' : ''}`} /> Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {studentsLoading ? (
+                <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+              ) : studentsWithout.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-500 opacity-60" />
+                  <p className="text-sm font-medium">All students have parent accounts</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {studentsWithout.map(s => (
+                    <div key={s.student_id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/20">
+                      <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1">
+                        <div>
+                          <p className="font-medium text-sm truncate">{s.name}</p>
+                          <p className="text-xs text-muted-foreground">{s.student_id} {s.class && `Â· ${s.class}`}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Guardian</p>
+                          <p className="text-sm truncate">{s.guardian_name || 'â€”'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Email</p>
+                          {s.guardian_email
+                            ? <p className="text-sm text-blue-600 truncate">{s.guardian_email}</p>
+                            : <p className="text-xs text-orange-500 italic">No email â€” edit student to add</p>
+                          }
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Phone</p>
+                          <p className="text-sm">{s.guardian_phone || 'â€”'}</p>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        disabled={!s.guardian_email || creatingForId === s.student_id}
+                        onClick={() => createForStudent(s)}
+                        title={!s.guardian_email ? 'Guardian email required' : 'Create parent account'}
+                      >
+                        {creatingForId === s.student_id
+                          ? <Loader2 className="h-3 w-3 animate-spin" />
+                          : <><UserPlus className="h-3 w-3 mr-1" />Create Account</>
+                        }
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ---- Existing parent accounts ---- */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Users className="h-4 w-4" /> Existing Parent Accounts
+                </CardTitle>
+                <Button size="sm" variant="outline" onClick={loadParents} disabled={accountsLoading}>
+                  <RefreshCw className={`h-3 w-3 mr-1 ${accountsLoading ? 'animate-spin' : ''}`} /> Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {accountsLoading ? (
+                <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>
+              ) : parents.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  No parent accounts yet. They are created automatically when students are added with a guardian email.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {parents.map(parent => (
+                    <div key={parent.id} className="rounded-lg border p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold">{parent.name}</span>
+                            <Badge variant={parent.is_active ? 'default' : 'secondary'} className="text-xs">
+                              {parent.is_active ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-0.5">
+                            {parent.email} {parent.phone_number && `Â· ${parent.phone_number}`}
+                          </p>
+
+                          {/* Children */}
+                          <div className="mt-3 space-y-1">
+                            {parent.children.length === 0 && (
+                              <p className="text-xs text-muted-foreground italic">No children linked</p>
+                            )}
+                            {parent.children.map(child => (
+                              <div key={child.link_id} className="flex items-center gap-2 text-sm bg-muted/40 rounded px-3 py-1.5">
+                                <GraduationCap className="h-3 w-3 text-muted-foreground shrink-0" />
+                                <span className="font-medium">{child.student_name}</span>
+                                <span className="text-muted-foreground text-xs">({child.student_id})</span>
+                                {child.class && <span className="text-muted-foreground text-xs">Â· {child.class}</span>}
+                                <span className="text-xs text-blue-600 ml-1">{child.relationship}</span>
+                                {child.is_primary_guardian && <Badge variant="outline" className="text-xs py-0">Primary</Badge>}
+                                <button
+                                  className="ml-auto text-red-500 hover:text-red-700"
+                                  onClick={() => unlinkChild(child.link_id)}
+                                  title="Remove link"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Link child inline form */}
+                          {linkingParentId === parent.id ? (
+                            <div className="mt-3 flex items-center gap-2 flex-wrap">
+                              <Input
+                                className="h-8 w-36 text-sm"
+                                placeholder="Student ID"
+                                value={linkStudentId}
+                                onChange={e => setLinkStudentId(e.target.value.toUpperCase())}
+                              />
+                              <Input
+                                className="h-8 w-32 text-sm"
+                                placeholder="Relationship"
+                                value={linkRelationship}
+                                onChange={e => setLinkRelationship(e.target.value)}
+                              />
+                              <Button size="sm" className="h-8" onClick={() => linkChild(parent.id)} disabled={linkSaving}>
+                                {linkSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Link'}
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-8" onClick={() => setLinkingParentId(null)}>Cancel</Button>
+                            </div>
+                          ) : (
+                            <button
+                              className="mt-2 text-xs text-primary flex items-center gap-1 hover:underline"
+                              onClick={() => { setLinkingParentId(parent.id); setLinkStudentId(''); setLinkRelationship('Guardian'); }}
+                            >
+                              <Link2 className="h-3 w-3" /> Link another child
+                            </button>
+                          )}
+                        </div>
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-red-600 hover:text-red-700 shrink-0"
+                          onClick={() => deleteParent(parent.id, parent.name)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ================================================================
+          Generated credentials modal
+          ================================================================ */}
+      {generatedCreds && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md shadow-2xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-600">
+                <CheckCircle2 className="h-5 w-5" /> Parent Account Created
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                An account has been created for <strong>{generatedCreds.parent_name}</strong> (guardian of <strong>{generatedCreds.student_name}</strong>).
+                Share the login details below with them.
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Email / Username</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <code className="flex-1 bg-muted px-3 py-2 rounded text-sm font-mono">{generatedCreds.email}</code>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => copyToClipboard(generatedCreds.email, 'email')}>
+                      {copiedField === 'email' ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+                {generatedCreds.password ? (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Generated Password</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <code className="flex-1 bg-muted px-3 py-2 rounded text-sm font-mono">{generatedCreds.password}</code>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => copyToClipboard(generatedCreds.password!, 'pass')}>
+                        {copiedField === 'pass' ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Alert>
+                    <AlertDescription className="text-xs">
+                      This guardian's email already had an account â€” they were just linked to the student. No new password was generated.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+              <p className="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded p-2">
+                Save this password now â€” it will not be shown again. The parent should change it after first login.
+              </p>
+              <Button className="w-full" onClick={() => setGeneratedCreds(null)}>Done</Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default ParentPortalSettings;

@@ -49,6 +49,9 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   STUDENT: [
     'view_assignments', 'submit_assignments', 'view_grades',
     'view_attendance', 'view_profile'
+  ],
+  PARENT: [
+    'view_children_grades', 'view_children_attendance', 'view_children_fees', 'view_children_reports'
   ]
 };
 
@@ -182,6 +185,7 @@ export const getRoleDashboardPath = (role: UserRole): string => {
     PRINCIPAL: '/school/dashboard',
     TEACHER: '/teacher/dashboard',
     STUDENT: '/student/dashboard',
+    PARENT: '/parent/dashboard',
   };
   return routes[role] || '/login';
 };

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import StatCard from '@/components/shared/StatCard';
-import { BarChart3, TrendingUp, Users, Award, FileText, Download, Eye } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, Award, FileText, Download, Eye, Loader2, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import secureApiClient from '@/lib/secureApiClient';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
 
 const ReportsDashboard = () => {
   const [dashboardData, setDashboardData] = useState<any>(null);
@@ -33,6 +34,13 @@ const ReportsDashboard = () => {
   });
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+
+  // Preview / download state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewStudentName, setPreviewStudentName] = useState('');
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   const fetchDashboardData = async () => {
     try {
@@ -157,11 +165,56 @@ const ReportsDashboard = () => {
       
       setShowGenerateDialog(false);
       await fetchReportCards();
-      alert('Report generated successfully!');
+      toast.success('Report generated successfully!');
     } catch (err: any) {
       setGenerateError(err.message || 'Failed to generate report');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleViewReport = async (report: any) => {
+    const studentName = report.student_name || 'Student';
+    setPreviewStudentName(studentName);
+    setPreviewHtml('');
+    setPreviewOpen(true);
+    setPreviewLoading(true);
+    try {
+      // report.student is the DB student PK, report.term is the DB term PK
+      const html = await secureApiClient.get<string>(
+        `/reports/report-cards/preview_report/?student_id=${report.student}&term_id=${report.term}`,
+        { responseType: 'text' as any }
+      );
+      setPreviewHtml(typeof html === 'string' ? html : JSON.stringify(html));
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to load report preview');
+      setPreviewOpen(false);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleDownloadReport = async (report: any) => {
+    setDownloadingId(report.id);
+    const studentLabel = report.student_id || report.student_name || 'student';
+    const termLabel = report.term_name || 'term';
+    try {
+      const blob = await secureApiClient.post<Blob>(
+        '/reports/report-cards/generate_pdf_report/',
+        { student_id: report.student, term_id: report.term },
+        { responseType: 'blob' as any }
+      );
+      const url = URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob as any]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${studentLabel}_${termLabel}_Report.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Report downloaded for ${report.student_name || 'student'}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to download PDF. Ensure scores are saved first.');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -209,6 +262,7 @@ const ReportsDashboard = () => {
   ];
 
   return (
+    <>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -430,7 +484,50 @@ const ReportsDashboard = () => {
         </DialogContent>
       </Dialog>
     </div>
-  );
-};
 
+    {/* Report Preview Dialog */}
+    <Dialog open={previewOpen} onOpenChange={(open) => { if (!open) { setPreviewOpen(false); setPreviewHtml(''); } }}>
+      <DialogContent className="max-w-5xl w-full h-[90vh] flex flex-col p-0 gap-0">
+        <div className="px-6 py-3 border-b flex-shrink-0 flex flex-row items-center justify-between">
+          <h2 className="text-base font-semibold">Report Preview — {previewStudentName}</h2>
+          <div className="flex gap-2 items-center">
+            {!previewLoading && previewHtml && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const report = reportCards.find(r => (r.student_name || '') === previewStudentName);
+                  if (report) handleDownloadReport(report);
+                }}
+                disabled={downloadingId !== null}
+              >
+                {downloadingId !== null
+                  ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Downloading...</>
+                  : <><Download className="h-4 w-4 mr-1" />Download PDF</>}
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setPreviewOpen(false); setPreviewHtml(''); }}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-hidden">
+          {previewLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2 text-muted-foreground">Loading report...</span>
+            </div>
+          ) : (
+            <iframe
+              srcDoc={previewHtml}
+              className="w-full h-full border-0"
+              title="Report Preview"
+              sandbox="allow-same-origin"
+            />
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
+  );
 export default ReportsDashboard;

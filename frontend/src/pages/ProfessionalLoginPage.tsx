@@ -5,10 +5,10 @@ import { authService } from '@/services/authService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { GraduationCap, Loader2, BookOpen, Lock, Shield, Eye, EyeOff, CheckCircle2, ArrowRight, X } from 'lucide-react';
+import { GraduationCap, Loader2, BookOpen, Lock, Shield, Eye, EyeOff, CheckCircle2, ArrowRight, X, Users } from 'lucide-react';
 import { secureApiClient } from '@/lib/secureApiClient';
 
-type LoginRole = 'student' | 'teacher' | 'admin';
+type LoginRole = 'student' | 'teacher' | 'admin' | 'parent';
 
 interface RoleConfig {
   key: LoginRole;
@@ -47,6 +47,15 @@ const ROLE_CONFIGS: RoleConfig[] = [
     inputType: 'email',
     placeholder: 'admin@school.edu',
     description: 'Oversee school operations and manage users'
+  },
+  {
+    key: 'parent',
+    label: 'Parent',
+    icon: Users,
+    loginMethod: authService.parentLogin,
+    inputType: 'email',
+    placeholder: 'parent@email.com',
+    description: 'View your child\'s grades, attendance, and reports'
   },
 ];
 
@@ -225,7 +234,7 @@ const ProfessionalLoginPage = () => {
               {/* Role Selection */}
               <div className="mb-4 sm:mb-6">
                 <Label className="text-slate-300 text-xs sm:text-sm font-medium mb-2 sm:mb-3 block">Select Your Role</Label>
-                <div className="grid grid-cols-3 sm:grid-cols-3 gap-2 sm:gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                   {ROLE_CONFIGS.map((role) => {
                     const RoleIcon = role.icon;
                     const isActive = loginRole === role.key;
@@ -327,8 +336,8 @@ const ProfessionalLoginPage = () => {
                 </Button>
 
                 <div className="text-right -mt-2">
-                  {loginRole === 'student' ? (
-                    <span className="text-xs text-slate-500">Forgot password? Contact your class teacher or admin.</span>
+                  {loginRole === 'student' || loginRole === 'parent' ? (
+                    <span className="text-xs text-slate-500">Forgot password? Contact your school admin.</span>
                   ) : (
                     <button
                       type="button"

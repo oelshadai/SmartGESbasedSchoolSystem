@@ -1,11 +1,26 @@
 import secureApiClient from '../lib/secureApiClient';
 
+export type CollectionFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'TERM' | 'YEAR';
+
 export interface FeeType {
   id: number;
   name: string;
   description: string;
   is_active: boolean;
+  collection_frequency: CollectionFrequency;
+  collection_day?: number | null;
+  allow_class_teacher_collection: boolean;
+  allow_any_teacher_collection: boolean;
+  require_payment_approval: boolean;
 }
+
+export const FREQUENCY_LABELS: Record<CollectionFrequency, string> = {
+  DAILY: 'Daily (every school day)',
+  WEEKLY: 'Weekly',
+  MONTHLY: 'Monthly',
+  TERM: 'Per Term',
+  YEAR: 'Per Year',
+};
 
 export interface FeeStructure {
   id: number;
@@ -97,6 +112,54 @@ export interface ValidationError {
   message: string;
 }
 
+// -------------------------------------------------------------------------
+// Term Bill types
+// -------------------------------------------------------------------------
+export type BillStatus = 'UNPAID' | 'PARTIAL' | 'PAID' | 'WAIVED';
+
+export interface TermBill {
+  id: number;
+  student_id: string;
+  student_name: string;
+  class_level: string;
+  class_section: string;
+  fee_type: number;
+  fee_type_name: string;
+  term: number;
+  term_name: string;
+  academic_year_name: string;
+  amount_billed: number;
+  amount_paid: number;
+  balance: number;
+  status: BillStatus;
+  due_date?: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TermBillSummaryItem {
+  fee_type__name: string;
+  status: BillStatus;
+  count: number;
+  total_billed: number;
+  total_paid: number;
+  total_balance: number;
+}
+
+export interface GenerateBillsInput {
+  term: number;
+  fee_type?: number | null;
+  overwrite?: boolean;
+}
+
+export interface GenerateBillsResult {
+  created: number;
+  updated: number;
+  skipped: number;
+  message: string;
+}
+
 class FeeService {
   private handleError(error: any): never {
     console.error('Fee service error:', error);
@@ -155,8 +218,8 @@ class FeeService {
   // Fee Types
   async getFeeTypes(): Promise<FeeType[]> {
     return this.makeRequest(async () => {
-      const response = await secureApiClient.get('/fees/types/');
-      return { data: response.data?.results || response.data || [] };
+      const response = await secureApiClient.get<any>('/fees/types/');
+      return { data: response?.results || response || [] };
     });
   }
 
@@ -175,8 +238,8 @@ class FeeService {
   // Fee Structures
   async getFeeStructures(params?: { fee_type?: number; level?: string }): Promise<FeeStructure[]> {
     return this.makeRequest(async () => {
-      const response = await secureApiClient.get('/fees/structures/', { params });
-      return { data: response.data?.results || response.data || [] };
+      const response = await secureApiClient.get<any>('/fees/structures/', { params });
+      return { data: response?.results || response || [] };
     });
   }
 
@@ -200,8 +263,8 @@ class FeeService {
     ordering?: string;
   }): Promise<ApiResponse<StudentFee>> {
     return this.makeRequest(async () => {
-      const response = await secureApiClient.get('/fees/student-fees/', { params });
-      return { data: { results: response.data?.results || [], count: response.data?.count || 0 } };
+      const response = await secureApiClient.get<any>('/fees/student-fees/', { params });
+      return { data: { results: response?.results || [], count: response?.count || 0 } };
     });
   }
 
@@ -221,8 +284,8 @@ class FeeService {
     ordering?: string;
   }): Promise<ApiResponse<FeePayment>> {
     return this.makeRequest(async () => {
-      const response = await secureApiClient.get('/fees/payments/', { params });
-      return { data: { results: response.data?.results || [], count: response.data?.count || 0 } };
+      const response = await secureApiClient.get<any>('/fees/payments/', { params });
+      return { data: { results: response?.results || [], count: response?.count || 0 } };
     });
   }
 
@@ -275,8 +338,8 @@ class FeeService {
   // Reports
   async getCollectionSummary(): Promise<FeeCollectionSummary> {
     return this.makeRequest(async () => {
-      const response = await secureApiClient.get('/fees/reports/collection_summary/');
-      const data = response.data || {};
+      const response = await secureApiClient.get<any>('/fees/reports/collection_summary/');
+      const data = response || {};
       return { 
         data: {
           total_outstanding: data.total_outstanding || 0,
@@ -402,6 +465,42 @@ class FeeService {
       DEFAULTED: 'bg-gray-100 text-gray-800 border-gray-200'
     };
     return colors[status as keyof typeof colors] || colors.NOT_STARTED;
+  }
+
+  // ----------------------------------------------------------------
+  // Term Bills
+  // ----------------------------------------------------------------
+  async getTermBills(params?: {
+    term?: number;
+    fee_type?: number;
+    status?: string;
+    class_id?: number;
+    search?: string;
+    ordering?: string;
+  }): Promise<ApiResponse<TermBill>> {
+    return this.makeRequest(async () => {
+      const response = await secureApiClient.get<any>('/fees/term-bills/', { params });
+      return { data: { results: response?.results || [], count: response?.count || 0 } };
+    });
+  }
+
+  async getTermBillSummary(termId: number): Promise<TermBillSummaryItem[]> {
+    return this.makeRequest(async () => {
+      const response = await secureApiClient.get<any>('/fees/term-bills/summary/', { params: { term: termId } });
+      return { data: response || [] };
+    });
+  }
+
+  async generateTermBills(data: GenerateBillsInput): Promise<GenerateBillsResult> {
+    return this.makeRequest(() => secureApiClient.post('/fees/term-bills/generate/', data));
+  }
+
+  async updateTermBill(id: number, data: Partial<Pick<TermBill, 'amount_billed' | 'due_date' | 'notes'>>): Promise<TermBill> {
+    return this.makeRequest(() => secureApiClient.patch(`/fees/term-bills/${id}/`, data));
+  }
+
+  async deleteTermBill(id: number): Promise<void> {
+    return this.makeRequest(() => secureApiClient.delete(`/fees/term-bills/${id}/`));
   }
 }
 

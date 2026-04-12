@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import StatCard from '@/components/shared/StatCard';
-import { BarChart3, Award, Users, TrendingUp, FileText, Calendar, Download, Eye, Loader2 } from 'lucide-react';
+import { BarChart3, Award, Users, TrendingUp, FileText, Calendar, Download, Eye, Loader2, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuthStore } from '@/stores/authStore';
 import { secureApiClient } from '@/lib/secureApiClient';
 import { toast } from 'sonner';
@@ -91,6 +92,13 @@ const ClassReports = () => {
   const [gradeDistribution, setGradeDistribution] = useState<any[]>([]);
   const [subjectPerformance, setSubjectPerformance] = useState<any[]>([]);
   const [recentReports, setRecentReports] = useState<any[]>([]);
+
+  // Preview / download state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewStudentName, setPreviewStudentName] = useState('');
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   // Fetch teacher's classes
   const fetchClasses = async () => {
@@ -215,7 +223,9 @@ const ClassReports = () => {
 
     // Recent reports (using term results as proxy)
     const recentReportsData = sortedResults.slice(0, 10).map(result => ({
-      id: result.id,
+      id: result.id,                               // TermResult ID (for preview)
+      studentDbId: result.student.id,              // DB student ID (for PDF download)
+      termDbId: result.term?.id || parseInt(selectedTerm), // DB term ID (for PDF download)
       studentName: `${result.student.first_name} ${result.student.last_name}`,
       studentId: result.student.student_id,
       term: result.term?.name || 'Current Term',
@@ -273,15 +283,48 @@ const ClassReports = () => {
   }, [selectedClass, selectedTerm]);
 
   const handleGenerateReport = (studentId: string) => {
-    toast.success(`Report generation started for student ${studentId}`);
+    toast.info('Please enter scores and save first, then use the View/Download buttons.');
   };
 
-  const handleViewReport = (studentId: string) => {
-    toast.info(`Opening report for student ${studentId}`);
+  const handleViewReport = async (report: any) => {
+    setPreviewStudentName(report.studentName);
+    setPreviewHtml('');
+    setPreviewOpen(true);
+    setPreviewLoading(true);
+    try {
+      const html = await secureApiClient.get<string>(
+        `/reports/report-cards/preview_report/?student_id=${report.studentDbId}&term_id=${report.termDbId}`,
+        { responseType: 'text' as any }
+      );
+      setPreviewHtml(typeof html === 'string' ? html : JSON.stringify(html));
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to load report preview');
+      setPreviewOpen(false);
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
-  const handleDownloadReport = (studentId: string) => {
-    toast.success(`Downloading report for student ${studentId}`);
+  const handleDownloadReport = async (report: any) => {
+    setDownloadingId(report.id);
+    try {
+      const blob = await secureApiClient.post<Blob>(
+        '/reports/report-cards/generate_pdf_report/',
+        { student_id: report.studentDbId, term_id: report.termDbId },
+        { responseType: 'blob' as any }
+      );
+      const url = URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob as any]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${report.studentId}_${report.term}_${report.year}_Report.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Report downloaded for ${report.studentName}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to download PDF. Ensure scores are saved first.');
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   if (loading) {
@@ -321,6 +364,7 @@ const ClassReports = () => {
   ];
 
   return (
+    <>
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
@@ -544,34 +588,27 @@ const ClassReports = () => {
                       </td>
                       <td className="py-3 px-2">
                         <div className="flex items-center gap-1">
-                          {report.status === 'Generated' ? (
-                            <>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => handleViewReport(report.studentId)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Eye className="h-3 w-3" />
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => handleDownloadReport(report.studentId)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Download className="h-3 w-3" />
-                              </Button>
-                            </>
-                          ) : (
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleGenerateReport(report.studentId)}
-                              className="h-8 px-3 text-xs"
-                            >
-                              Generate
-                            </Button>
-                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            title="Preview report"
+                            onClick={() => handleViewReport(report)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            title="Download PDF"
+                            onClick={() => handleDownloadReport(report)}
+                            disabled={downloadingId === report.id}
+                            className="h-8 w-8 p-0"
+                          >
+                            {downloadingId === report.id
+                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                              : <Download className="h-3 w-3" />}
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -589,7 +626,52 @@ const ClassReports = () => {
         </CardContent>
       </Card>
     </div>
-  );
+
+    {/* Report Preview Dialog */}
+    <Dialog open={previewOpen} onOpenChange={(open) => { if (!open) { setPreviewOpen(false); setPreviewHtml(''); } }}>
+      <DialogContent className="max-w-5xl w-full h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 py-3 border-b flex-shrink-0 flex flex-row items-center justify-between">
+          <DialogTitle className="text-base font-semibold">
+            Report Preview — {previewStudentName}
+          </DialogTitle>
+          <div className="flex gap-2 items-center">
+            {!previewLoading && previewHtml && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const report = recentReports.find(r => r.studentName === previewStudentName);
+                  if (report) handleDownloadReport(report);
+                }}
+                disabled={downloadingId !== null}
+              >
+                {downloadingId !== null
+                  ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Downloading...</>
+                  : <><Download className="h-4 w-4 mr-1" />Download PDF</>}
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setPreviewOpen(false); setPreviewHtml(''); }}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </DialogHeader>
+        <div className="flex-1 overflow-hidden">
+          {previewLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2 text-muted-foreground">Loading report...</span>
+            </div>
+          ) : (
+            <iframe
+              srcDoc={previewHtml}
+              className="w-full h-full border-0"
+              title="Report Preview"
+              sandbox="allow-same-origin"
+            />
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>    </>  );
 };
 
 export default ClassReports;

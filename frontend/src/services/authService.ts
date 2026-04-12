@@ -397,6 +397,52 @@ export const authService = {
     return data;
   },
 
+  parentLogin: async (email: string, password: string): Promise<LoginResponse> => {
+    if (!email || !password) {
+      throw new Error('Email and password are required');
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new Error('Invalid email format');
+    }
+
+    const sanitizedEmail = email.toLowerCase().trim();
+
+    const attemptCheck = LoginAttemptTracker.canAttemptLogin(sanitizedEmail);
+    if (!attemptCheck.allowed) {
+      const minutes = Math.ceil((attemptCheck.remainingTime || 0) / 60000);
+      throw new Error(`Too many failed attempts. Please try again in ${minutes} minutes.`);
+    }
+
+    try {
+      const data = await secureApiClient.post<LoginResponse>('/auth/parent-login/', {
+        email: sanitizedEmail,
+        password
+      });
+
+      if (!data.access || !data.refresh || !data.user || !data.user.role) {
+        throw new Error('Invalid server response. Please try again.');
+      }
+
+      SecureTokenStorage.setTokens(data.access, data.refresh);
+      SecureTokenStorage.setUser(data.user);
+      LoginAttemptTracker.clearAttempts(sanitizedEmail);
+
+      return data;
+    } catch (error: any) {
+      LoginAttemptTracker.recordAttempt(sanitizedEmail);
+
+      if (error.isTimeout) {
+        throw new Error('Login request timed out. The server may be starting up — please try again in a moment.');
+      } else if (error.isNetwork) {
+        throw new Error('Unable to reach server. It may be starting up — please wait a moment and try again.');
+      }
+
+      throw error;
+    }
+  },
+
   logout: async (): Promise<void> => {
     await secureApiClient.logout();
   },

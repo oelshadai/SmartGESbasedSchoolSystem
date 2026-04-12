@@ -18,6 +18,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import SchoolAdminDashboard from "./pages/dashboards/SchoolAdminDashboard";
 import TeacherDashboard from "./pages/dashboards/TeacherDashboard";
 import StudentDashboard from "./pages/dashboards/StudentDashboard";
+import ParentDashboard from "./pages/parent/ParentDashboard";
 
 // School Admin
 import AcademicYearManagement from "./pages/school/AcademicYearManagement";
@@ -149,6 +150,11 @@ const App = () => {
           </Route>
 
           <Route path="*" element={<NotFound />} />
+
+          {/* Parent */}
+          <Route element={<ProtectedRoute allowedRoles={['PARENT']}><AppLayout /></ProtectedRoute>}>
+            <Route path="/parent/dashboard" element={<ParentDashboard />} />
+          </Route>
         </Routes>
       </BrowserRouter>
     </TooltipProvider>

@@ -162,10 +162,13 @@ const EnhancedGradeBook = () => {
 
   const handleGradeSubmission = async (submission: Submission) => {
     setGradingSubmission(submission);
-    setScore(submission.score?.toString() || '');
+    const isQuiz = String(submission.id).startsWith('quiz_');
+    // For quiz submissions don't pre-populate the score so calculateTotalScore() is used.
+    // For regular submissions (HOMEWORK/PROJECT), pre-populate with existing score.
+    setScore(isQuiz ? '' : (submission.score?.toString() || ''));
     setFeedback(submission.feedback || '');
     
-    if (String(submission.id).startsWith('quiz_')) {
+    if (isQuiz) {
       await fetchQuizDetails(submission.id);
     }
   };
@@ -344,7 +347,7 @@ const EnhancedGradeBook = () => {
         <DialogContent className={String(gradingSubmission?.id).startsWith('quiz_') ? "max-w-4xl max-h-[90vh] overflow-y-auto" : "max-w-md"}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {gradingSubmission?.id.startsWith('quiz_') ? (
+              {String(gradingSubmission?.id || '').startsWith('quiz_') ? (
                 <>
                   <BookOpen className="h-5 w-5" />
                   Quiz Inspection & Grading

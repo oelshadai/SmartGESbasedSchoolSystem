@@ -11,9 +11,10 @@ import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ReportPreviewModal from '@/components/ReportPreviewModal';
 import BulkReportPreviewModal from '@/components/BulkReportPreviewModal';
-import { Save, BookOpenCheck, BookOpen, Info, CheckCircle, ArrowRight, ArrowLeft, Users, Eye, FileText, Trash2, AlertTriangle } from 'lucide-react';
+import { Save, BookOpenCheck, BookOpen, Info, CheckCircle, ArrowRight, ArrowLeft, Users, Eye, FileText, Trash2, AlertTriangle, GraduationCap, PenLine, ClipboardList, FlaskConical, BookMarked, Award, Upload } from 'lucide-react';
 import { secureApiClient } from '@/lib/secureApiClient';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
 
 interface Student {
@@ -54,6 +55,7 @@ interface ScoreData {
 }
 
 const ScoreEntry = () => {
+  const navigate = useNavigate();
   const [students, setStudents] = useState<Student[]>([]);
   const [classSubjects, setClassSubjects] = useState<ClassSubject[]>([]);
   const [currentTerm, setCurrentTerm] = useState<CurrentTerm | null>(null);
@@ -78,6 +80,7 @@ const ScoreEntry = () => {
   const [previewData, setPreviewData] = useState<any>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [showAllReports, setShowAllReports] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteMode, setDeleteMode] = useState<'all' | 'selected' | 'single'>('all');
@@ -165,57 +168,91 @@ const ScoreEntry = () => {
     setShowAllReports(true);
   };
 
+  /**
+   * Export all student reports as PDFs one-by-one, then navigate to the
+   * teacher reports page so the teacher can see them all.
+   */
+  const exportAllReports = async () => {
+    if (!currentTerm) {
+      toast({ title: 'Error', description: 'Term information missing', variant: 'destructive' });
+      return;
+    }
+    if (students.length === 0) {
+      toast({ title: 'No students', description: 'No students found in this class', variant: 'destructive' });
+      return;
+    }
+
+    setExporting(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const student of students) {
+      try {
+        const blob = await secureApiClient.post<Blob>(
+          '/reports/report-cards/generate_pdf_report/',
+          { student_id: student.id, term_id: currentTerm.id },
+          { responseType: 'blob' as any }
+        );
+        const url = URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob as any]));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${student.student_id}_${currentTerm.name}_Report.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        successCount++;
+      } catch {
+        errorCount++;
+      }
+    }
+
+    setExporting(false);
+
+    if (successCount > 0) {
+      toast({
+        title: 'Export complete',
+        description: `${successCount} report${successCount !== 1 ? 's' : ''} downloaded${
+          errorCount > 0 ? ` (${errorCount} failed — ensure scores are saved)` : ''
+        }`,
+      });
+      navigate('/teacher/reports');
+    } else {
+      toast({
+        title: 'Export failed',
+        description: 'No reports could be exported. Please save scores first.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getAllStudentsScores = () => {
     const allScores: Record<string, any> = {};
-    
+
+    // Include ALL in-memory subjects for every student
     students.forEach(student => {
-      if (entryMode === 'single') {
-        const scoreData = scores[`${student.id}-${selectedSubject}`];
-        if (scoreData) {
-          const subject = classSubjects.find(cs => cs.id.toString() === selectedSubject);
-          if (subject) {
-            allScores[student.id] = {
-              [subject.id]: {
-                subject_name: subject.subject.name,
-                task: scoreData.task,
-                homework: scoreData.homework,
-                group_work: scoreData.group_work,
-                project_work: scoreData.project_work,
-                class_test: scoreData.class_test,
-                exam_score: scoreData.exam_score,
-                ca_total: scoreData.task + scoreData.homework + scoreData.group_work + scoreData.project_work + scoreData.class_test,
-                total_score: scoreData.task + scoreData.homework + scoreData.group_work + scoreData.project_work + scoreData.class_test + scoreData.exam_score
-              }
-            };
-          }
+      const studentScores: any = {};
+      Object.entries(scores).forEach(([key, scoreData]) => {
+        if (!key.startsWith(`${student.id}-`)) return;
+        const subjectId = key.slice(`${student.id}-`.length);
+        const subject = classSubjects.find(cs => cs.id.toString() === subjectId);
+        if (subject) {
+          studentScores[subject.id] = {
+            subject_name: subject.subject.name,
+            task: scoreData.task,
+            homework: scoreData.homework,
+            group_work: scoreData.group_work,
+            project_work: scoreData.project_work,
+            class_test: scoreData.class_test,
+            exam_score: scoreData.exam_score,
+            ca_total: scoreData.task + scoreData.homework + scoreData.group_work + scoreData.project_work + scoreData.class_test,
+            total_score: scoreData.task + scoreData.homework + scoreData.group_work + scoreData.project_work + scoreData.class_test + scoreData.exam_score
+          };
         }
-      } else {
-        const studentScores: any = {};
-        selectedSubjects.forEach(subjectId => {
-          const scoreData = scores[`${student.id}-${subjectId}`];
-          if (scoreData) {
-            const subject = classSubjects.find(cs => cs.id.toString() === subjectId);
-            if (subject) {
-              studentScores[subject.id] = {
-                subject_name: subject.subject.name,
-                task: scoreData.task,
-                homework: scoreData.homework,
-                group_work: scoreData.group_work,
-                project_work: scoreData.project_work,
-                class_test: scoreData.class_test,
-                exam_score: scoreData.exam_score,
-                ca_total: scoreData.task + scoreData.homework + scoreData.group_work + scoreData.project_work + scoreData.class_test,
-                total_score: scoreData.task + scoreData.homework + scoreData.group_work + scoreData.project_work + scoreData.class_test + scoreData.exam_score
-              };
-            }
-          }
-        });
-        if (Object.keys(studentScores).length > 0) {
-          allScores[student.id] = studentScores;
-        }
+      });
+      if (Object.keys(studentScores).length > 0) {
+        allScores[student.id] = studentScores;
       }
     });
-    
+
     return allScores;
   };
 
@@ -233,46 +270,26 @@ const ScoreEntry = () => {
     if (!student) return {};
 
     const currentScores: any = {};
-    
-    if (entryMode === 'single') {
-      const scoreData = scores[`${student.id}-${selectedSubject}`];
-      if (scoreData) {
-        const subject = classSubjects.find(cs => cs.id.toString() === selectedSubject);
-        if (subject) {
-          currentScores[subject.id] = {
-            subject_name: subject.subject.name,
-            task: scoreData.task,
-            homework: scoreData.homework,
-            group_work: scoreData.group_work,
-            project_work: scoreData.project_work,
-            class_test: scoreData.class_test,
-            exam_score: scoreData.exam_score,
-            ca_total: scoreData.task + scoreData.homework + scoreData.group_work + scoreData.project_work + scoreData.class_test,
-            total_score: scoreData.task + scoreData.homework + scoreData.group_work + scoreData.project_work + scoreData.class_test + scoreData.exam_score
-          };
-        }
+
+    // Include ALL subjects in memory for this student (covers multi-subject sessions)
+    Object.entries(scores).forEach(([key, scoreData]) => {
+      if (!key.startsWith(`${student.id}-`)) return;
+      const subjectId = key.slice(`${student.id}-`.length);
+      const subject = classSubjects.find(cs => cs.id.toString() === subjectId);
+      if (subject) {
+        currentScores[subject.id] = {
+          subject_name: subject.subject.name,
+          task: scoreData.task,
+          homework: scoreData.homework,
+          group_work: scoreData.group_work,
+          project_work: scoreData.project_work,
+          class_test: scoreData.class_test,
+          exam_score: scoreData.exam_score,
+          ca_total: scoreData.task + scoreData.homework + scoreData.group_work + scoreData.project_work + scoreData.class_test,
+          total_score: scoreData.task + scoreData.homework + scoreData.group_work + scoreData.project_work + scoreData.class_test + scoreData.exam_score
+        };
       }
-    } else {
-      selectedSubjects.forEach(subjectId => {
-        const scoreData = scores[`${student.id}-${subjectId}`];
-        if (scoreData) {
-          const subject = classSubjects.find(cs => cs.id.toString() === subjectId);
-          if (subject) {
-            currentScores[subject.id] = {
-              subject_name: subject.subject.name,
-              task: scoreData.task,
-              homework: scoreData.homework,
-              group_work: scoreData.group_work,
-              project_work: scoreData.project_work,
-              class_test: scoreData.class_test,
-              exam_score: scoreData.exam_score,
-              ca_total: scoreData.task + scoreData.homework + scoreData.group_work + scoreData.project_work + scoreData.class_test,
-              total_score: scoreData.task + scoreData.homework + scoreData.group_work + scoreData.project_work + scoreData.class_test + scoreData.exam_score
-            };
-          }
-        }
-      });
-    }
+    });
 
     return currentScores;
   };
@@ -528,7 +545,7 @@ const ScoreEntry = () => {
         });
       });
       
-      setScores(existingScores);
+      setScores(prev => ({ ...prev, ...existingScores }));
     } catch (error) {
       console.error('Failed to load existing scores:', error);
       // Initialize empty scores if loading fails with consistent keying
@@ -565,19 +582,44 @@ const ScoreEntry = () => {
           });
         }
       });
-      setScores(initialScores);
+      setScores(prev => ({ ...prev, ...initialScores }));
     }
+  };
+
+  // Max score allowed per field
+  const FIELD_MAX: Partial<Record<keyof ScoreData, number>> = {
+    task: 10,
+    homework: 10,
+    group_work: 10,
+    project_work: 10,
+    class_test: 10,
+    exam_score: 50,
   };
 
   const updateScore = (studentId: number, field: keyof ScoreData, value: number, subjectId?: string) => {
     // Always use student-subject combination as key to prevent cross-contamination
-    const key = subjectId ? `${studentId}-${subjectId}` : `${studentId}-${selectedSubject}`;
+    const csIdStr = subjectId ?? selectedSubject;
+    const key = `${studentId}-${csIdStr}`;
+
+    // Clamp to [0, max] for the field
+    const max = FIELD_MAX[field] ?? Infinity;
+    const clamped = Math.min(Math.max(0, isNaN(value) ? 0 : value), max);
     
     setScores(prev => ({
       ...prev,
       [key]: {
+        // Guarantee base fields are always present even if key was never initialised
+        student_id: studentId,
+        class_subject_id: parseInt(csIdStr),
+        term_id: currentTerm?.id || 0,
+        task: 0,
+        homework: 0,
+        group_work: 0,
+        project_work: 0,
+        class_test: 0,
+        exam_score: 0,
         ...prev[key],
-        [field]: value
+        [field]: clamped
       }
     }));
   };
@@ -599,11 +641,35 @@ const ScoreEntry = () => {
   const saveScores = async () => {
     try {
       setSaving(true);
-      const scoreEntries = Object.values(scores).filter(score => 
-        score.task > 0 || score.homework > 0 || score.group_work > 0 || 
-        score.project_work > 0 || score.class_test > 0 || score.exam_score > 0
-      );
-      
+
+      // Build the list of score entries relevant to current selection only
+      const relevantKeys: string[] = [];
+      if (entryMode === 'single') {
+        students.forEach(s => relevantKeys.push(`${s.id}-${selectedSubject}`));
+      } else {
+        students.forEach(s =>
+          selectedSubjects.forEach(subId => relevantKeys.push(`${s.id}-${subId}`))
+        );
+      }
+
+      const scoreEntries = relevantKeys
+        .map(key => {
+          const entry = scores[key];
+          if (!entry) return null;
+          // If entry is missing identifying fields (typed before state initialised), rebuild them
+          if (!entry.student_id || !entry.class_subject_id) {
+            const [sid, csid] = key.split('-');
+            return {
+              ...entry,
+              student_id: parseInt(sid),
+              class_subject_id: parseInt(csid),
+              term_id: entry.term_id || currentTerm?.id || 0,
+            };
+          }
+          return entry;
+        })
+        .filter(Boolean);
+
       if (scoreEntries.length === 0) {
         toast({ title: 'No Scores', description: 'Please enter some scores before saving', variant: 'destructive' });
         return;
@@ -611,10 +677,9 @@ const ScoreEntry = () => {
 
       let savedCount = 0;
       let errorCount = 0;
-      
+
       for (const scoreEntry of scoreEntries) {
         try {
-          // Use the correct backend endpoint for score entry
           await secureApiClient.post('/scores/manage/enter_scores/', scoreEntry);
           savedCount++;
         } catch (error) {
@@ -624,30 +689,29 @@ const ScoreEntry = () => {
       }
 
       if (errorCount === 0) {
-        toast({ 
-          title: 'Success', 
+        toast({
+          title: 'Success',
           description: `All ${savedCount} scores saved successfully`,
           duration: 3000
         });
-        // Update saved scores tracking
+        // Update saved scores tracking — use consistent student-subject key
         const newSavedScores = new Set(savedScores);
         scoreEntries.forEach(score => {
-          const key = entryMode === 'multiple' ? `${score.student_id}-${score.class_subject_id}` : score.student_id.toString();
-          newSavedScores.add(key);
+          newSavedScores.add(`${score.student_id}-${score.class_subject_id}`);
         });
         setSavedScores(newSavedScores);
       } else {
-        toast({ 
-          title: 'Partial Success', 
+        toast({
+          title: 'Partial Success',
           description: `${savedCount} scores saved, ${errorCount} failed`,
           variant: 'destructive'
         });
       }
     } catch (error: any) {
-      toast({ 
-        title: 'Error', 
-        description: error.message || 'Failed to save scores', 
-        variant: 'destructive' 
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to save scores',
+        variant: 'destructive'
       });
     } finally {
       setSaving(false);
@@ -660,7 +724,7 @@ const ScoreEntry = () => {
     try {
       setLoadingPublished(true);
       const response = await secureApiClient.get(`/reports/report-cards/published_reports/?term_id=${currentTerm.id}`);
-      setPublishedReports(response.data || []);
+      setPublishedReports(Array.isArray(response) ? response : response?.results || []);
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -740,7 +804,7 @@ const ScoreEntry = () => {
         class_id: teacherClass.id
       });
 
-      const allMsg = response?.data?.message || 'All scores cleared successfully';
+      const allMsg = response?.message || 'All scores cleared successfully';
       toast({
         title: "Success",
         description: allMsg
@@ -781,7 +845,7 @@ const ScoreEntry = () => {
         student_ids: selectedStudents.map(id => parseInt(id))
       });
 
-      const selMsg = response?.data?.message || `Scores cleared for ${selectedStudents.length} student(s)`;
+      const selMsg = response?.message || `Scores cleared for ${selectedStudents.length} student(s)`;
       toast({
         title: "Success",
         description: selMsg
@@ -791,7 +855,7 @@ const ScoreEntry = () => {
       const newScores = { ...scores };
       selectedStudents.forEach(studentId => {
         Object.keys(newScores).forEach(key => {
-          if (key.includes(`_${studentId}_`)) {
+          if (key.startsWith(`${studentId}-`)) {
             delete newScores[key];
           }
         });
@@ -833,14 +897,14 @@ const ScoreEntry = () => {
         term_id: currentTerm.id
       });
 
-      const subMsg = response?.data?.message || 'Score cleared successfully';
+      const subMsg = response?.message || 'Score cleared successfully';
       toast({
         title: "Success",
         description: subMsg
       });
 
-      // Remove from local state
-      const key = `${studentId}_${subjectId}`;
+      // Remove from local state — key uses dash separator
+      const key = `${studentId}-${subjectId}`;
       const newScores = { ...scores };
       delete newScores[key];
       setScores(newScores);
@@ -1234,316 +1298,443 @@ const ScoreEntry = () => {
         </div>
       )}
 
+      {/* Entry Step - loading state */}
+      {currentStep === 'entry' && loadingStudents && (
+        <div className="animated-border">
+          <div className="animated-border-content p-8 text-center text-muted-foreground">
+            Loading students...
+          </div>
+        </div>
+      )}
+
+      {/* Entry Step - no students */}
+      {currentStep === 'entry' && !loadingStudents && students.length === 0 && (
+        <div className="animated-border">
+          <div className="animated-border-content p-8 text-center">
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>No students found for the selected class and subject.</AlertDescription>
+            </Alert>
+          </div>
+        </div>
+      )}
+
       {/* Entry Step */}
-      {currentStep === 'entry' && students.length > 0 && (
-        <div className="space-y-6">
-          {/* Progress Header */}
-          <div className="animated-stats-card">
-            <div className="animated-stats-card-content p-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
+      {currentStep === 'entry' && !loadingStudents && students.length > 0 && (
+        <div className="space-y-4">
+
+          {/* ── Top header bar ── */}
+          <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+            {/* coloured accent strip */}
+            <div className="h-1 bg-gradient-to-r from-primary via-primary/70 to-primary/30" />
+            <div className="p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <GraduationCap className="h-5 w-5 text-primary" />
+                  </div>
                   <div>
-                    <h3 className="font-semibold">{entryMode === 'single' ? getCurrentSubject()?.subject.name : 'Multiple Subjects Entry'}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Student {currentStudentIndex + 1} of {students.length} • {getSavedCount()} saved
+                    <h3 className="font-semibold text-base leading-tight">
+                      {entryMode === 'single' ? getCurrentSubject()?.subject.name : 'Multiple Subjects Entry'}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Student <span className="font-medium text-foreground">{currentStudentIndex + 1}</span> of <span className="font-medium text-foreground">{students.length}</span>
+                      &nbsp;·&nbsp;
+                      <span className="text-green-600 font-medium">{getSavedCount()} saved</span>
                     </p>
                   </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="destructive" 
-                      size="sm" 
-                      onClick={() => handleDeleteAction('all')}
-                      disabled={deleting}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Clear All Scores
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={goBackToSubjects}>
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      Back
-                    </Button>
-                  </div>
                 </div>
-                <Progress value={getProgress()} className="h-2" />
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button variant="ghost" size="sm" onClick={goBackToSubjects} className="text-muted-foreground">
+                    <ArrowLeft className="h-4 w-4 mr-1" />
+                    Back
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleDeleteAction('all')} disabled={deleting}
+                    className="text-destructive border-destructive/30 hover:bg-destructive/5">
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Clear All
+                  </Button>
+                </div>
+              </div>
+              {/* progress bar */}
+              <div className="mt-4 space-y-1">
+                <div className="flex justify-between text-xs font-medium text-muted-foreground">
+                  <span>Progress</span>
+                  <span>{Math.round(getProgress())}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-500"
+                    style={{ width: `${getProgress()}%` }}
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Bulk Actions */}
-          <div className="animated-border-subtle">
-            <div className="animated-border-subtle-content p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Checkbox 
-                    id="select-all"
-                    checked={selectedStudents.length === students.length}
-                    onCheckedChange={handleSelectAllStudents}
-                  />
-                  <Label htmlFor="select-all" className="text-sm">
-                    Select All Students ({selectedStudents.length}/{students.length})
-                  </Label>
+          {/* ── Student identity card ── */}
+          <div className="rounded-xl border bg-gradient-to-br from-card to-muted/20 shadow-sm p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="h-11 w-11 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shrink-0">
+                  {getCurrentStudent().full_name.split(' ').map((n: string) => n[0]).slice(0,2).join('')}
                 </div>
-                {selectedStudents.length > 0 && (
-                  <Button 
-                    variant="destructive" 
-                    size="sm"
-                    onClick={() => handleDeleteAction('selected')}
-                    disabled={deleting}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Clear Selected ({selectedStudents.length})
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-base">{getCurrentStudent().full_name}</h3>
+                    <Badge variant="secondary" className="text-[10px] h-5">#{getCurrentStudent().student_id}</Badge>
+                    {savedScores.has(`${getCurrentStudent().id}-${selectedSubject}`) && (
+                      <Badge className="text-[10px] h-5 bg-green-100 text-green-700 border-green-200">
+                        <CheckCircle className="h-3 w-3 mr-1" />Saved
+                      </Badge>
+                    )}
+                  </div>
+                  {entryMode === 'single' && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Subject: <span className="font-semibold text-foreground">{getCurrentSubject()?.subject.name}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id={`student-${getCurrentStudent().id}`}
+                  checked={selectedStudents.includes(getCurrentStudent().id.toString())}
+                  onCheckedChange={() => handleStudentSelect(getCurrentStudent().id.toString())}
+                />
+                <Label htmlFor={`student-${getCurrentStudent().id}`} className="text-xs text-muted-foreground cursor-pointer select-none">Select</Label>
+                {entryMode === 'single' && (
+                  <Button variant="ghost" size="sm" onClick={() => clearStudentSubjectScore(getCurrentStudent().id, selectedSubject)}
+                    disabled={deleting} className="text-muted-foreground hover:text-destructive ml-1">
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 )}
               </div>
             </div>
-          </div>
-
-          {/* Student Info */}
-          <div className="animated-border pulse-glow">
-            <div className="animated-border-content p-6">
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Checkbox 
-                      id={`student-${getCurrentStudent().id}`}
-                      checked={selectedStudents.includes(getCurrentStudent().id.toString())}
-                      onCheckedChange={() => handleStudentSelect(getCurrentStudent().id.toString())}
-                    />
-                    <div>
-                      <h3 className="font-medium text-lg">{getCurrentStudent().full_name}</h3>
-                      <p className="text-sm text-muted-foreground">ID: {getCurrentStudent().student_id}</p>
-                      {entryMode === 'single' && (
-                        <p className="text-sm text-muted-foreground">Subject: {getCurrentSubject()?.subject.name}</p>
-                      )}
-                    </div>
-                  </div>
-                  {entryMode === 'single' && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => clearStudentSubjectScore(getCurrentStudent().id, selectedSubject)}
-                      disabled={deleting}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Clear This Score
-                    </Button>
-                  )}
-                </div>
-              </div>
+            {/* mini student navigator dots */}
+            <div className="mt-3 flex gap-1 flex-wrap">
+              {students.map((s, i) => (
+                <button
+                  key={s.id}
+                  onClick={() => setCurrentStudentIndex(i)}
+                  title={s.full_name}
+                  className={`h-2 rounded-full transition-all duration-200 ${
+                    i === currentStudentIndex
+                      ? 'w-6 bg-primary'
+                      : savedScores.has(`${s.id}-${selectedSubject}`)
+                        ? 'w-2 bg-green-400'
+                        : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/60'
+                  }`}
+                />
+              ))}
             </div>
+            {selectedStudents.length > 0 && (
+              <div className="mt-3 flex items-center justify-between bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">
+                <span className="text-xs text-destructive font-medium">{selectedStudents.length} student(s) selected</span>
+                <Button variant="ghost" size="sm" onClick={() => handleDeleteAction('selected')} disabled={deleting}
+                  className="text-destructive h-6 text-xs px-2">
+                  <Trash2 className="h-3 w-3 mr-1" />Clear Selected
+                </Button>
+              </div>
+            )}
           </div>
 
-          {/* Score Entry Form */}
-          {entryMode === 'single' && getCurrentStudent() && getCurrentSubject() && (
-            <div className="animated-border">
-              <div className="animated-border-content p-6">
-                <h3 className="text-lg font-semibold mb-6">Enter Scores</h3>
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {['task', 'homework', 'group_work', 'project_work', 'class_test'].map((field) => (
-                      <div key={field}>
-                        <Label className="text-sm font-medium">
-                          {field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} (0-10)
-                        </Label>
-                        <Input
-                          type="number" min="0" max="10" step="0.1"
-                          className="mt-1"
-                          value={scores[`${getCurrentStudent().id}-${selectedSubject}`]?.[field as keyof ScoreData] || ''}
-                          onChange={(e) => updateScore(getCurrentStudent().id, field as keyof ScoreData, parseFloat(e.target.value) || 0)}
-                        />
-                      </div>
-                    ))}
-                    <div>
-                      <Label className="text-sm font-medium">Exam Score (0-50)</Label>
-                      <Input
-                        type="number" min="0" max="50" step="0.1"
-                        className="mt-1"
-                        value={scores[`${getCurrentStudent().id}-${selectedSubject}`]?.exam_score || ''}
-                        onChange={(e) => updateScore(getCurrentStudent().id, 'exam_score', parseFloat(e.target.value) || 0)}
-                      />
-                    </div>
+          {/* ── Single subject score entry ── */}
+          {entryMode === 'single' && getCurrentStudent() && getCurrentSubject() && (() => {
+            const studentKey = `${getCurrentStudent().id}-${selectedSubject}`;
+            const caTotal = calculateCATotal(getCurrentStudent().id);
+            const examVal = Number(scores[studentKey]?.exam_score ?? 0);
+            const grandTotal = caTotal + examVal;
+            const caPercent = Math.round((caTotal / 50) * 100);
+            const examPercent = Math.round((examVal / 50) * 100);
+            const totalPercent = Math.round((grandTotal / 100) * 100);
+
+            const caFields: { field: keyof ScoreData; label: string; icon: React.ReactNode }[] = [
+              { field: 'task',         label: 'Task / Exercise',     icon: <PenLine className="h-3.5 w-3.5" /> },
+              { field: 'homework',     label: 'Homework',            icon: <BookMarked className="h-3.5 w-3.5" /> },
+              { field: 'group_work',   label: 'Group Work',          icon: <Users className="h-3.5 w-3.5" /> },
+              { field: 'project_work', label: 'Project Work',        icon: <FlaskConical className="h-3.5 w-3.5" /> },
+              { field: 'class_test',   label: 'Class Test',          icon: <ClipboardList className="h-3.5 w-3.5" /> },
+            ];
+
+            return (
+              <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+                {/* section header */}
+                <div className="px-5 py-3 border-b bg-muted/30 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ClipboardList className="h-4 w-4 text-primary" />
+                    <span className="font-semibold text-sm text-foreground">Continuous Assessment</span>
+                    <Badge variant="outline" className="text-xs h-5">50 marks</Badge>
                   </div>
-                  
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <div className="animated-stats-card">
-                      <div className="animated-stats-card-content p-3">
-                        <div className="grid grid-cols-3 gap-4 text-center">
-                          <div>
-                            <div className="text-sm text-muted-foreground">CA Total</div>
-                            <div className="text-lg font-medium">{calculateCATotal(getCurrentStudent().id)}/50</div>
+                  <span className={`text-sm font-bold ${caTotal >= 50 ? 'text-green-600' : caTotal >= 35 ? 'text-primary' : 'text-muted-foreground'}`}>
+                    {caTotal} / 50
+                  </span>
+                </div>
+                <div className="p-5 space-y-5">
+                  {/* CA progress bar */}
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full bg-primary transition-all duration-300"
+                      style={{ width: `${caPercent}%` }} />
+                  </div>
+
+                  {/* CA fields grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {caFields.map(({ field, label, icon }) => {
+                      const max = FIELD_MAX[field] ?? 10;
+                      const val = Number(scores[studentKey]?.[field] ?? 0);
+                      const pct = Math.round((val / max) * 100);
+                      const atMax = val >= max;
+                      return (
+                        <div key={field}
+                          className={`group relative rounded-xl border transition-all duration-200 p-4 ${
+                            atMax ? 'border-green-300 bg-green-50/50' : 'border-border bg-background hover:border-primary/40 hover:shadow-sm'
+                          }`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-primary">{icon}</span>
+                              <span className="text-xs font-semibold text-foreground">{label}</span>
+                            </div>
+                            {atMax && <CheckCircle className="h-3.5 w-3.5 text-green-500" />}
                           </div>
-                          <div>
-                            <div className="text-sm text-muted-foreground">Exam Score</div>
-                            <div className="text-lg font-medium">{scores[`${getCurrentStudent().id}-${selectedSubject}`]?.exam_score || 0}/50</div>
-                          </div>
-                          <div>
-                            <div className="text-sm text-muted-foreground">Grand Total</div>
-                            <div className="text-xl font-bold text-green-600">{calculateGrandTotal(getCurrentStudent().id)}/100</div>
+                          <Input
+                            type="number" min="0" max={max} step="0.1"
+                            className={`h-10 text-center text-lg font-bold rounded-lg ${
+                              atMax
+                                ? 'border-green-300 bg-green-50 text-green-700'
+                                : 'border-border bg-muted/40 text-foreground'
+                            }`}
+                            value={val === 0 ? '' : val}
+                            placeholder="—"
+                            onChange={(e) => updateScore(getCurrentStudent().id, field, parseFloat(e.target.value) || 0)}
+                          />
+                          <div className="mt-2 space-y-1">
+                            <div className="h-1 rounded-full bg-muted overflow-hidden">
+                              <div className={`h-full rounded-full transition-all duration-300 ${atMax ? 'bg-green-500' : 'bg-primary'}`}
+                                style={{ width: `${pct}%` }} />
+                            </div>
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>0</span>
+                              <span className="font-bold text-foreground">{val} / {max}</span>
+                              <span>{max}</span>
+                            </div>
                           </div>
                         </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Divider + Exam */}
+                  <div className="rounded-xl border-2 border-dashed border-primary/30 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Award className="h-4 w-4 text-primary" />
+                        <span className="font-semibold text-sm text-foreground">Examination Score</span>
+                        <Badge variant="outline" className="text-xs h-5">50 marks</Badge>
                       </div>
+                      <span className={`text-sm font-bold ${examVal >= 50 ? 'text-green-600' : 'text-foreground'}`}>
+                        {examVal} / 50
+                      </span>
                     </div>
+                    {(() => {
+                      const max = FIELD_MAX['exam_score'] ?? 50;
+                      const val = examVal;
+                      const atMax = val >= max;
+                      const pct = Math.round((val / max) * 100);
+                      return (
+                        <div className="flex items-center gap-4">
+                          <Input
+                            type="number" min="0" max={max} step="0.1"
+                            className={`h-12 text-center text-xl font-bold w-28 shrink-0 ${
+                              atMax ? 'border-green-300 bg-green-50 text-green-700' : 'border-border bg-muted/40 text-foreground'
+                            }`}
+                            value={val === 0 ? '' : val}
+                            placeholder="0"
+                            onChange={(e) => updateScore(getCurrentStudent().id, 'exam_score', parseFloat(e.target.value) || 0)}
+                          />
+                          <div className="flex-1 space-y-1">
+                            <div className="h-2 rounded-full bg-muted overflow-hidden">
+                              <div className={`h-full rounded-full transition-all duration-300 ${atMax ? 'bg-green-500' : 'bg-primary'}`}
+                                style={{ width: `${pct}%` }} />
+                            </div>
+                            <div className="flex justify-between text-xs font-medium text-muted-foreground">
+                              <span>0</span><span>{max}</span>
+                            </div>
+                          </div>
+                          {atMax && <CheckCircle className="h-5 w-5 text-green-500 shrink-0" />}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Score summary strip */}
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { label: 'CA Total', value: caTotal, max: 50, pct: caPercent, barColor: 'bg-blue-500' },
+                      { label: 'Exam Score', value: examVal, max: 50, pct: examPercent, barColor: 'bg-purple-500' },
+                      { label: 'Grand Total', value: grandTotal, max: 100, pct: totalPercent,
+                        barColor: grandTotal >= 80 ? 'bg-green-500' : grandTotal >= 50 ? 'bg-primary' : 'bg-destructive' },
+                    ].map(({ label, value, max, pct, barColor }) => {
+                      const valColor = label === 'CA Total' ? 'text-blue-600'
+                        : label === 'Exam Score' ? 'text-purple-600'
+                        : value >= 80 ? 'text-green-600' : value >= 50 ? 'text-primary' : 'text-destructive';
+                      return (
+                        <div key={label} className="rounded-xl border bg-card p-3 text-center shadow-sm">
+                          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{label}</div>
+                          <div className={`text-2xl font-extrabold ${valColor}`}>{value}</div>
+                          <div className="text-xs font-medium text-muted-foreground">out of {max}</div>
+                          <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                            <div className={`h-full rounded-full transition-all duration-300 ${barColor}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
+                    }
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
-          {/* Multiple Subjects Entry */}
+          {/* ── Multiple subjects entry ── */}
           {entryMode === 'multiple' && getCurrentStudent() && (
-            <div className="animated-border">
-              <div className="animated-border-content p-6">
-                <h3 className="text-lg font-semibold mb-6">Enter Scores for All Subjects</h3>
-                <div className="space-y-6">
-                  {selectedSubjects.map(subjectId => {
-                    const subject = classSubjects.find(cs => cs.id.toString() === subjectId);
-                    if (!subject) return null;
-                    
-                    return (
-                      <div key={subjectId} className="animated-border-subtle">
-                        <div className="animated-border-subtle-content p-4">
-                          <h4 className="font-medium mb-4">{subject.subject.name}</h4>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            {['task', 'homework', 'group_work', 'project_work', 'class_test'].map((field) => (
-                              <div key={field}>
-                                <Label className="text-sm">
-                                  {field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} (0-10)
-                                </Label>
-                                <Input
-                                  type="number" min="0" max="10" step="0.1"
-                                  className="mt-1"
-                                  value={scores[`${getCurrentStudent().id}-${subjectId}`]?.[field as keyof ScoreData] || ''}
-                                  onChange={(e) => updateScore(getCurrentStudent().id, field as keyof ScoreData, parseFloat(e.target.value) || 0, subjectId)}
-                                />
-                              </div>
-                            ))}
-                            <div>
-                              <Label className="text-sm">Exam Score (0-50)</Label>
+            <div className="space-y-3">
+              {selectedSubjects.map(subjectId => {
+                const subject = classSubjects.find(cs => cs.id.toString() === subjectId);
+                if (!subject) return null;
+                const studentKey = `${getCurrentStudent().id}-${subjectId}`;
+                const caTotal = calculateCATotal(getCurrentStudent().id, subjectId);
+                const examVal = Number(scores[studentKey]?.exam_score ?? 0);
+                const grandTotal = caTotal + examVal;
+
+                return (
+                  <div key={subjectId} className="rounded-xl border bg-card shadow-sm overflow-hidden">
+                    <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="h-4 w-4 text-primary" />
+                        <span className="font-semibold text-sm">{subject.subject.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-bold ${grandTotal >= 80 ? 'text-green-600' : grandTotal >= 50 ? 'text-primary' : 'text-muted-foreground'}`}>
+                          {grandTotal}/100
+                        </span>
+                        {savedScores.has(`${getCurrentStudent().id}-${subjectId}`) && (
+                          <Badge className="text-[10px] h-5 bg-green-100 text-green-700 border-green-200">
+                            <CheckCircle className="h-3 w-3 mr-1" />Saved
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                        {(['task', 'homework', 'group_work', 'project_work', 'class_test'] as (keyof ScoreData)[]).map((field) => {
+                          const max = FIELD_MAX[field] ?? 10;
+                          const val = Number(scores[studentKey]?.[field] ?? 0);
+                          const atMax = val >= max;
+                          const labels: Record<string, string> = {
+                            task: 'Task', homework: 'HW', group_work: 'Group',
+                            project_work: 'Project', class_test: 'Test'
+                          };
+                          return (
+                            <div key={field} className={`rounded-lg border p-2 text-center transition-colors ${atMax ? 'border-green-300 bg-green-50/50' : 'border-border bg-muted/20'}`}>
+                              <div className="text-xs font-semibold text-foreground mb-1.5 truncate">{labels[field]}</div>
                               <Input
-                                type="number" min="0" max="50" step="0.1"
-                                className="mt-1"
-                                value={scores[`${getCurrentStudent().id}-${subjectId}`]?.exam_score || ''}
+                                type="number" min="0" max={max} step="0.1"
+                                className={`h-8 text-center text-sm font-bold border shadow-none focus-visible:ring-1 px-1 ${
+                                  atMax ? 'border-green-300 bg-green-50 text-green-700' : 'border-border bg-background text-foreground'
+                                }`}
+                                value={val === 0 ? '' : val}
+                                placeholder="—"
+                                onChange={(e) => updateScore(getCurrentStudent().id, field, parseFloat(e.target.value) || 0, subjectId)}
+                              />
+                              <div className="text-xs font-medium text-muted-foreground mt-1">/{max}</div>
+                            </div>
+                          );
+                        })}
+                        {/* Exam field */}
+                        {(() => {
+                          const max = FIELD_MAX['exam_score'] ?? 50;
+                          const val = examVal;
+                          const atMax = val >= max;
+                          return (
+                            <div className={`rounded-lg border-2 p-2 text-center transition-colors ${atMax ? 'border-green-400 bg-green-50' : 'border-primary/50 bg-primary/5'}`}>
+                              <div className="text-xs font-bold text-primary mb-1.5">Exam</div>
+                              <Input
+                                type="number" min="0" max={max} step="0.1"
+                                className={`h-8 text-center text-sm font-bold border shadow-none focus-visible:ring-1 px-1 ${
+                                  atMax ? 'border-green-300 bg-green-50 text-green-700' : 'border-primary/40 bg-background text-primary'
+                                }`}
+                                value={val === 0 ? '' : val}
+                                placeholder="—"
                                 onChange={(e) => updateScore(getCurrentStudent().id, 'exam_score', parseFloat(e.target.value) || 0, subjectId)}
                               />
+                              <div className="text-xs font-medium text-muted-foreground mt-1">/{max}</div>
                             </div>
-                          </div>
-                          <div className="mt-4">
-                            <div className="animated-stats-card">
-                              <div className="animated-stats-card-content p-3 text-center">
-                                <span className="text-sm text-muted-foreground">Total: </span>
-                                <span className="font-bold text-green-600">
-                                  {calculateGrandTotal(getCurrentStudent().id, subjectId)}/100
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                          );
+                        })()}
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
-          {/* Navigation */}
-          <div className="animated-border-subtle">
-            <div className="animated-border-subtle-content p-6">
-              <div className="space-y-3">
-                {/* Mobile Layout */}
-                <div className="block sm:hidden space-y-2">
-                  <div className="flex justify-between">
-                    <Button 
-                      variant="outline" 
-                      onClick={previousStudent} 
-                      disabled={isFirstStudent()}
-                      size="sm"
-                    >
-                      <ArrowLeft className="h-4 w-4 mr-1" />
-                      Previous
-                    </Button>
-                    {!isLastStudent() ? (
-                      <Button onClick={nextStudent} size="sm">
-                        Next
-                        <ArrowRight className="h-4 w-4 ml-1" />
-                      </Button>
-                    ) : (
-                      <Button onClick={saveScores} disabled={saving} size="sm">
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Finish
-                      </Button>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={previewAllReports} variant="outline" size="sm" className="flex-1">
-                      <FileText className="h-4 w-4 mr-1" />
-                      All Reports
-                    </Button>
-                    <Button onClick={previewReport} disabled={loadingPreview} variant="outline" size="sm" className="flex-1">
-                      <Eye className="h-4 w-4 mr-1" />
-                      Preview
-                    </Button>
-                    <Button 
-                      onClick={() => handleDeleteAction('single')} 
-                      variant="destructive" 
-                      size="sm" 
-                      className="flex-1"
-                      disabled={deleting}
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Clear
-                    </Button>
-                  </div>
-                  
-                  <div className="flex gap-2 pt-4">
-                    <Button onClick={saveScores} disabled={saving} variant="outline" size="sm" className="flex-1">
-                      <Save className="h-4 w-4 mr-1" />
-                      Save
-                    </Button>
-                  </div>
-                </div>
-                
-                {/* Desktop Layout */}
-                <div className="hidden sm:flex justify-between items-center">
-                  <Button 
-                    variant="outline" 
-                    onClick={previousStudent} 
-                    disabled={isFirstStudent()}
-                  >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Previous Student
-                  </Button>
-                  
-                  <div className="flex gap-2">
-                    <Button onClick={previewAllReports} variant="outline">
-                      <FileText className="h-4 w-4 mr-2" />
-                      Preview All Reports
-                    </Button>
-                    <Button onClick={previewReport} disabled={loadingPreview} variant="outline">
-                      <Eye className="h-4 w-4 mr-2" />
-                      {loadingPreview ? 'Loading...' : 'Preview Report'}
-                    </Button>
-                    <Button onClick={saveScores} disabled={saving} variant="outline">
-                      <Save className="h-4 w-4 mr-2" />
-                      {saving ? 'Saving...' : 'Save Current'}
-                    </Button>
-                  </div>
-                  
-                  {!isLastStudent() ? (
-                    <Button onClick={nextStudent}>
-                      Next Student
-                      <ArrowRight className="h-4 w-4 ml-2" />
-                    </Button>
-                  ) : (
-                    <Button onClick={saveScores} disabled={saving}>
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      {saving ? 'Saving...' : 'Finish & Save All'}
-                    </Button>
-                  )}
-                </div>
+          {/* ── Navigation bar ── */}
+          <div className="rounded-xl border bg-card shadow-sm p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              {/* Prev */}
+              <Button variant="outline" onClick={previousStudent} disabled={isFirstStudent()} className="shrink-0">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Previous
+              </Button>
+
+              {/* Middle actions */}
+              <div className="flex items-center gap-2 flex-1 justify-center flex-wrap">
+                <Button variant="outline" size="sm" onClick={previewReport} disabled={loadingPreview}>
+                  <Eye className="h-4 w-4 mr-1.5" />
+                  {loadingPreview ? 'Loading…' : 'Preview'}
+                </Button>
+                <Button variant="outline" size="sm" onClick={previewAllReports}>
+                  <FileText className="h-4 w-4 mr-1.5" />
+                  All Reports
+                </Button>
+                <Button
+                  onClick={saveScores}
+                  disabled={saving}
+                  size="sm"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  <Save className="h-4 w-4 mr-1.5" />
+                  {saving ? 'Saving…' : 'Save'}
+                </Button>
+                <Button
+                  onClick={exportAllReports}
+                  disabled={exporting}
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white border-0"
+                >
+                  <Upload className="h-4 w-4 mr-1.5" />
+                  {exporting ? 'Exporting…' : 'Export'}
+                </Button>
               </div>
+
+              {/* Next / Finish */}
+              {!isLastStudent() ? (
+                <Button onClick={nextStudent} className="shrink-0">
+                  Next
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              ) : (
+                <Button onClick={saveScores} disabled={saving} className="shrink-0 bg-green-600 hover:bg-green-700 text-white">
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  {saving ? 'Saving…' : 'Finish & Save'}
+                </Button>
+              )}
             </div>
           </div>
+
         </div>
       )}
 
