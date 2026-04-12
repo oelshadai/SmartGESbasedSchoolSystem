@@ -530,4 +530,6 @@ const ReportsDashboard = () => {
     </Dialog>
     </>
   );
+};
+
 export default ReportsDashboard;
