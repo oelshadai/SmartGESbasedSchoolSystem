@@ -17,6 +17,13 @@ import ProtectedRoute from "./components/ProtectedRoute";
 // Dashboards
 import SchoolAdminDashboard from "./pages/dashboards/SchoolAdminDashboard";
 import TeacherDashboard from "./pages/dashboards/TeacherDashboard";
+import ProfessionalSuperAdminDashboard from "./pages/dashboards/ProfessionalSuperAdminDashboard";
+import AdminSchools from "./pages/superadmin/AdminSchools";
+import AdminSchoolDetail from "./pages/superadmin/AdminSchoolDetail";
+import AdminSubscriptions from "./pages/superadmin/AdminSubscriptions";
+import AdminUsers from "./pages/superadmin/AdminUsers";
+import AdminAnalytics from "./pages/superadmin/AdminAnalytics";
+import AdminSettings from "./pages/superadmin/AdminSettings";
 import StudentDashboard from "./pages/dashboards/StudentDashboard";
 import ParentDashboard from "./pages/parent/ParentDashboard";
 
@@ -94,6 +101,17 @@ const App = () => {
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/auth-demo" element={<AuthShowcase />} />
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
+
+          {/* Super Admin */}
+          <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']}><AppLayout /></ProtectedRoute>}>
+            <Route path="/admin/dashboard" element={<ProfessionalSuperAdminDashboard />} />
+            <Route path="/admin/schools" element={<AdminSchools />} />
+            <Route path="/admin/schools/:schoolId" element={<AdminSchoolDetail />} />
+            <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/analytics" element={<AdminAnalytics />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
+          </Route>
 
           {/* School Admin / Principal */}
           <Route element={<ProtectedRoute allowedRoles={['SCHOOL_ADMIN', 'PRINCIPAL']}><AppLayout /></ProtectedRoute>}>

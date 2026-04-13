@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore, getRoleDashboardPath } from '@/stores/authStore';
 import { authService } from '@/services/authService';
@@ -19,6 +19,7 @@ interface RoleConfig {
   placeholder: string;
 }
 
+// Visible role tabs — superadmin is intentionally omitted
 const ROLE_CONFIGS: RoleConfig[] = [
   {
     key: 'student',
@@ -43,16 +44,17 @@ const ROLE_CONFIGS: RoleConfig[] = [
     loginMethod: authService.adminLogin,
     inputType: 'email',
     placeholder: 'admin@school.edu'
-  },
-  {
-    key: 'superadmin',
-    label: 'Super',
-    icon: Lock,
-    loginMethod: authService.superadminLogin,
-    inputType: 'email',
-    placeholder: 'superadmin@school.edu'
   }
 ];
+
+const SUPERADMIN_CONFIG: RoleConfig = {
+  key: 'superadmin',
+  label: 'System',
+  icon: Lock,
+  loginMethod: authService.superadminLogin,
+  inputType: 'email',
+  placeholder: 'system@platform.internal'
+};
 
 const LoginPage = () => {
   const [loginRole, setLoginRole] = useState<LoginRole>('student');
@@ -60,10 +62,31 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [superAdminMode, setSuperAdminMode] = useState(false);
+  const secretClickCount = useRef(0);
+  const secretClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
 
-  const currentRole = ROLE_CONFIGS.find(role => role.key === loginRole)!;
+  const currentRole = superAdminMode
+    ? SUPERADMIN_CONFIG
+    : ROLE_CONFIGS.find(role => role.key === loginRole)!;
+
+  // Secret trigger: click logo 5 times within 3 seconds to activate system access
+  const handleLogoSecretClick = () => {
+    secretClickCount.current += 1;
+    if (secretClickTimer.current) clearTimeout(secretClickTimer.current);
+    secretClickTimer.current = setTimeout(() => {
+      secretClickCount.current = 0;
+    }, 3000);
+    if (secretClickCount.current >= 5) {
+      secretClickCount.current = 0;
+      setSuperAdminMode(true);
+      setLoginRole('superadmin');
+      setIdentifier('');
+      setError('');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,6 +119,7 @@ const LoginPage = () => {
   };
 
   const handleRoleChange = (role: LoginRole) => {
+    setSuperAdminMode(false);
     setLoginRole(role);
     setIdentifier('');
     setError('');
@@ -111,7 +135,10 @@ const LoginPage = () => {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,hsl(175_42%_46%/0.15),transparent_60%)]" style={{ zIndex: 2 }} />
         <div className="relative z-10 text-primary-foreground max-w-md space-y-6">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-secondary/20 backdrop-blur-sm">
+            <div
+              className="p-3 rounded-xl bg-secondary/20 backdrop-blur-sm cursor-pointer select-none"
+              onClick={handleLogoSecretClick}
+            >
               <img 
                 src="/EliteTech logo with sleek design.png" 
                 alt="School Report SaaS" 
@@ -156,24 +183,39 @@ const LoginPage = () => {
           </div>
 
           <div className="space-y-3">
-            <Label className="text-sm font-medium">Login as:</Label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {ROLE_CONFIGS.map(({ key, label, icon: Icon }) => (
+            {superAdminMode ? (
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium text-muted-foreground">System Access</Label>
                 <button
-                  key={key}
                   type="button"
-                  onClick={() => handleRoleChange(key)}
-                  className={`py-2.5 px-3 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
-                    loginRole === key
-                      ? 'bg-primary text-primary-foreground shadow-md'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
+                  onClick={() => handleRoleChange('admin')}
+                  className="text-xs text-muted-foreground hover:text-foreground underline"
                 >
-                  <Icon className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
-                  <span>{label}</span>
+                  Cancel
                 </button>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <>
+                <Label className="text-sm font-medium">Login as:</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {ROLE_CONFIGS.map(({ key, label, icon: Icon }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => handleRoleChange(key)}
+                      className={`py-2.5 px-3 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
+                        loginRole === key
+                          ? 'bg-primary text-primary-foreground shadow-md'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
+                      <span>{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
