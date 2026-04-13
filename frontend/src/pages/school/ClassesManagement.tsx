@@ -331,7 +331,7 @@ const ClassesManagement = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {teachers.map((t) => (
-                    <SelectItem key={t.id} value={t.id.toString()}>{t.first_name} {t.last_name} ({t.email})</SelectItem>
+                    <SelectItem key={t.id} value={t.user_id.toString()}>{t.first_name} {t.last_name} ({t.email})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -356,7 +356,7 @@ const ClassesManagement = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {teachers.map((t) => (
-                    <SelectItem key={t.id} value={t.id.toString()}>
+                    <SelectItem key={t.id} value={t.user_id.toString()}>
                       {t.first_name} {t.last_name} ({t.email})
                     </SelectItem>
                   ))}
