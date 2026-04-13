@@ -33,7 +33,7 @@ interface ClassSubject {
   class_instance: {
     id: number;
     name: string;
-  };
+  };c
 }
 
 interface CurrentTerm {
@@ -415,25 +415,12 @@ const ScoreEntry = () => {
       setLoadingSubjects(true);
       const response = await secureApiClient.get(`/schools/class-subjects/?class_instance=${cls.id}`);
       const data = Array.isArray(response) ? response : response.results || [];
-      let subjects;
-      if (cls.id === formClassId) {
-        // Assigned (form) class → show ALL subjects
-        subjects = data.map((cs: any) => ({
-          id: cs.id,
-          subject: { id: cs.subject?.id || cs.subject_id, name: cs.subject?.name || cs.subject_name },
-          class_instance: { id: cls.id, name: cls.name },
-        }));
-      } else {
-        // Not the form class → only teacher's assigned subjects
-        const assignedSubjectIds = teacherSubjectsByClass[cls.id] || [];
-        subjects = data
-          .filter((cs: any) => assignedSubjectIds.includes(cs.subject?.id || cs.subject_id))
-          .map((cs: any) => ({
-            id: cs.id,
-            subject: { id: cs.subject?.id || cs.subject_id, name: cs.subject?.name || cs.subject_name },
-            class_instance: { id: cls.id, name: cls.name },
-          }));
-      }
+      // Always show ALL subjects assigned to the class — class teacher enters scores for every subject
+      const subjects = data.map((cs: any) => ({
+        id: cs.id,
+        subject: { id: cs.subject?.id || cs.subject_id, name: cs.subject?.name || cs.subject_name },
+        class_instance: { id: cls.id, name: cls.name },
+      }));
       setClassSubjects(subjects);
     } catch (error) {
       console.error('Failed to fetch class subjects:', error);
