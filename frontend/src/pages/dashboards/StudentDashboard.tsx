@@ -266,19 +266,19 @@ const StudentDashboard = () => {
 
       {/* Assignment stat cards */}
       <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Assignments</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Assignments</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {assignmentCards.map((s) => (
-            <div key={s.label} className="animated-stats-card">
-              <div className="animated-stats-card-content p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{s.label}</span>
-                  <div className={`h-7 w-7 rounded-full ${s.bg} flex items-center justify-center ${s.color}`}>
-                    {s.icon}
-                  </div>
+            <div key={s.label} className={`relative group rounded-2xl border ${s.bg.replace('/10', '/20').replace('bg-', 'border-')} ${s.bg.replace('bg-', 'bg-').replace('/10', '/5')} backdrop-blur-sm p-4 shadow-lg hover:scale-[1.02] transition-all duration-200 overflow-hidden`}>
+              <div className={`absolute top-0 left-0 right-0 h-0.5 ${s.bg.replace('bg-', 'bg-gradient-to-r from-').replace('/10', '')} opacity-70`} />
+              <div className={`absolute -top-5 -right-5 w-16 h-16 ${s.bg} rounded-full blur-xl opacity-60`} />
+              <div className="relative">
+                <div className="flex items-start justify-between mb-3">
+                  <span className="text-xs font-medium text-muted-foreground">{s.label}</span>
+                  <div className={`p-1.5 rounded-lg ${s.bg} border ${s.bg.replace('bg-', 'border-').replace('/10', '/30')} ${s.color}`}>{s.icon}</div>
                 </div>
-                <p className="text-2xl font-bold text-foreground">{s.value}</p>
-                <p className="text-xs text-muted-foreground">{s.sub}</p>
+                <p className="text-3xl font-bold text-foreground leading-none">{s.value}</p>
+                <p className="text-xs text-muted-foreground mt-1.5">{s.sub}</p>
               </div>
             </div>
           ))}
@@ -287,19 +287,19 @@ const StudentDashboard = () => {
 
       {/* Attendance stat cards */}
       <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Attendance (Last 90 Days)</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Attendance (Last 90 Days)</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {attendanceCards.map((s) => (
-            <div key={s.label} className="animated-stats-card">
-              <div className="animated-stats-card-content p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{s.label}</span>
-                  <div className={`h-7 w-7 rounded-full ${s.bg} flex items-center justify-center ${s.color}`}>
-                    {s.icon}
-                  </div>
+            <div key={s.label} className={`relative group rounded-2xl border ${s.bg.replace('/10', '/20').replace('bg-', 'border-')} ${s.bg.replace('bg-', 'bg-').replace('/10', '/5')} backdrop-blur-sm p-4 shadow-lg hover:scale-[1.02] transition-all duration-200 overflow-hidden`}>
+              <div className={`absolute top-0 left-0 right-0 h-0.5 ${s.bg.replace('bg-', 'bg-gradient-to-r from-').replace('/10', '')} opacity-70`} />
+              <div className={`absolute -top-5 -right-5 w-16 h-16 ${s.bg} rounded-full blur-xl opacity-60`} />
+              <div className="relative">
+                <div className="flex items-start justify-between mb-3">
+                  <span className="text-xs font-medium text-muted-foreground">{s.label}</span>
+                  <div className={`p-1.5 rounded-lg ${s.bg} border ${s.bg.replace('bg-', 'border-').replace('/10', '/30')} ${s.color}`}>{s.icon}</div>
                 </div>
-                <p className="text-2xl font-bold text-foreground">{s.value}</p>
-                <p className="text-xs text-muted-foreground">{s.sub}</p>
+                <p className="text-3xl font-bold text-foreground leading-none">{s.value}</p>
+                <p className="text-xs text-muted-foreground mt-1.5">{s.sub}</p>
               </div>
             </div>
           ))}

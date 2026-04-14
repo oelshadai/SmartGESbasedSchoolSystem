@@ -107,40 +107,62 @@ const ParentDashboard = () => {
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-3">
                   {/* Attendance */}
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/40">
-                    <CalendarCheck className="h-4 w-4 text-green-500 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Attendance</p>
-                      <p className="text-sm font-semibold">
-                        {summary?.attendance_rate != null
-                          ? `${summary.attendance_rate}%`
-                          : '—'}
-                      </p>
+                  <div className="relative group rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 overflow-hidden hover:scale-[1.02] transition-all duration-200">
+                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 to-green-400 opacity-60" />
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/20">
+                        <CalendarCheck className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Attendance</p>
+                        <p className="text-sm font-bold text-foreground">
+                          {summary?.attendance_rate != null
+                            ? `${summary.attendance_rate}%`
+                            : '—'}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Quick links */}
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/40">
-                    <BookOpen className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Grades</p>
-                      <p className="text-sm font-semibold text-blue-600">View</p>
+                  {/* Grades */}
+                  <div className="relative group rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 overflow-hidden hover:scale-[1.02] transition-all duration-200">
+                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 opacity-60" />
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-blue-500/15 border border-blue-500/20">
+                        <BookOpen className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Grades</p>
+                        <p className="text-sm font-bold text-blue-500">View</p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/40">
-                    <DollarSign className="h-4 w-4 text-orange-500 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Fees</p>
-                      <p className="text-sm font-semibold text-orange-600">View</p>
+                  {/* Fees */}
+                  <div className="relative group rounded-xl border border-orange-500/20 bg-orange-500/5 p-3 overflow-hidden hover:scale-[1.02] transition-all duration-200">
+                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-orange-500 to-amber-400 opacity-60" />
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-orange-500/15 border border-orange-500/20">
+                        <DollarSign className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Fees</p>
+                        <p className="text-sm font-bold text-orange-500">View</p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/40">
-                    <FileText className="h-4 w-4 text-purple-500 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Reports</p>
-                      <p className="text-sm font-semibold text-purple-600">View</p>
+                  {/* Reports */}
+                  <div className="relative group rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 overflow-hidden hover:scale-[1.02] transition-all duration-200">
+                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-violet-400 opacity-60" />
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-purple-500/15 border border-purple-500/20">
+                        <FileText className="h-3.5 w-3.5 text-purple-500 flex-shrink-0" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Reports</p>
+                        <p className="text-sm font-bold text-purple-500">View</p>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

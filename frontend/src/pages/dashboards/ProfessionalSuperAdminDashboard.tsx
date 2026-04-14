@@ -101,39 +101,47 @@ const ProfessionalSuperAdminDashboard = () => {
   const stats = [
     { 
       label: 'Total Schools', 
-      value: data.system_stats.total_schools.toString(), 
+      value: data.system_stats.total_schools,
       icon: School, 
-      color: 'from-blue-500 to-cyan-500',
-      bgColor: 'bg-blue-500/10',
+      gradient: 'from-blue-500 to-cyan-400',
+      border: 'border-blue-500/20',
+      bg: 'bg-blue-500/10',
+      glow: 'shadow-blue-500/10',
+      iconColor: 'text-blue-400',
       change: '+12%',
-      trend: 'up'
     },
     { 
       label: 'Total Teachers', 
-      value: data.system_stats.total_teachers.toString(), 
+      value: data.system_stats.total_teachers,
       icon: Users, 
-      color: 'from-purple-500 to-pink-500',
-      bgColor: 'bg-purple-500/10',
+      gradient: 'from-purple-500 to-violet-400',
+      border: 'border-purple-500/20',
+      bg: 'bg-purple-500/10',
+      glow: 'shadow-purple-500/10',
+      iconColor: 'text-purple-400',
       change: '+8%',
-      trend: 'up'
     },
     { 
       label: 'Total Students', 
-      value: data.system_stats.total_students.toString(), 
+      value: data.system_stats.total_students,
       icon: GraduationCap, 
-      color: 'from-green-500 to-emerald-500',
-      bgColor: 'bg-green-500/10',
+      gradient: 'from-emerald-500 to-green-400',
+      border: 'border-emerald-500/20',
+      bg: 'bg-emerald-500/10',
+      glow: 'shadow-emerald-500/10',
+      iconColor: 'text-emerald-400',
       change: '+15%',
-      trend: 'up'
     },
     { 
-      label: 'Total Admins', 
-      value: data.system_stats.total_admins.toString(), 
+      label: 'School Admins', 
+      value: data.system_stats.total_admins,
       icon: Shield, 
-      color: 'from-orange-500 to-red-500',
-      bgColor: 'bg-orange-500/10',
+      gradient: 'from-orange-500 to-amber-400',
+      border: 'border-orange-500/20',
+      bg: 'bg-orange-500/10',
+      glow: 'shadow-orange-500/10',
+      iconColor: 'text-orange-400',
       change: '+5%',
-      trend: 'up'
     },
   ];
 
@@ -175,26 +183,30 @@ const ProfessionalSuperAdminDashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map((stat, index) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {stats.map((stat) => {
             const Icon = stat.icon;
             return (
-              <div key={stat.label} className="group relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-800/50 p-6 hover:border-slate-700/50 transition-all duration-300">
+              <div key={stat.label} className={`relative group rounded-2xl border ${stat.border} bg-slate-900/60 backdrop-blur-xl p-6 shadow-xl ${stat.glow} hover:scale-[1.02] transition-all duration-300 overflow-hidden`}>
+                {/* Top accent line */}
+                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${stat.gradient} opacity-70 group-hover:opacity-100 transition-opacity`} />
+                {/* Background glow bubble */}
+                <div className={`absolute -top-8 -right-8 w-24 h-24 ${stat.bg} rounded-full blur-2xl opacity-70 group-hover:opacity-100 transition-opacity`} />
+
+                <div className="relative">
                   <div className="flex items-start justify-between mb-4">
-                    <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} bg-opacity-20`}>
-                      <Icon className="h-6 w-6 text-white" />
+                    <div className={`p-2.5 rounded-xl ${stat.bg} border ${stat.border}`}>
+                      <Icon className={`h-5 w-5 ${stat.iconColor}`} />
                     </div>
-                    <div className="flex items-center gap-1 text-green-400 text-sm">
+                    <div className="flex items-center gap-1 text-emerald-400 text-xs font-semibold bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5">
                       <TrendingUp className="h-3 w-3" />
                       {stat.change}
                     </div>
                   </div>
-                  <div>
-                    <p className="text-3xl font-bold text-white mb-1">{stat.value}</p>
-                    <p className="text-slate-400 text-sm">{stat.label}</p>
-                  </div>
+                  <p className={`text-4xl font-bold bg-gradient-to-br ${stat.gradient} bg-clip-text text-transparent mb-1 leading-none`}>
+                    {stat.value.toLocaleString()}
+                  </p>
+                  <p className="text-slate-400 text-sm font-medium">{stat.label}</p>
                 </div>
               </div>
             );
@@ -281,22 +293,24 @@ const ProfessionalSuperAdminDashboard = () => {
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-1">
                 {[
-                  { label: 'Total Assignments', value: data.system_stats.total_assignments, icon: Calendar },
-                  { label: 'Schools', value: data.system_stats.total_schools, icon: School },
-                  { label: 'Teachers', value: data.system_stats.total_teachers, icon: Users },
-                  { label: 'Students', value: data.system_stats.total_students, icon: GraduationCap },
-                  { label: 'School Admins', value: data.system_stats.total_admins, icon: Shield }
-                ].map((item, index) => {
+                  { label: 'Total Assignments', value: data.system_stats.total_assignments, icon: Calendar, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+                  { label: 'Schools', value: data.system_stats.total_schools, icon: School, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+                  { label: 'Teachers', value: data.system_stats.total_teachers, icon: Users, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+                  { label: 'Students', value: data.system_stats.total_students, icon: GraduationCap, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+                  { label: 'School Admins', value: data.system_stats.total_admins, icon: Shield, color: 'text-orange-400', bg: 'bg-orange-500/10' }
+                ].map((item) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.label} className="flex items-center justify-between py-3 border-b border-slate-800/50 last:border-0">
+                    <div key={item.label} className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-slate-800/50 transition-colors group">
                       <div className="flex items-center gap-3">
-                        <Icon className="h-4 w-4 text-slate-400" />
-                        <span className="text-sm text-slate-300">{item.label}</span>
+                        <div className={`p-1.5 rounded-lg ${item.bg}`}>
+                          <Icon className={`h-3.5 w-3.5 ${item.color}`} />
+                        </div>
+                        <span className="text-sm text-slate-400 group-hover:text-slate-300 transition-colors">{item.label}</span>
                       </div>
-                      <span className="font-semibold text-white">{item.value}</span>
+                      <span className="font-bold text-white text-sm">{item.value.toLocaleString()}</span>
                     </div>
                   );
                 })}

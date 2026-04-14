@@ -216,25 +216,29 @@ const TeacherDashboard = () => {
       label: 'Assignments', 
       value: safeData.stats.total_assignments.toString(), 
       icon: <ClipboardList className="h-5 w-5" />, 
-      color: 'text-secondary' 
+      color: 'text-secondary',
+      sub: 'total created',
     },
     { 
       label: 'Classes', 
       value: safeData.stats.total_classes.toString(), 
       icon: <Users className="h-5 w-5" />, 
-      color: 'text-info' 
+      color: 'text-info',
+      sub: 'assigned to you',
     },
     { 
       label: 'Subjects', 
       value: safeData.stats.total_subjects.toString(), 
       icon: <Award className="h-5 w-5" />, 
-      color: 'text-success' 
+      color: 'text-success',
+      sub: 'teaching',
     },
     { 
       label: 'Attendance Today', 
       value: safeData.stats.attendance_taken_today.toString(), 
       icon: <UserCheck className="h-5 w-5" />, 
-      color: 'text-accent' 
+      color: 'text-accent',
+      sub: 'records taken',
     },
   ];
 
@@ -246,24 +250,8 @@ const TeacherDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((s, index) => (
-          <div key={s.label} className="animated-stats-card">
-            <div className="animated-stats-card-content p-4 space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">{s.label}</span>
-                <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
-                  {s.icon}
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-foreground">{s.value}</p>
-              <p className="text-xs text-muted-foreground">
-                {s.label === 'Assignments' && 'total created'}
-                {s.label === 'Classes' && 'assigned to you'}
-                {s.label === 'Subjects' && 'teaching'}
-                {s.label === 'Attendance Today' && 'records taken'}
-              </p>
-            </div>
-          </div>
+        {stats.map((s) => (
+          <StatCard key={s.label} label={s.label} value={s.value} icon={s.icon} color={s.color} trend={s.sub} />
         ))}
       </div>
 
