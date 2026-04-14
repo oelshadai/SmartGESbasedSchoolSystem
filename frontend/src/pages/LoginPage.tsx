@@ -135,12 +135,9 @@ const LoginPage = () => {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,hsl(175_42%_46%/0.15),transparent_60%)]" style={{ zIndex: 2 }} />
         <div className="relative z-10 text-primary-foreground max-w-md space-y-6">
           <div className="flex items-center gap-3">
-            <div
-              className="p-3 rounded-xl bg-secondary/20 backdrop-blur-sm cursor-pointer select-none"
-              onClick={handleLogoSecretClick}
-            >
+            <div className="p-3 rounded-xl bg-secondary/20 backdrop-blur-sm">
               <img 
-                src="/EliteTech logo with sleek design.png" 
+                src="/EliteTech logo with 3D cube design.png" 
                 alt="School Report SaaS" 
                 className="h-10 w-10 object-contain"
               />
@@ -166,12 +163,15 @@ const LoginPage = () => {
       {/* Right panel */}
       <div className="flex-1 flex items-center justify-center px-4 py-6 sm:p-8 bg-background">
         <div className="w-full max-w-md space-y-6 sm:space-y-8">
-          <div className="lg:hidden flex flex-col items-center gap-3 mb-2">
-            <div className="p-3 rounded-xl bg-primary/10">
+          <div className="flex flex-col items-center gap-3 mb-2">
+            <div
+              className="p-3 rounded-xl bg-primary/10 cursor-pointer select-none"
+              onClick={handleLogoSecretClick}
+            >
               <img 
-                src="/EliteTech logo with sleek design.png" 
+                src="/EliteTech logo with 3D cube design.png" 
                 alt="School Report SaaS" 
-                className="h-10 w-10 object-contain"
+                className="h-14 w-14 object-contain"
               />
             </div>
             <span className="text-lg sm:text-xl font-bold text-foreground">School Report SaaS</span>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useAuthStore, getRoleDashboardPath } from '@/stores/authStore';
 import { authService } from '@/services/authService';
@@ -144,8 +144,8 @@ const AppLayout = () => {
           newUnread.forEach(n => {
             new Notification(n.title, {
               body: n.message,
-              icon: '/EliteTech logo with sleek design.png',
-              badge: '/EliteTech logo with sleek design.png',
+              icon: '/EliteTech logo with 3D cube design.png',
+              badge: '/EliteTech logo with 3D cube design.png',
               tag: `notif-${n.id}`,
             });
           });
@@ -218,7 +218,7 @@ const AppLayout = () => {
         <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
           <div className="shrink-0">
             <img 
-              src="/EliteTech logo with sleek design.png" 
+              src="/EliteTech logo with 3D cube design.png" 
               alt="School Report SaaS" 
               className="h-8 w-auto object-contain"
             />

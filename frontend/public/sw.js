@@ -1,8 +1,8 @@
-const CACHE_NAME = 'school-report-v2';
+﻿const CACHE_NAME = 'school-report-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/EliteTech logo with sleek design.png',
+  '/EliteTech logo with 3D cube design.png',
   '/manifest.json',
 ];
 
@@ -54,8 +54,8 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   const options = {
     body: event.data?.text() || 'New notification from School Report',
-    icon: '/EliteTech logo with sleek design.png',
-    badge: '/EliteTech logo with sleek design.png',
+    icon: '/EliteTech logo with 3D cube design.png',
+    badge: '/EliteTech logo with 3D cube design.png',
     vibrate: [100, 50, 100],
     data: {
       dateOfArrival: Date.now(),

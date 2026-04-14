@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Download, X, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -145,7 +145,7 @@ export function PWAInstallPrompt() {
         <div className="flex items-start gap-3">
           <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
             <img 
-              src="/EliteTech logo with sleek design.png" 
+              src="/EliteTech logo with 3D cube design.png" 
               alt="Elite Tech"
               className="w-8 h-8 object-contain"
             />
