@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore, getRoleDashboardPath } from '@/stores/authStore';
 import { authService } from '@/services/authService';
@@ -19,6 +19,16 @@ interface RoleConfig {
   placeholder: string;
   description: string;
 }
+
+const SUPERADMIN_CONFIG = {
+  key: 'superadmin',
+  label: 'Super Admin',
+  icon: Shield,
+  loginMethod: authService.superadminLogin,
+  inputType: 'email' as const,
+  placeholder: 'superadmin@system.internal',
+  description: 'System administration access',
+};
 
 const ROLE_CONFIGS: RoleConfig[] = [
   {
@@ -66,6 +76,21 @@ const ProfessionalLoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [superAdminMode, setSuperAdminMode] = useState(false);
+  const secretClickCount = useRef(0);
+  const secretClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleLogoSecretClick = () => {
+    secretClickCount.current += 1;
+    if (secretClickTimer.current) clearTimeout(secretClickTimer.current);
+    secretClickTimer.current = setTimeout(() => { secretClickCount.current = 0; }, 3000);
+    if (secretClickCount.current >= 5) {
+      secretClickCount.current = 0;
+      setSuperAdminMode(true);
+      setIdentifier('');
+      setError('');
+    }
+  };
 
   // Forgot password state
   const [showForgot, setShowForgot] = useState(false);
@@ -77,7 +102,7 @@ const ProfessionalLoginPage = () => {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
 
-  const currentRole = ROLE_CONFIGS.find(role => role.key === loginRole)!;
+  const currentRole = superAdminMode ? SUPERADMIN_CONFIG : ROLE_CONFIGS.find(role => role.key === loginRole)!;
   const Icon = currentRole.icon;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -149,11 +174,18 @@ const ProfessionalLoginPage = () => {
             <div className="space-y-6">
               {/* Logo */}
               <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl blur-xl opacity-50" />
-                  <div className="relative bg-gradient-to-br from-orange-500 to-amber-500 p-4 rounded-2xl">
-                    <GraduationCap className="h-8 w-8 text-white" />
-                  </div>
+                <div
+                  className="relative cursor-pointer select-none"
+                  onClick={handleLogoSecretClick}
+                  role="button"
+                  tabIndex={-1}
+                  aria-label=""
+                >
+                  <img
+                    src="/EliteTech logo with 3D cube design.png"
+                    alt="EliteTech"
+                    className="h-16 w-16 object-contain pointer-events-none"
+                  />
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold text-white">School Report</h1>
@@ -213,11 +245,18 @@ const ProfessionalLoginPage = () => {
             <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-slate-800/50 shadow-2xl p-5 sm:p-8 lg:p-10">
               {/* Mobile logo */}
               <div className="lg:hidden flex items-center justify-center gap-3 mb-5 sm:mb-8">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl blur-lg opacity-50" />
-                  <div className="relative bg-gradient-to-br from-orange-500 to-amber-500 p-2.5 sm:p-3 rounded-xl">
-                    <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                  </div>
+                <div
+                  className="relative cursor-pointer select-none"
+                  onClick={handleLogoSecretClick}
+                  role="button"
+                  tabIndex={-1}
+                  aria-label=""
+                >
+                  <img
+                    src="/EliteTech logo with 3D cube design.png"
+                    alt="EliteTech"
+                    className="h-12 w-12 object-contain pointer-events-none"
+                  />
                 </div>
                 <div>
                   <h1 className="text-lg sm:text-xl font-bold text-white">School Report</h1>
@@ -233,36 +272,54 @@ const ProfessionalLoginPage = () => {
 
               {/* Role Selection */}
               <div className="mb-4 sm:mb-6">
-                <Label className="text-slate-300 text-xs sm:text-sm font-medium mb-2 sm:mb-3 block">Select Your Role</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                  {ROLE_CONFIGS.map((role) => {
-                    const RoleIcon = role.icon;
-                    const isActive = loginRole === role.key;
-                    return (
-                      <button
-                        key={role.key}
-                        type="button"
-                        onClick={() => handleRoleChange(role.key)}
-                        className={`relative group px-2 py-3 sm:p-4 rounded-xl transition-all duration-200 ${
-                          isActive
-                            ? 'bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg shadow-orange-500/25'
-                            : 'bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50'
-                        }`}
-                      >
-                        <div className="flex flex-col items-center gap-1.5 sm:gap-2">
-                          <RoleIcon className={`h-4 w-4 sm:h-5 sm:w-5 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-300'}`} />
-                          <span className={`text-xs sm:text-sm font-medium ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-300'}`}>
-                            {role.label}
-                          </span>
-                        </div>
-                        {isActive && (
-                          <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-orange-400/20 to-amber-400/20 animate-pulse" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-slate-500 mt-2 sm:mt-3 text-center">{currentRole.description}</p>
+                {superAdminMode ? (
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-slate-800/50 border border-slate-700/50">
+                    <div className="flex items-center gap-3">
+                      <Shield className="h-5 w-5 text-slate-400" />
+                      <span className="text-slate-300 text-sm font-medium">System Access</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setSuperAdminMode(false); setIdentifier(''); setError(''); }}
+                      className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <Label className="text-slate-300 text-xs sm:text-sm font-medium mb-2 sm:mb-3 block">Select Your Role</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                      {ROLE_CONFIGS.map((role) => {
+                        const RoleIcon = role.icon;
+                        const isActive = loginRole === role.key;
+                        return (
+                          <button
+                            key={role.key}
+                            type="button"
+                            onClick={() => handleRoleChange(role.key)}
+                            className={`relative group px-2 py-3 sm:p-4 rounded-xl transition-all duration-200 ${
+                              isActive
+                                ? 'bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg shadow-orange-500/25'
+                                : 'bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50'
+                            }`}
+                          >
+                            <div className="flex flex-col items-center gap-1.5 sm:gap-2">
+                              <RoleIcon className={`h-4 w-4 sm:h-5 sm:w-5 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-300'}`} />
+                              <span className={`text-xs sm:text-sm font-medium ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-300'}`}>
+                                {role.label}
+                              </span>
+                            </div>
+                            {isActive && (
+                              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-orange-400/20 to-amber-400/20 animate-pulse" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-2 sm:mt-3 text-center">{currentRole.description}</p>
+                  </>
+                )}
               </div>
 
               {/* Login Form */}
