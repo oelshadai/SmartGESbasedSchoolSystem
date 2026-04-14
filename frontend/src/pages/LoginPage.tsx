@@ -165,13 +165,15 @@ const LoginPage = () => {
         <div className="w-full max-w-md space-y-6 sm:space-y-8">
           <div className="flex flex-col items-center gap-3 mb-2">
             <div
-              className="p-3 rounded-xl bg-primary/10 cursor-pointer select-none"
+              className="p-3 rounded-xl bg-primary/10 cursor-pointer select-none relative z-10"
               onClick={handleLogoSecretClick}
+              role="button"
+              tabIndex={-1}
             >
               <img 
                 src="/EliteTech logo with 3D cube design.png" 
                 alt="School Report SaaS" 
-                className="h-14 w-14 object-contain"
+                className="h-14 w-14 object-contain pointer-events-none"
               />
             </div>
             <span className="text-lg sm:text-xl font-bold text-foreground">School Report SaaS</span>
