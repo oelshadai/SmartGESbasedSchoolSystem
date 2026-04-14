@@ -37,12 +37,10 @@ interface Student {
   class_name: string;
 }
 
-interface Term {
+interface ActiveTerm {
   id: number;
   name: string;
-  academic_year: {
-    name: string;
-  };
+  academic_year_name: string;
 }
 
 interface BehaviorChoices {
@@ -63,7 +61,7 @@ const typeColors: Record<string, string> = {
 const StudentBehavior = () => {
   const [records, setRecords] = useState<BehaviorRecord[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
-  const [terms, setTerms] = useState<Term[]>([]);
+  const [activeTerm, setActiveTerm] = useState<ActiveTerm | null>(null);
   const [choices, setChoices] = useState<BehaviorChoices | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -72,7 +70,6 @@ const StudentBehavior = () => {
 
   const [formData, setFormData] = useState({
     student: '',
-    term: '',
     conduct: 'GOOD',
     attitude: 'GOOD',
     interest: '',
@@ -91,7 +88,7 @@ const StudentBehavior = () => {
       await Promise.all([
         fetchBehaviorRecords(),
         fetchStudents(),
-        fetchTerms(),
+        fetchActiveTerm(),
         fetchChoices()
       ]);
     } catch (error) {
@@ -177,37 +174,32 @@ const StudentBehavior = () => {
     }
   };
 
-  const fetchTerms = async () => {
+  const fetchActiveTerm = async () => {
     try {
+      // Try to get the active/current term set by admin
       const response = await secureApiClient.get('/schools/academic-years/');
       const academicYears = Array.isArray(response) ? response : response.results || response.data || [];
       
-      // Extract terms from academic years
-      const allTerms: Term[] = [];
-      academicYears.forEach((year: any) => {
-        if (year.terms && Array.isArray(year.terms)) {
-          year.terms.forEach((term: any) => {
-            allTerms.push({
-              id: term.id,
-              name: term.name,
-              academic_year: { name: year.name }
-            });
-          });
+      // Find the active academic year and its current term
+      for (const year of academicYears) {
+        if (year.is_active && year.terms && Array.isArray(year.terms)) {
+          const currentTerm = year.terms.find((t: any) => t.is_current) || year.terms[year.terms.length - 1];
+          if (currentTerm) {
+            setActiveTerm({ id: currentTerm.id, name: currentTerm.name, academic_year_name: year.name });
+            return;
+          }
         }
-      });
-      
-      setTerms(allTerms);
-    } catch (error) {
-      console.error('Failed to fetch terms:', error);
-      // Try alternative endpoint
-      try {
-        const response = await secureApiClient.get('/schools/terms/');
-        const data = Array.isArray(response) ? response : response.results || response.data || [];
-        setTerms(data);
-      } catch (altError) {
-        console.error('Failed to fetch terms from alternative endpoint:', altError);
-        setTerms([]);
       }
+      // Fallback: use latest term across all years
+      for (const year of academicYears) {
+        if (year.terms && year.terms.length > 0) {
+          const t = year.terms[year.terms.length - 1];
+          setActiveTerm({ id: t.id, name: t.name, academic_year_name: year.name });
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch active term:', error);
     }
   };
 
@@ -246,10 +238,18 @@ const StudentBehavior = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.student || !formData.term) {
+    if (!formData.student) {
       toast({ 
         title: "Error", 
-        description: "Please select both student and term", 
+        description: "Please select a student", 
+        variant: "destructive" 
+      });
+      return;
+    }
+    if (!activeTerm) {
+      toast({ 
+        title: "Error", 
+        description: "No active term found. Please ask the admin to set the current term in Settings.", 
         variant: "destructive" 
       });
       return;
@@ -269,7 +269,7 @@ const StudentBehavior = () => {
       const submitData = {
         ...formData,
         student: parseInt(formData.student),
-        term: parseInt(formData.term)
+        term: activeTerm!.id
       };
       
       if (editingRecord) {
@@ -295,7 +295,6 @@ const StudentBehavior = () => {
   const resetForm = () => {
     setFormData({
       student: '',
-      term: '',
       conduct: 'GOOD',
       attitude: 'GOOD',
       interest: '',
@@ -311,7 +310,6 @@ const StudentBehavior = () => {
     setEditingRecord(record);
     setFormData({
       student: record.student.toString(),
-      term: record.term.toString(),
       conduct: record.conduct,
       attitude: record.attitude,
       interest: record.interest,
@@ -341,13 +339,6 @@ const StudentBehavior = () => {
       label: 'Student', 
       render: (r: BehaviorRecord) => (
         <span className="font-medium text-foreground">{r.student_name}</span>
-      )
-    },
-    { 
-      key: 'term_name', 
-      label: 'Term', 
-      render: (r: BehaviorRecord) => (
-        <Badge variant="outline">{r.term_name}</Badge>
       )
     },
     { 
@@ -487,53 +478,42 @@ const StudentBehavior = () => {
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="student">Student</Label>
-                  {students.length === 0 ? (
-                    <div className="text-sm text-muted-foreground p-3 border rounded-md">
-                      No students found in your form class. Only class teachers can record behavior for their assigned students.
-                    </div>
-                  ) : (
-                    <Select 
-                      value={formData.student} 
-                      onValueChange={(value) => setFormData({...formData, student: value})}
-                      required
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select student from your form class" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {students.map(student => (
-                          <SelectItem key={student.id} value={student.id.toString()}>
-                            <div className="flex items-center justify-between w-full">
-                              <span>{student.full_name}</span>
-                              <span className="text-xs text-muted-foreground ml-2">({student.student_id})</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+              {/* Active term banner */}
+              {activeTerm && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-primary/10 text-sm">
+                  <span className="text-muted-foreground">Term:</span>
+                  <span className="font-medium">{activeTerm.name}</span>
+                  <span className="text-muted-foreground">— {activeTerm.academic_year_name}</span>
                 </div>
-                <div>
-                  <Label htmlFor="term">Term</Label>
+              )}
+
+              <div>
+                <Label htmlFor="student">Student</Label>
+                {students.length === 0 ? (
+                  <div className="text-sm text-muted-foreground p-3 border rounded-md">
+                    No students found in your form class. Only class teachers can record behavior for their assigned students.
+                  </div>
+                ) : (
                   <Select 
-                    value={formData.term} 
-                    onValueChange={(value) => setFormData({...formData, term: value})}
+                    value={formData.student} 
+                    onValueChange={(value) => setFormData({...formData, student: value})}
+                    required
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select term" />
+                      <SelectValue placeholder="Select student from your form class" />
                     </SelectTrigger>
                     <SelectContent>
-                      {terms.map(term => (
-                        <SelectItem key={term.id} value={term.id.toString()}>
-                          {term.name}
+                      {students.map(student => (
+                        <SelectItem key={student.id} value={student.id.toString()}>
+                          <div className="flex items-center justify-between w-full">
+                            <span>{student.full_name}</span>
+                            <span className="text-xs text-muted-foreground ml-2">({student.student_id})</span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                )}
               </div>
               
               <div className="grid grid-cols-3 gap-4">
@@ -674,7 +654,7 @@ const StudentBehavior = () => {
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={students.length === 0 || !formData.student || !formData.term}
+                  disabled={students.length === 0 || !formData.student || !activeTerm}
                 >
                   {editingRecord ? 'Update' : 'Create'} Record
                 </Button>

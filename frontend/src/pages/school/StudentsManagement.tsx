@@ -38,7 +38,7 @@ const StudentsManagement = () => {
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
-  const [credentials, setCredentials] = useState<{ student_name: string; username: string; password: string; class_name: string } | null>(null);
+  const [credentials, setCredentials] = useState<{ student_name: string; username: string; password: string; class_name: string; parent_account_created?: boolean; parent_generated_password?: string | null; guardian_email?: string } | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Profile change requests
@@ -275,6 +275,9 @@ const StudentsManagement = () => {
             username: newStudent.generated_username || newStudent.username || `std_${form.student_id}`,
             password: newStudent.generated_password || newStudent.password || 'Contact admin',
             class_name: newStudent.class_name || 'Assigned class',
+            parent_account_created: newStudent.parent_account_created || false,
+            parent_generated_password: newStudent.parent_generated_password || null,
+            guardian_email: form.guardian_email || '',
           });
           setShowCredentialsDialog(true);
         }
@@ -547,6 +550,37 @@ const StudentsManagement = () => {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground text-center">Students should change their password on first login.</p>
+              {credentials.parent_account_created && credentials.parent_generated_password && (
+                <>
+                  <div className="border-t border-border pt-3">
+                    <div className="text-sm font-medium mb-2 flex items-center gap-2">
+                      <span>Parent/Guardian Portal Access</span>
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Auto-created</span>
+                    </div>
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-xs text-muted-foreground">Email (login)</div>
+                          <div className="font-mono text-sm">{credentials.guardian_email}</div>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopyToClipboard(credentials.guardian_email || '', 'g_email')}>
+                          {copiedField === 'g_email' ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                        </Button>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-xs text-muted-foreground">Password</div>
+                          <div className="font-mono text-sm">{credentials.parent_generated_password}</div>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopyToClipboard(credentials.parent_generated_password || '', 'g_pass')}>
+                          {copiedField === 'g_pass' ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Share these credentials with the parent/guardian so they can access the Parent Portal.</p>
+                  </div>
+                </>
+              )}
             </div>
           )}
           <DialogFooter>

@@ -141,19 +141,13 @@ const ClassesManagement = () => {
   const handleUnassignTeacher = async (classData: ClassData) => {
     setAssigning(true);
     try {
-      console.log('Unassigning teacher from class:', classData); // Debug log
-      const response = await secureApiClient.patch(`/schools/classes/${classData.id}/`, {
-        class_teacher: null
+      await secureApiClient.post(`/schools/classes/${classData.id}/assign_teacher/`, {
+        teacher_user_id: null
       });
-      console.log('Unassign response:', response); // Debug log
-      
       toast({ title: 'Success', description: 'Teacher unassigned successfully' });
-      
-      // Force a complete refresh
-      setClasses([]); // Clear current data
-      await fetchClasses(); // Fetch fresh data
+      setClasses([]);
+      await fetchClasses();
     } catch (err: any) {
-      console.error('Unassign error:', err); // Debug log
       toast({ title: 'Error', description: err.message || 'Failed to unassign teacher', variant: 'destructive' });
     } finally {
       setAssigning(false);
@@ -165,20 +159,14 @@ const ClassesManagement = () => {
     
     setAssigning(true);
     try {
-      console.log('Assigning teacher:', assigningTeacher, 'to class:', selectedClass); // Debug log
-      const response = await secureApiClient.patch(`/schools/classes/${selectedClass.id}/`, {
-        class_teacher: parseInt(assigningTeacher)
+      await secureApiClient.post(`/schools/classes/${selectedClass.id}/assign_teacher/`, {
+        teacher_user_id: parseInt(assigningTeacher)
       });
-      console.log('Assign response:', response); // Debug log
-      
       toast({ title: 'Success', description: 'Teacher assigned successfully' });
       setShowAssignDialog(false);
-      
-      // Force a complete refresh
-      setClasses([]); // Clear current data
-      await fetchClasses(); // Fetch fresh data
+      setClasses([]);
+      await fetchClasses();
     } catch (err: any) {
-      console.error('Assign error:', err); // Debug log
       toast({ title: 'Error', description: err.message || 'Failed to assign teacher', variant: 'destructive' });
     } finally {
       setAssigning(false);
