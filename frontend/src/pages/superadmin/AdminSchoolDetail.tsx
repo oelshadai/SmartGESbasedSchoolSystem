@@ -120,17 +120,33 @@ export default function AdminSchoolDetail() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: 'Students', value: school.student_count, icon: GraduationCap },
-          { label: 'Teachers', value: school.teacher_count, icon: Users },
-          { label: 'Admins', value: school.admin_count, icon: School },
-        ].map(({ label, value, icon: Icon }) => (
-          <div key={label} className="bg-card border border-border rounded-xl p-4 text-center">
-            <Icon className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-            <p className="text-2xl font-bold">{value}</p>
-            <p className="text-xs text-muted-foreground">{label}</p>
+        <div className="relative group rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 shadow-lg hover:scale-[1.02] transition-all duration-200 overflow-hidden text-center">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute -top-5 -right-5 w-16 h-16 bg-blue-500/10 rounded-full blur-xl opacity-60" />
+          <div className="relative">
+            <GraduationCap className="h-5 w-5 mx-auto mb-1 text-blue-400" />
+            <p className="text-2xl font-bold">{school.student_count}</p>
+            <p className="text-xs text-muted-foreground">Students</p>
           </div>
-        ))}
+        </div>
+        <div className="relative group rounded-2xl border border-purple-500/20 bg-purple-500/5 p-4 shadow-lg hover:scale-[1.02] transition-all duration-200 overflow-hidden text-center">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-violet-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute -top-5 -right-5 w-16 h-16 bg-purple-500/10 rounded-full blur-xl opacity-60" />
+          <div className="relative">
+            <Users className="h-5 w-5 mx-auto mb-1 text-purple-400" />
+            <p className="text-2xl font-bold">{school.teacher_count}</p>
+            <p className="text-xs text-muted-foreground">Teachers</p>
+          </div>
+        </div>
+        <div className="relative group rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 shadow-lg hover:scale-[1.02] transition-all duration-200 overflow-hidden text-center">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-orange-500 to-amber-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute -top-5 -right-5 w-16 h-16 bg-orange-500/10 rounded-full blur-xl opacity-60" />
+          <div className="relative">
+            <School className="h-5 w-5 mx-auto mb-1 text-orange-400" />
+            <p className="text-2xl font-bold">{school.admin_count}</p>
+            <p className="text-xs text-muted-foreground">Admins</p>
+          </div>
+        </div>
       </div>
 
       {/* Active Subscription */}

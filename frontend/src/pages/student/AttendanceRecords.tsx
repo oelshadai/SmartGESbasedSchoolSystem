@@ -30,9 +30,9 @@ interface AttendanceSummary {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const statusCfg = {
-  present: { label: 'Present', icon: <Check className="h-3.5 w-3.5" />, cls: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
-  absent:  { label: 'Absent',  icon: <X className="h-3.5 w-3.5" />,     cls: 'bg-red-100 text-red-700',     dot: 'bg-red-500'     },
-  late:    { label: 'Late',    icon: <Clock className="h-3.5 w-3.5" />,  cls: 'bg-yellow-100 text-yellow-700', dot: 'bg-yellow-500' },
+  present: { label: 'Present', icon: <Check className="h-3.5 w-3.5" />, cls: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500', cardCls: 'border-emerald-500/20 bg-emerald-500/5', barCls: 'from-emerald-500 to-teal-400', glowCls: 'bg-emerald-500/10' },
+  absent:  { label: 'Absent',  icon: <X className="h-3.5 w-3.5" />,     cls: 'bg-red-100 text-red-700',     dot: 'bg-red-500',     cardCls: 'border-red-500/20 bg-red-500/5',     barCls: 'from-red-500 to-rose-400',     glowCls: 'bg-red-500/10'     },
+  late:    { label: 'Late',    icon: <Clock className="h-3.5 w-3.5" />,  cls: 'bg-yellow-100 text-yellow-700', dot: 'bg-yellow-500', cardCls: 'border-amber-500/20 bg-amber-500/5', barCls: 'from-amber-500 to-yellow-400', glowCls: 'bg-amber-500/10' },
 } as const;
 
 const formatDate = (iso: string) => {
@@ -168,12 +168,16 @@ const AttendanceRecords = () => {
           const cfg = statusCfg[s];
           const count = safe[s];
           return (
-            <div key={s} className="bg-card border border-border rounded-2xl p-4 text-center space-y-1">
-              <div className={`h-8 w-8 rounded-xl flex items-center justify-center mx-auto ${cfg.cls}`}>
-                {cfg.icon}
+            <div key={s} className={`relative group rounded-2xl border ${cfg.cardCls} p-4 shadow-lg hover:scale-[1.02] transition-all duration-200 overflow-hidden text-center space-y-1`}>
+              <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${cfg.barCls} opacity-60 group-hover:opacity-100 transition-opacity`} />
+              <div className={`absolute -top-4 -right-4 w-14 h-14 ${cfg.glowCls} rounded-full blur-xl opacity-60`} />
+              <div className="relative">
+                <div className={`h-8 w-8 rounded-xl flex items-center justify-center mx-auto ${cfg.cls}`}>
+                  {cfg.icon}
+                </div>
+                <p className="text-xl font-bold text-foreground">{count}</p>
+                <p className="text-[10px] text-muted-foreground">{cfg.label}</p>
               </div>
-              <p className="text-xl font-bold text-foreground">{count}</p>
-              <p className="text-[10px] text-muted-foreground">{cfg.label}</p>
             </div>
           );
         })}

@@ -226,9 +226,21 @@ const ClassesManagement = () => {
     <div className="space-y-6 animate-fade-in">
       <PageHeader title="Classes Management" description="Manage classes, sections, and enrollments" actionLabel="Add Class" onAction={handleOpenDialog} />
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="stat-card text-center"><p className="text-2xl font-bold text-foreground">{totalClasses}</p><p className="text-sm text-muted-foreground">Total Classes</p></div>
-        <div className="stat-card text-center"><p className="text-2xl font-bold text-foreground">{totalStudents}</p><p className="text-sm text-muted-foreground">Total Students</p></div>
-        <div className="stat-card text-center"><p className="text-2xl font-bold text-success">{avgCapacity}%</p><p className="text-sm text-muted-foreground">Avg Capacity</p></div>
+        <div className="relative group rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 shadow-lg hover:scale-[1.02] transition-all duration-200 overflow-hidden text-center">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute -top-5 -right-5 w-16 h-16 bg-blue-500/10 rounded-full blur-xl opacity-60" />
+          <div className="relative"><p className="text-2xl font-bold text-foreground">{totalClasses}</p><p className="text-sm text-muted-foreground">Total Classes</p></div>
+        </div>
+        <div className="relative group rounded-2xl border border-purple-500/20 bg-purple-500/5 p-4 shadow-lg hover:scale-[1.02] transition-all duration-200 overflow-hidden text-center">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-violet-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute -top-5 -right-5 w-16 h-16 bg-purple-500/10 rounded-full blur-xl opacity-60" />
+          <div className="relative"><p className="text-2xl font-bold text-foreground">{totalStudents}</p><p className="text-sm text-muted-foreground">Total Students</p></div>
+        </div>
+        <div className="relative group rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 shadow-lg hover:scale-[1.02] transition-all duration-200 overflow-hidden text-center">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 to-teal-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute -top-5 -right-5 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl opacity-60" />
+          <div className="relative"><p className="text-2xl font-bold text-success">{avgCapacity}%</p><p className="text-sm text-muted-foreground">Avg Capacity</p></div>
+        </div>
       </div>
       {loading ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>

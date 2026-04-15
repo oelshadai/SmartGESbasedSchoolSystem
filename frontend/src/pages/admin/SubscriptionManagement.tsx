@@ -37,13 +37,33 @@ const SubscriptionManagement = () => (
   <div className="space-y-6 animate-fade-in">
     <PageHeader title="Subscription Management" description="Manage school subscriptions and billing" actionLabel="Add Plan" />
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      {[{ label: 'Monthly Revenue', value: '$2,450', sub: '22 active subscriptions' }, { label: 'Trial Schools', value: '3', sub: 'Expiring soon' }, { label: 'Churn Rate', value: '2.1%', sub: 'Last 30 days' }].map((s) => (
-        <div key={s.label} className="stat-card">
-          <p className="text-sm text-muted-foreground">{s.label}</p>
-          <p className="text-2xl font-bold text-foreground mt-1">{s.value}</p>
-          <p className="text-xs text-muted-foreground mt-1">{s.sub}</p>
+      <div className="relative group rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 shadow-lg hover:scale-[1.02] transition-all duration-200 overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 to-teal-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute -top-5 -right-5 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl opacity-60" />
+        <div className="relative">
+          <p className="text-sm text-muted-foreground">Monthly Revenue</p>
+          <p className="text-2xl font-bold text-foreground mt-1">$2,450</p>
+          <p className="text-xs text-muted-foreground mt-1">22 active subscriptions</p>
         </div>
-      ))}
+      </div>
+      <div className="relative group rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 shadow-lg hover:scale-[1.02] transition-all duration-200 overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-yellow-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute -top-5 -right-5 w-16 h-16 bg-amber-500/10 rounded-full blur-xl opacity-60" />
+        <div className="relative">
+          <p className="text-sm text-muted-foreground">Trial Schools</p>
+          <p className="text-2xl font-bold text-foreground mt-1">3</p>
+          <p className="text-xs text-muted-foreground mt-1">Expiring soon</p>
+        </div>
+      </div>
+      <div className="relative group rounded-2xl border border-red-500/20 bg-red-500/5 p-4 shadow-lg hover:scale-[1.02] transition-all duration-200 overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-red-500 to-rose-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute -top-5 -right-5 w-16 h-16 bg-red-500/10 rounded-full blur-xl opacity-60" />
+        <div className="relative">
+          <p className="text-sm text-muted-foreground">Churn Rate</p>
+          <p className="text-2xl font-bold text-foreground mt-1">2.1%</p>
+          <p className="text-xs text-muted-foreground mt-1">Last 30 days</p>
+        </div>
+      </div>
     </div>
     <DataTable columns={columns} data={mockSubscriptions} searchKey="school" searchPlaceholder="Search subscriptions..." />
   </div>

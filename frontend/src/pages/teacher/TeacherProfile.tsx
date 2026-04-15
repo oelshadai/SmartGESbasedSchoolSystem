@@ -169,7 +169,8 @@ const TeacherProfile = () => {
         </div>
       )}
 
-      <div className="stat-card">
+      <div className="relative group rounded-2xl border border-primary/20 bg-primary/5 p-4 shadow-lg overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary to-primary/40 opacity-60 group-hover:opacity-100 transition-opacity" />
         <div className="flex items-center gap-4 mb-6">
           <div className="h-20 w-20 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-2xl font-bold">
             {getInitials(profile.first_name, profile.last_name)}
@@ -182,7 +183,8 @@ const TeacherProfile = () => {
         </div>
       </div>
 
-      <div className="stat-card">
+      <div className="relative group rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 shadow-sm overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-yellow-400 opacity-50 group-hover:opacity-80 transition-opacity" />
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-foreground flex items-center gap-2">
             Profile Information
@@ -199,7 +201,8 @@ const TeacherProfile = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="stat-card space-y-4">
+        <div className="relative group rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 shadow-lg overflow-hidden space-y-4">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 opacity-60 group-hover:opacity-100 transition-opacity" />
           <h3 className="font-semibold text-foreground flex items-center gap-2">
             <User className="h-4 w-4" /> Personal Information
           </h3>
@@ -247,7 +250,8 @@ const TeacherProfile = () => {
           </div>
         </div>
 
-        <div className="stat-card space-y-4">
+        <div className="relative group rounded-2xl border border-purple-500/20 bg-purple-500/5 p-4 shadow-lg overflow-hidden space-y-4">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-violet-400 opacity-60 group-hover:opacity-100 transition-opacity" />
           <h3 className="font-semibold text-foreground flex items-center gap-2">
             <BookOpen className="h-4 w-4" /> Teaching Details
           </h3>

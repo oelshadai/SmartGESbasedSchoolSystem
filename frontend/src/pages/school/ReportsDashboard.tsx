@@ -326,7 +326,8 @@ const ReportsDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="stat-card">
+        <div className="relative group rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5 shadow-lg overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 opacity-60 group-hover:opacity-100 transition-opacity" />
           <h3 className="font-semibold text-foreground mb-4">Class Performance</h3>
           <div className="space-y-3">
             {dashboardData?.charts?.students_by_class?.map((c: any) => (
@@ -345,7 +346,8 @@ const ReportsDashboard = () => {
           </div>
         </div>
 
-        <div className="stat-card">
+        <div className="relative group rounded-2xl border border-purple-500/20 bg-purple-500/5 p-5 shadow-lg overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-violet-400 opacity-60 group-hover:opacity-100 transition-opacity" />
           <h3 className="font-semibold text-foreground mb-4">Recent Report Cards</h3>
           <div className="space-y-3">
             {reportCards.slice(0, 5).map((report: any) => (

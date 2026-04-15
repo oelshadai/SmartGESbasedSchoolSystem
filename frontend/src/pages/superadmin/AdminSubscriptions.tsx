@@ -158,13 +158,21 @@ export default function AdminSubscriptions() {
       {/* Revenue stats */}
       {data?.revenue && (
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-card border border-border rounded-xl p-4">
-            <p className="text-xs text-muted-foreground mb-1">Total Revenue</p>
-            <p className="text-2xl font-bold">GH₵{data.revenue.total.toLocaleString()}</p>
+          <div className="relative group rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 shadow-lg hover:scale-[1.02] transition-all duration-200 overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 to-teal-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute -top-5 -right-5 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl opacity-60" />
+            <div className="relative">
+              <p className="text-xs text-muted-foreground mb-1">Total Revenue</p>
+              <p className="text-2xl font-bold">GH&#x20B5;{data.revenue.total.toLocaleString()}</p>
+            </div>
           </div>
-          <div className="bg-card border border-border rounded-xl p-4">
-            <p className="text-xs text-muted-foreground mb-1">This Month</p>
-            <p className="text-2xl font-bold">GH₵{data.revenue.this_month.toLocaleString()}</p>
+          <div className="relative group rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 shadow-lg hover:scale-[1.02] transition-all duration-200 overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute -top-5 -right-5 w-16 h-16 bg-blue-500/10 rounded-full blur-xl opacity-60" />
+            <div className="relative">
+              <p className="text-xs text-muted-foreground mb-1">This Month</p>
+              <p className="text-2xl font-bold">GH&#x20B5;{data.revenue.this_month.toLocaleString()}</p>
+            </div>
           </div>
         </div>
       )}

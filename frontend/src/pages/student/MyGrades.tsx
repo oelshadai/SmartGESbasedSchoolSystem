@@ -227,17 +227,29 @@ const MyGrades = () => {
           ) : avg && (
             /* Fallback mini stats if no TermResult computed yet */
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-card border border-border rounded-2xl p-4 text-center">
-                <p className="text-xl font-bold text-foreground">{avg}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Average</p>
+              <div className="relative group rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 shadow-lg hover:scale-[1.02] transition-all duration-200 overflow-hidden text-center">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute -top-4 -right-4 w-14 h-14 bg-blue-500/10 rounded-full blur-xl opacity-60" />
+                <div className="relative">
+                  <p className="text-xl font-bold text-foreground">{avg}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Average</p>
+                </div>
               </div>
-              <div className="bg-card border border-border rounded-2xl p-4 text-center">
-                <p className="text-xl font-bold text-foreground">{bestSubject?.subject_name.split(' ')[0]}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Best</p>
+              <div className="relative group rounded-2xl border border-purple-500/20 bg-purple-500/5 p-4 shadow-lg hover:scale-[1.02] transition-all duration-200 overflow-hidden text-center">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-violet-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute -top-4 -right-4 w-14 h-14 bg-purple-500/10 rounded-full blur-xl opacity-60" />
+                <div className="relative">
+                  <p className="text-xl font-bold text-foreground">{bestSubject?.subject_name.split(' ')[0]}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Best</p>
+                </div>
               </div>
-              <div className="bg-card border border-border rounded-2xl p-4 text-center">
-                <p className="text-xl font-bold text-foreground">{filtered.length}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Subjects</p>
+              <div className="relative group rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 shadow-lg hover:scale-[1.02] transition-all duration-200 overflow-hidden text-center">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 to-teal-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute -top-4 -right-4 w-14 h-14 bg-emerald-500/10 rounded-full blur-xl opacity-60" />
+                <div className="relative">
+                  <p className="text-xl font-bold text-foreground">{filtered.length}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Subjects</p>
+                </div>
               </div>
             </div>
           )}
