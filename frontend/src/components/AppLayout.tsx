@@ -94,6 +94,7 @@ const getNavItems = (role: UserRole): NavItem[] => {
       { label: 'Score Entry', path: '/teacher/scores', icon: <Award className="h-5 w-5" /> },
       { label: 'Grade Book', path: '/teacher/gradebook', icon: <BarChart3 className="h-5 w-5" /> },
       { label: 'Attendance', path: '/teacher/attendance', icon: <CalendarDays className="h-5 w-5" /> },
+      { label: 'Fee Collection', path: '/teacher/fees', icon: <DollarSign className="h-5 w-5" /> },
       { label: 'Behavior', path: '/teacher/behavior', icon: <Shield className="h-5 w-5" /> },
       { label: 'Reports', path: '/teacher/reports', icon: <FileText className="h-5 w-5" /> },
       { label: 'Students', path: '/teacher/students', icon: <Users className="h-5 w-5" /> },

@@ -12,6 +12,38 @@ export interface FeeType {
   allow_class_teacher_collection: boolean;
   allow_any_teacher_collection: boolean;
   require_payment_approval: boolean;
+  parent_fee_type?: number | null;
+  sub_types?: FeeSubType[];
+  has_sub_types?: boolean;
+}
+
+export interface FeeSubType {
+  id: number;
+  name: string;
+  description: string;
+  is_active: boolean;
+  collection_frequency: CollectionFrequency;
+}
+
+export interface StudentFeeSubType {
+  id: number;
+  student: number;
+  student_name: string;
+  main_fee_type: number;
+  main_fee_type_name: string;
+  sub_fee_type: number | null;
+  sub_fee_type_name: string | null;
+}
+
+export interface TeacherCollectionRosterEntry {
+  student_id: number;
+  student_code: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  sub_fee_type_id: number | null;
+  tier_label: string;
+  amount: number | null;
 }
 
 export const FREQUENCY_LABELS: Record<CollectionFrequency, string> = {
@@ -27,6 +59,7 @@ export interface FeeStructure {
   fee_type: number;
   fee_type_name: string;
   level: string;
+  tier_label: string;
   amount: number;
   collection_period: string;
   due_date?: string;
@@ -501,6 +534,47 @@ class FeeService {
 
   async deleteTermBill(id: number): Promise<void> {
     return this.makeRequest(() => secureApiClient.delete(`/fees/term-bills/${id}/`));
+  }
+
+  // ----------------------------------------------------------------
+  // Student Fee Sub-Types
+  // ----------------------------------------------------------------
+  async getStudentSubTypes(params?: { student?: number; main_fee_type?: number; class_id?: number }): Promise<StudentFeeSubType[]> {
+    return this.makeRequest(async () => {
+      const res = await secureApiClient.get<any>('/fees/student-sub-types/', { params });
+      return { data: Array.isArray(res) ? res : res?.results || [] };
+    });
+  }
+
+  async setStudentSubType(data: { student: number; main_fee_type: number; sub_fee_type: number | null }): Promise<StudentFeeSubType> {
+    return this.makeRequest(() => secureApiClient.post('/fees/student-sub-types/', data));
+  }
+
+  async bulkAssignSubTypes(mainFeeTypeId: number, assignments: Array<{ student: number; sub_fee_type: number | null }>): Promise<StudentFeeSubType[]> {
+    return this.makeRequest(() =>
+      secureApiClient.post('/fees/student-sub-types/bulk_assign/', {
+        main_fee_type: mainFeeTypeId,
+        assignments,
+      })
+    );
+  }
+
+  async getClassCollectionRoster(classId: number, mainFeeTypeId: number): Promise<TeacherCollectionRosterEntry[]> {
+    return this.makeRequest(() =>
+      secureApiClient.get('/fees/student-sub-types/class_roster/', {
+        params: { class_id: classId, main_fee_type: mainFeeTypeId },
+      })
+    );
+  }
+
+  async bulkCollect(data: {
+    fee_type: number;
+    class_id: number;
+    payments: Array<{ student: number; amount: number }>;
+    payment_method?: string;
+    notes?: string;
+  }): Promise<{ recorded: number; total_amount: number }> {
+    return this.makeRequest(() => secureApiClient.post('/fees/payments/bulk_collect/', data));
   }
 }
 

@@ -98,6 +98,7 @@ const FeeManagement = () => {
   const [ftDesc, setFtDesc] = useState('');
   const [ftFreq, setFtFreq] = useState<CollectionFrequency>('TERM');
   const [ftDay, setFtDay] = useState('');
+  const [ftParentFeeType, setFtParentFeeType] = useState<string>('');  // '' = main fee
   const [ftAllowClassTeacher, setFtAllowClassTeacher] = useState(false);
   const [ftAllowAnyTeacher, setFtAllowAnyTeacher] = useState(false);
   const [ftRequireApproval, setFtRequireApproval] = useState(false);
@@ -111,6 +112,7 @@ const FeeManagement = () => {
   const [editingStructure, setEditingStructure] = useState<FeeStructure | null>(null);
   const [stLevel, setStLevel] = useState('');
   const [stAmount, setStAmount] = useState('');
+  const [stTierLabel, setStTierLabel] = useState('');
   const [stDueDate, setStDueDate] = useState('');
   const [stShowForm, setStShowForm] = useState(false);
   const [stSaving, setStSaving] = useState(false);
@@ -371,7 +373,7 @@ const FeeManagement = () => {
 
   const openNewFeeTypeForm = () => {
     setEditingFeeType(null);
-    setFtName(''); setFtDesc(''); setFtFreq('TERM'); setFtDay('');
+    setFtName(''); setFtDesc(''); setFtFreq('TERM'); setFtDay(''); setFtParentFeeType('');
     setFtAllowClassTeacher(false); setFtAllowAnyTeacher(false); setFtRequireApproval(false);
     setFtShowForm(true);
   };
@@ -380,6 +382,7 @@ const FeeManagement = () => {
     setEditingFeeType(ft);
     setFtName(ft.name); setFtDesc(ft.description); setFtFreq(ft.collection_frequency);
     setFtDay(ft.collection_day != null ? String(ft.collection_day) : '');
+    setFtParentFeeType(ft.parent_fee_type != null ? String(ft.parent_fee_type) : '');
     setFtAllowClassTeacher(ft.allow_class_teacher_collection);
     setFtAllowAnyTeacher(ft.allow_any_teacher_collection);
     setFtRequireApproval(ft.require_payment_approval);
@@ -392,6 +395,7 @@ const FeeManagement = () => {
       name: ftName.trim(), description: ftDesc,
       collection_frequency: ftFreq,
       collection_day: ftDay ? parseInt(ftDay) : null,
+      parent_fee_type: ftParentFeeType ? parseInt(ftParentFeeType) : null,
       allow_class_teacher_collection: ftAllowClassTeacher,
       allow_any_teacher_collection: ftAllowAnyTeacher,
       require_payment_approval: ftRequireApproval,
@@ -443,13 +447,14 @@ const FeeManagement = () => {
 
   const openNewStructureForm = () => {
     setEditingStructure(null);
-    setStLevel(''); setStAmount(''); setStDueDate('');
+    setStLevel(''); setStAmount(''); setStTierLabel(''); setStDueDate('');
     setStShowForm(true);
   };
 
   const openEditStructureForm = (s: FeeStructure) => {
     setEditingStructure(s);
     setStLevel(s.level); setStAmount(String(s.amount));
+    setStTierLabel(s.tier_label || '');
     setStDueDate(s.due_date || '');
     setStShowForm(true);
   };
@@ -461,6 +466,7 @@ const FeeManagement = () => {
     const payload = {
       fee_type: parseInt(structureFeeTypeId),
       level: stLevel,
+      tier_label: stTierLabel.trim(),
       amount: parseFloat(stAmount),
       collection_period: 'TERM',
       due_date: stDueDate || null,
@@ -1088,6 +1094,29 @@ const FeeManagement = () => {
                       )}
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>Parent Fee Type <span className="text-muted-foreground font-normal text-xs">(optional — leave blank for a main fee type)</span></Label>
+                        <Select
+                          value={ftParentFeeType || '__none__'}
+                          onValueChange={v => setFtParentFeeType(v === '__none__' ? '' : v)}
+                        >
+                          <SelectTrigger><SelectValue placeholder="None — this is a main fee type" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">None (main fee type)</SelectItem>
+                            {feeTypes
+                              .filter(ft => !ft.parent_fee_type && (!editingFeeType || ft.id !== editingFeeType.id))
+                              .map(ft => (
+                                <SelectItem key={ft.id} value={String(ft.id)}>{ft.name}</SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Select a parent to make this a sub-fee type (e.g., "Bus Users Fee" under "Canteen Fee"). Sub-fee types hold the actual amounts; students are assigned to their sub-fee type in Student Management.
+                        </p>
+                      </div>
+                    </div>
+
                     <Separator />
                     <p className="text-sm font-medium">Who can collect this fee?</p>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1148,7 +1177,7 @@ const FeeManagement = () => {
                     </CardContent>
                   </Card>
                 )}
-                {feeTypes.map(ft => (
+                {feeTypes.filter(ft => !ft.parent_fee_type).map(ft => (
                   <Card key={ft.id} className={!ft.is_active ? 'opacity-50' : ''}>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-4">
@@ -1156,6 +1185,11 @@ const FeeManagement = () => {
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-semibold">{ft.name}</span>
                             <Badge variant="secondary">{FREQUENCY_LABELS[ft.collection_frequency]}</Badge>
+                            {ft.has_sub_types && (
+                              <Badge variant="outline" className="text-purple-700 border-purple-300 bg-purple-50">
+                                {ft.sub_types?.length ?? 0} sub-fee{(ft.sub_types?.length ?? 0) !== 1 ? 's' : ''}
+                              </Badge>
+                            )}
                             {!ft.is_active && <Badge variant="outline" className="text-gray-500">Inactive</Badge>}
                           </div>
                           {ft.description && (
@@ -1179,6 +1213,32 @@ const FeeManagement = () => {
                           </Button>
                         </div>
                       </div>
+
+                      {/* Sub-fee types */}
+                      {ft.sub_types && ft.sub_types.length > 0 && (
+                        <div className="mt-3 ml-2 space-y-1 border-l-2 border-purple-200 pl-3">
+                          <p className="text-xs font-medium text-purple-700 mb-1">Sub-fee types:</p>
+                          {ft.sub_types.map(sub => {
+                            const fullSub = feeTypes.find(f => f.id === sub.id);
+                            return (
+                              <div key={sub.id} className="flex items-center justify-between gap-2 bg-purple-50/50 rounded-md px-3 py-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-sm font-medium text-purple-900">↳ {sub.name}</span>
+                                  {fullSub && !fullSub.is_active && <Badge variant="outline" className="text-gray-500 text-xs">Inactive</Badge>}
+                                </div>
+                                <div className="flex gap-1 shrink-0">
+                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { const f = feeTypes.find(x => x.id === sub.id); if (f) openEditFeeTypeForm(f); }}>
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-red-500" onClick={() => { const f = feeTypes.find(x => x.id === sub.id); if (f) deleteFeeType(f); }}>
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -1235,7 +1295,7 @@ const FeeManagement = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Class Level *</Label>
                         <Select value={stLevel} onValueChange={setStLevel}>
@@ -1246,6 +1306,21 @@ const FeeManagement = () => {
                             ))}
                           </SelectContent>
                         </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>
+                          Tier / Sub-category
+                          <span className="text-muted-foreground font-normal ml-1">(optional)</span>
+                        </Label>
+                        <Input
+                          value={stTierLabel}
+                          onChange={e => setStTierLabel(e.target.value)}
+                          placeholder="e.g. Bus Users, Non-Bus Students, Standard…"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Leave empty if all students in this level pay the same amount.
+                          Add a tier name to differentiate groups — you can add multiple tiers per level.
+                        </p>
                       </div>
                       <div className="space-y-2">
                         <Label>Amount (GH₵) *</Label>
@@ -1280,22 +1355,69 @@ const FeeManagement = () => {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="space-y-2">
-                  {structures.map(s => (
-                    <Card key={s.id}>
-                      <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                          <span className="font-medium">{s.level.replace('_', ' ')}</span>
-                          <span className="text-muted-foreground ml-3">{formatCurrency(s.amount)}</span>
-                          {s.due_date && <span className="text-xs text-muted-foreground ml-3">Due: {new Date(s.due_date).toLocaleDateString()}</span>}
+                <div className="space-y-3">
+                  {/* Group structures by level */}
+                  {Object.entries(
+                    structures.reduce((acc, s) => {
+                      if (!acc[s.level]) acc[s.level] = [];
+                      acc[s.level].push(s);
+                      return acc;
+                    }, {} as Record<string, FeeStructure[]>)
+                  ).map(([level, tiers]) => (
+                    <Card key={level} className="border-border">
+                      <CardContent className="p-0">
+                        {/* Level header */}
+                        <div className="flex items-center justify-between px-4 py-3 bg-muted/30 border-b border-border rounded-t-lg">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-foreground">{level.replace('_', ' ')}</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {tiers.length} {tiers.length === 1 ? 'tier' : 'tiers'}
+                            </Badge>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs gap-1"
+                            onClick={() => {
+                              setEditingStructure(null);
+                              setStLevel(level);
+                              setStTierLabel('');
+                              setStAmount('');
+                              setStDueDate('');
+                              setStShowForm(true);
+                            }}
+                          >
+                            <Plus className="h-3 w-3" /> Add Tier
+                          </Button>
                         </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" onClick={() => openEditStructureForm(s)}>
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button size="sm" variant="outline" className="text-red-600" onClick={() => deleteStructure(s)}>
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                        {/* Tiers */}
+                        <div className="divide-y divide-border">
+                          {tiers.map(s => (
+                            <div key={s.id} className="flex items-center gap-3 px-4 py-3">
+                              <div className="w-2 h-2 rounded-full bg-primary/40 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <span className="text-sm font-medium text-foreground">
+                                  {s.tier_label || <span className="text-muted-foreground italic">All Students</span>}
+                                </span>
+                                <span className="text-sm font-semibold text-foreground ml-3">
+                                  {formatCurrency(s.amount)}
+                                </span>
+                                {s.due_date && (
+                                  <span className="text-xs text-muted-foreground ml-3">
+                                    Due: {new Date(s.due_date).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex gap-1 shrink-0">
+                                <Button size="sm" variant="ghost" className="h-7 w-7" onClick={() => openEditStructureForm(s)}>
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 text-red-600 hover:text-red-700" onClick={() => deleteStructure(s)}>
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </CardContent>
                     </Card>

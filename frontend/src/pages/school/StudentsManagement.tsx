@@ -8,6 +8,7 @@ import secureApiClient from '@/lib/secureApiClient';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { feeService, FeeType } from '@/services/feeService';
 
 const StudentsManagement = () => {
   const [students, setStudents] = useState<any[]>([]);
@@ -41,6 +42,11 @@ const StudentsManagement = () => {
   const [credentials, setCredentials] = useState<{ student_name: string; username: string; password: string; class_name: string; parent_account_created?: boolean; parent_generated_password?: string | null; guardian_email?: string } | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
+  // Fee tier assignments for view dialog
+  const [feeTypesWithSubs, setFeeTypesWithSubs] = useState<FeeType[]>([]);
+  const [studentFeeTiers, setStudentFeeTiers] = useState<Record<number, number | null>>({});  // mainFeeTypeId -> subFeeTypeId
+  const [savingFeeTier, setSavingFeeTier] = useState<number | null>(null);
+
   // Profile change requests
   const [profileRequests, setProfileRequests] = useState<any[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
@@ -50,9 +56,43 @@ const StudentsManagement = () => {
   const [rejectReason, setRejectReason] = useState('');
   const [processingRequest, setProcessingRequest] = useState(false);
 
-  const handleViewStudent = (student: any) => {
+  const handleViewStudent = async (student: any) => {
     setSelectedStudent(student);
     setShowViewDialog(true);
+    // Load fee types with sub-types and student's current assignments
+    try {
+      const allTypes = await feeService.getFeeTypes();
+      const withSubs = allTypes.filter((ft: FeeType) => ft.has_sub_types && ft.sub_types && ft.sub_types.length > 0);
+      setFeeTypesWithSubs(withSubs);
+      if (withSubs.length > 0) {
+        const assignments = await feeService.getStudentSubTypes({ student: student.id });
+        const tiers: Record<number, number | null> = {};
+        withSubs.forEach((ft: FeeType) => {
+          const found = assignments.find((a: any) => a.main_fee_type === ft.id);
+          tiers[ft.id] = found ? found.sub_fee_type : null;
+        });
+        setStudentFeeTiers(tiers);
+      }
+    } catch (e) {
+      console.error('Failed to load fee tier data', e);
+    }
+  };
+
+  const handleSaveFeeTier = async (mainFeeTypeId: number, subFeeTypeId: number | null) => {
+    if (!selectedStudent || !subFeeTypeId) return;
+    setSavingFeeTier(mainFeeTypeId);
+    try {
+      await feeService.setStudentSubType({
+        student: selectedStudent.id,
+        main_fee_type: mainFeeTypeId,
+        sub_fee_type: subFeeTypeId,
+      });
+      setStudentFeeTiers(prev => ({ ...prev, [mainFeeTypeId]: subFeeTypeId }));
+    } catch (e: any) {
+      console.error('Failed to save fee tier', e);
+    } finally {
+      setSavingFeeTier(null);
+    }
   };
 
   const fetchProfileRequests = async () => {
@@ -504,6 +544,49 @@ const StudentsManagement = () => {
                 <div><strong>Guardian:</strong> {selectedStudent.guardian_name}</div>
                 <div><strong>Phone:</strong> {selectedStudent.guardian_phone}</div>
               </div>
+
+              {/* Fee Tier Assignments */}
+              {feeTypesWithSubs.length > 0 && (
+                <div className="border-t pt-3">
+                  <p className="text-sm font-semibold mb-2 text-purple-800">Fee Tier Assignments</p>
+                  <div className="space-y-2">
+                    {feeTypesWithSubs.map(ft => (
+                      <div key={ft.id} className="flex items-center justify-between gap-3 bg-purple-50 rounded-md px-3 py-2">
+                        <span className="text-sm font-medium text-purple-900 shrink-0">{ft.name}</span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Select
+                            value={studentFeeTiers[ft.id] != null ? String(studentFeeTiers[ft.id]) : '__none__'}
+                            onValueChange={v => {
+                              const subId = v === '__none__' ? null : parseInt(v);
+                              setStudentFeeTiers(prev => ({ ...prev, [ft.id]: subId }));
+                              if (subId) handleSaveFeeTier(ft.id, subId);
+                            }}
+                          >
+                            <SelectTrigger className="w-44 h-8 text-xs">
+                              <SelectValue placeholder="Not assigned" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">Not assigned</SelectItem>
+                              {ft.sub_types?.map(sub => (
+                                <SelectItem key={sub.id} value={String(sub.id)}>{sub.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {savingFeeTier === ft.id && (
+                            <span className="text-xs text-muted-foreground">Saving…</span>
+                          )}
+                          {savingFeeTier !== ft.id && studentFeeTiers[ft.id] != null && (
+                            <span className="text-xs text-green-600">✓</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Assign each sub-fee type so this student pays the correct amount when teacher collects fees.
+                  </p>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>

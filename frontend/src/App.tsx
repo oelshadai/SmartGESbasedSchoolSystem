@@ -53,6 +53,7 @@ import MyClasses from "./pages/teacher/MyClasses";
 import CreateAssignment from "./pages/teacher/CreateAssignment";
 import GradeBook from "./pages/teacher/EnhancedGradeBook";
 import AttendanceManagement from "./pages/teacher/AttendanceManagement";
+import FeeCollection from "./pages/teacher/FeeCollection";
 import StudentBehavior from "./pages/teacher/StudentBehavior";
 import Students from "./pages/teacher/Students";
 import ScoreEntry from "./pages/teacher/ScoreEntry";
@@ -144,6 +145,7 @@ const App = () => {
             <Route path="/teacher/assignments/create" element={<CreateAssignment />} />
             <Route path="/teacher/gradebook" element={<GradeBook />} />
             <Route path="/teacher/attendance" element={<AttendanceManagement />} />
+            <Route path="/teacher/fees" element={<FeeCollection />} />
             <Route path="/teacher/behavior" element={<StudentBehavior />} />
             <Route path="/teacher/scores" element={<ScoreEntry />} />
             <Route path="/teacher/reports" element={<ClassReports />} />
