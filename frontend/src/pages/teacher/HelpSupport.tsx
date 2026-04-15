@@ -63,7 +63,8 @@ const HelpSupport = () => {
         ))}
       </div>
 
-      <div className="stat-card">
+      <div className="relative group rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 shadow-lg overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-yellow-400 opacity-60 group-hover:opacity-100 transition-opacity" />
         <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
           <HelpCircle className="h-4 w-4" /> Frequently Asked Questions
         </h3>
@@ -77,7 +78,8 @@ const HelpSupport = () => {
         </div>
       </div>
 
-      <div className="stat-card space-y-4">
+      <div className="relative group rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 shadow-lg overflow-hidden space-y-4">
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 opacity-60 group-hover:opacity-100 transition-opacity" />
         <h3 className="font-semibold text-foreground">Submit a Support Ticket</h3>
         
         {success && (

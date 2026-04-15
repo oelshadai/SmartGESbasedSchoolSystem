@@ -445,7 +445,8 @@ const SchoolAdminDashboard = () => {
           </CardContent>
         </Card>
 
-        <div className="stat-card">
+        <div className="relative group rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 shadow-lg overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 opacity-60 group-hover:opacity-100 transition-opacity" />
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-foreground">Recent Students</h3>
             <Badge variant="outline" className="text-xs">{data.recent_students.length} total</Badge>
@@ -468,7 +469,8 @@ const SchoolAdminDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="stat-card">
+        <div className="relative group rounded-2xl border border-purple-500/20 bg-purple-500/5 p-4 shadow-lg overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-violet-400 opacity-60 group-hover:opacity-100 transition-opacity" />
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-foreground">Recent Teachers</h3>
             <Badge variant="outline" className="text-xs">{data.recent_teachers.length} total</Badge>
@@ -488,7 +490,8 @@ const SchoolAdminDashboard = () => {
             )}
           </div>
         </div>
-        <div className="stat-card">
+        <div className="relative group rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 shadow-lg overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-orange-500 to-amber-400 opacity-60 group-hover:opacity-100 transition-opacity" />
           <h3 className="font-semibold text-foreground mb-4">Admin Profile</h3>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
