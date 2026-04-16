@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
 import StatCard from '@/components/shared/StatCard';
@@ -17,8 +17,12 @@ import { Separator } from '@/components/ui/separator';
 import {
   DollarSign, TrendingUp, AlertCircle, Search, Receipt, Users,
   Loader2, RefreshCw, CheckCircle, XCircle, Settings, Pencil,
-  Trash2, Plus, Zap
+  Trash2, Plus, Zap, BarChart3, Filter, Download, CalendarDays, Award,
 } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+  ResponsiveContainer, PieChart, Pie, Cell,
+} from 'recharts';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import {
@@ -57,6 +61,13 @@ const BILL_STATUS_COLORS: Record<string, string> = {
   WAIVED: 'bg-gray-100 text-gray-800 border-gray-200',
 };
 
+const PIE_STATUS_COLORS: Record<string, string> = {
+  'Paid': '#10b981',
+  'Partial': '#f59e0b',
+  'Not Started': '#ef4444',
+  'Defaulted': '#6b7280',
+};
+
 const FeeManagement = () => {
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState('collect');
@@ -79,14 +90,39 @@ const FeeManagement = () => {
   const [selectedStudent, setSelectedStudent] = useState<StudentSearchResult | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CHEQUE' | 'BANK_TRANSFER' | 'MOBILE_MONEY'>('CASH');
+  const [resolvedStructureAmount, setResolvedStructureAmount] = useState<number | null>(null);
+  const [loadingStructure, setLoadingStructure] = useState(false);
   const [referenceNumber, setReferenceNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [summary, setSummary] = useState({
     totalExpected: 0,
     totalCollected: 0,
     outstanding: 0,
-    collectionRate: 0
+    collectionRate: 0,
+    totalPaymentCount: 0
   });
+
+  // ------ Analytics state ------
+  const [collectionByFeeType, setCollectionByFeeType] = useState<Array<{ fee_type__name: string; total: number; transactions: number }>>([]);
+  const [collectionByCollector, setCollectionByCollector] = useState<Array<{ collected_by__first_name: string; collected_by__last_name: string; total: number; transactions: number }>>([]);
+  const [paymentStatusBreakdown, setPaymentStatusBreakdown] = useState<Array<{ status: string; count: number; total_balance: number }>>([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  // ------ Records tab state ------
+  const [recordsBills, setRecordsBills] = useState<TermBill[]>([]);
+  const [recordsBillsLoading, setRecordsBillsLoading] = useState(false);
+  const [recSearchQuery, setRecSearchQuery] = useState('');
+  const [recClassFilter, setRecClassFilter] = useState('all');
+  const [recFeeTypeFilter, setRecFeeTypeFilter] = useState('all');
+  const [recStatusFilter, setRecStatusFilter] = useState('all');
+
+  // ------ Payment History filter state ------
+  const [pfDateFrom, setPfDateFrom] = useState('');
+  const [pfDateTo, setPfDateTo] = useState('');
+  const [pfFeeType, setPfFeeType] = useState('all');
+  const [pfMethod, setPfMethod] = useState('all');
+  const [pfVerified, setPfVerified] = useState('all');
+  const [verifyingId, setVerifyingId] = useState<number | null>(null);
 
   // ------ Setup tab state ------
   type SetupSection = 'types' | 'structures' | 'bills';
@@ -129,6 +165,33 @@ const FeeManagement = () => {
 
   useEffect(() => { fetchInitialData(); }, []);
   useEffect(() => { if (activeTab === 'setup') fetchSetupData(); }, [activeTab]);
+  useEffect(() => { if (activeTab === 'analytics') fetchAnalytics(); }, [activeTab]);
+  useEffect(() => { if (activeTab === 'records') fetchRecordsBills(); }, [activeTab]);
+
+  // Auto-fetch fee structure amount when student + fee type are both selected
+  useEffect(() => {
+    if (!selectedStudent || !selectedFeeType || selectedFeeType === 'all') {
+      setResolvedStructureAmount(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingStructure(true);
+    feeService.getFeeStructures({ fee_type: parseInt(selectedFeeType), level: selectedStudent.class_level })
+      .then(data => {
+        if (cancelled) return;
+        const match = data[0];
+        const amt = match ? match.amount : null;
+        setResolvedStructureAmount(amt);
+        // For DAILY fees, auto-fill the payment amount
+        const ft = feeTypes.find(f => String(f.id) === selectedFeeType);
+        if (ft?.collection_frequency === 'DAILY' && amt != null) {
+          setPaymentAmount(String(amt));
+        }
+      })
+      .catch(() => { if (!cancelled) setResolvedStructureAmount(null); })
+      .finally(() => { if (!cancelled) setLoadingStructure(false); });
+    return () => { cancelled = true; };
+  }, [selectedStudent?.id, selectedFeeType]);
 
   const fetchSetupData = async () => {
     try {
@@ -214,12 +277,18 @@ const FeeManagement = () => {
   const fetchSummary = async () => {
     try {
       const data = await feeService.getCollectionSummary();
+      const billed = data.total_billed ?? 0;
+      const collected = data.total_collected ?? 0;
+      const outstanding = Math.max(0, data.total_outstanding ?? 0);
       setSummary({
-        totalExpected: data.total_outstanding + data.total_collected,
-        totalCollected: data.total_collected,
-        outstanding: data.total_outstanding,
-        collectionRate: data.total_collected > 0 ? (data.total_collected / (data.total_outstanding + data.total_collected)) * 100 : 0
+        totalExpected: billed,
+        totalCollected: collected,
+        outstanding: outstanding,
+        collectionRate: billed > 0 ? (collected / billed) * 100 : 0,
+        totalPaymentCount: data.total_payment_count ?? 0
       });
+      setCollectionByFeeType(data.by_fee_type || []);
+      setCollectionByCollector(data.by_collector || []);
     } catch (error) {
       console.error('Failed to fetch summary:', error);
       throw error;
@@ -365,6 +434,69 @@ const FeeManagement = () => {
 
   const handleRefresh = async () => {
     await fetchInitialData(true);
+  };
+
+  const fetchRecordsBills = async () => {
+    setRecordsBillsLoading(true);
+    try {
+      const data = await feeService.getTermBills({ ordering: '-updated_at' });
+      setRecordsBills(data.results);
+    } catch (e) {
+      console.error('Failed to load fee records', e);
+    } finally {
+      setRecordsBillsLoading(false);
+    }
+  };
+
+  const fetchAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true);
+      const [statusData, summaryData] = await Promise.all([
+        feeService.getStudentFeesByStatus(),
+        feeService.getCollectionSummary(),
+      ]);
+      setPaymentStatusBreakdown(statusData);
+      setCollectionByFeeType(summaryData.by_fee_type || []);
+      setCollectionByCollector(summaryData.by_collector || []);
+    } catch (e) {
+      console.error('Failed to fetch analytics', e);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  const exportPaymentsCSV = () => {
+    const rows = [
+      ['Student', 'Student ID', 'Fee Type', 'Amount (GH₵)', 'Method', 'Reference', 'Date', 'Collected By', 'Verified'],
+      ...filteredPayments.map(p => [
+        p.student_name, p.student_id, p.fee_type_name,
+        p.amount_paid.toFixed(2), p.payment_method,
+        p.reference_number || '',
+        new Date(p.payment_date).toLocaleDateString(),
+        p.collected_by_name, p.is_verified ? 'Yes' : 'No',
+      ]),
+    ];
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fee-payments-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const verifyPaymentInline = async (id: number) => {
+    setVerifyingId(id);
+    try {
+      await feeService.verifyPayment(id);
+      toast.success('Payment verified successfully');
+      setPayments(prev => prev.map(p => p.id === id ? { ...p, is_verified: true } : p));
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to verify payment');
+    } finally {
+      setVerifyingId(null);
+    }
   };
 
   // ----------------------------------------------------------------
@@ -515,7 +647,8 @@ const FeeManagement = () => {
       // Reload term bills for selected term
       loadTermBills();
     } catch (e: any) {
-      toast.error(e.message || 'Failed to generate bills');
+      const msg = e?.message || e?.detail || (typeof e === 'string' ? e : 'Failed to generate bills');
+      toast.error(msg);
     } finally {
       setBillsGenerating(false);
     }
@@ -645,12 +778,70 @@ const FeeManagement = () => {
       key: 'is_verified', 
       label: 'Status', 
       render: (payment: FeePayment) => (
-        <Badge variant={payment.is_verified ? 'default' : 'secondary'}>
-          {payment.is_verified ? 'Verified' : 'Pending'}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant={payment.is_verified ? 'default' : 'secondary'}>
+            {payment.is_verified ? 'Verified' : 'Pending'}
+          </Badge>
+          {!payment.is_verified && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
+              onClick={() => verifyPaymentInline(payment.id)}
+              disabled={verifyingId === payment.id}
+            >
+              {verifyingId === payment.id
+                ? <Loader2 className="h-3 w-3 animate-spin" />
+                : <CheckCircle className="h-3 w-3 mr-1" />}
+              Verify
+            </Button>
+          )}
+        </div>
       )
     }
   ];
+
+  // --- Filtered payments (memoised) ---
+  const filteredPayments = useMemo(() => payments.filter(p => {
+    if (pfFeeType !== 'all' && String(p.fee_type) !== pfFeeType) return false;
+    if (pfMethod !== 'all' && p.payment_method !== pfMethod) return false;
+    if (pfVerified === 'verified' && !p.is_verified) return false;
+    if (pfVerified === 'pending' && p.is_verified) return false;
+    if (pfDateFrom && p.payment_date.slice(0, 10) < pfDateFrom) return false;
+    if (pfDateTo && p.payment_date.slice(0, 10) > pfDateTo) return false;
+    return true;
+  }), [payments, pfFeeType, pfMethod, pfVerified, pfDateFrom, pfDateTo]);
+  const filteredTotal = filteredPayments.reduce((s, p) => s + p.amount_paid, 0);
+
+  // --- Records tab filtered & totals ---
+  const filteredRecords = useMemo(() => recordsBills.filter(b => {
+    if (recClassFilter !== 'all' && b.class_level !== recClassFilter) return false;
+    if (recFeeTypeFilter !== 'all' && String(b.fee_type) !== recFeeTypeFilter) return false;
+    if (recStatusFilter !== 'all' && b.status !== recStatusFilter) return false;
+    if (recSearchQuery) {
+      const q = recSearchQuery.toLowerCase();
+      if (!`${b.student_name} ${b.student_id}`.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }), [recordsBills, recClassFilter, recFeeTypeFilter, recStatusFilter, recSearchQuery]);
+
+  const recTotals = useMemo(() => ({
+    billed: filteredRecords.reduce((s, b) => s + Number(b.amount_billed), 0),
+    paid: filteredRecords.reduce((s, b) => s + Number(b.amount_paid), 0),
+    arrears: filteredRecords.reduce((s, b) => s + Number(b.balance), 0),
+  }), [filteredRecords]);
+
+  // --- Unique class levels from recordsBills for filter ---
+  const recClassLevels = useMemo(() =>
+    [...new Set(recordsBills.map(b => b.class_level))].sort(),
+    [recordsBills]
+  );
+
+  // --- Pie chart data for analytics tab ---
+  const pieData = paymentStatusBreakdown.map(item => ({
+    name: ({ PAID: 'Paid', PARTIAL: 'Partial', NOT_STARTED: 'Not Started', DEFAULTED: 'Defaulted' } as Record<string, string>)[item.status] ?? item.status,
+    value: item.count,
+  }));
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -711,7 +902,7 @@ const FeeManagement = () => {
             />
             <StatCard 
               label="Total Payments" 
-              value={(payments?.length || 0).toLocaleString()} 
+              value={(summary.totalPaymentCount || 0).toLocaleString()} 
               icon={<Receipt className="h-5 w-5" />} 
               color="text-purple-600" 
             />
@@ -720,10 +911,11 @@ const FeeManagement = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="collect">Collect Fees</TabsTrigger>
           <TabsTrigger value="records">Fee Records</TabsTrigger>
           <TabsTrigger value="payments">Payment History</TabsTrigger>
+          <TabsTrigger value="analytics"><BarChart3 className="h-3.5 w-3.5 mr-1 inline" />Analytics</TabsTrigger>
           <TabsTrigger value="setup"><Settings className="h-4 w-4 mr-1 inline" />Setup</TabsTrigger>
         </TabsList>
 
@@ -839,6 +1031,10 @@ const FeeManagement = () => {
               )}
 
               {/* Payment Form */}
+              {(() => {
+                const selFeeTypeObj = feeTypes.find(ft => String(ft.id) === selectedFeeType && selectedFeeType !== 'all') ?? null;
+                const isDaily = selFeeTypeObj?.collection_frequency === 'DAILY';
+                return (
               <div className="border rounded-lg p-4 bg-muted/20">
                 <h4 className="font-medium mb-3">
                   {selectedStudent ? `Collect Fee from ${selectedStudent.first_name} ${selectedStudent.last_name}` : 'Fee Collection Form'}
@@ -850,6 +1046,8 @@ const FeeManagement = () => {
                       value={selectedFeeType && selectedFeeType !== 'all' ? selectedFeeType : ''} 
                       onValueChange={(value) => {
                         setSelectedFeeType(value);
+                        setPaymentAmount('');
+                        setResolvedStructureAmount(null);
                         setValidationErrors(prev => ({ ...prev, feeType: '' }));
                       }}
                     >
@@ -868,26 +1066,81 @@ const FeeManagement = () => {
                       <p className="text-sm text-red-500">{validationErrors.feeType}</p>
                     )}
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Amount (GH₵) *</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      max="999999.99"
-                      placeholder="0.00"
-                      value={paymentAmount}
-                      onChange={(e) => {
-                        setPaymentAmount(e.target.value);
-                        setValidationErrors(prev => ({ ...prev, amount: '' }));
-                      }}
-                      className={validationErrors.amount ? 'border-red-500' : ''}
-                    />
-                    {validationErrors.amount && (
-                      <p className="text-sm text-red-500">{validationErrors.amount}</p>
-                    )}
-                  </div>
+
+                  {/* Fee amount info — shown once student + fee type are selected */}
+                  {selectedStudent && selFeeTypeObj && (
+                    <div className="space-y-1">
+                      <Label>Fee Amount</Label>
+                      {loadingStructure ? (
+                        <div className="h-10 rounded-md border bg-muted animate-pulse" />
+                      ) : resolvedStructureAmount != null ? (
+                        <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
+                          <DollarSign className="h-4 w-4 text-blue-500 shrink-0" />
+                          <span className="font-semibold text-blue-800">{formatCurrency(resolvedStructureAmount)}</span>
+                          <Badge variant="outline" className="ml-auto text-xs border-blue-300 text-blue-700">
+                            {FREQUENCY_LABELS[selFeeTypeObj.collection_frequency]}
+                          </Badge>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                          <AlertCircle className="h-4 w-4 shrink-0" />
+                          No fee structure set for {selectedStudent.class_level}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* DAILY fee: static amount display — no amount input */}
+                  {isDaily ? (
+                    resolvedStructureAmount != null && (
+                      <div className="md:col-span-2 rounded-lg border border-green-200 bg-green-50 p-3 flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-xs font-medium text-green-700 uppercase tracking-wide mb-0.5">Daily fixed amount</p>
+                          <p className="text-2xl font-bold text-green-800">{formatCurrency(resolvedStructureAmount)}</p>
+                          <p className="text-xs text-green-600">Clicking "Mark as Paid" records this exact amount.</p>
+                        </div>
+                        <Zap className="h-8 w-8 text-green-400 shrink-0" />
+                      </div>
+                    )
+                  ) : (
+                    /* Non-daily: editable amount field */
+                    <div className="space-y-2">
+                      <Label>
+                        Amount Being Paid (GH₵) *
+                        {resolvedStructureAmount != null && (
+                          <span className="ml-2 text-xs font-normal text-muted-foreground">
+                            (fee: {formatCurrency(resolvedStructureAmount)})
+                          </span>
+                        )}
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        max="999999.99"
+                        placeholder={resolvedStructureAmount != null ? String(resolvedStructureAmount) : '0.00'}
+                        value={paymentAmount}
+                        onChange={(e) => {
+                          setPaymentAmount(e.target.value);
+                          setValidationErrors(prev => ({ ...prev, amount: '' }));
+                        }}
+                        className={validationErrors.amount ? 'border-red-500' : ''}
+                      />
+                      {validationErrors.amount && (
+                        <p className="text-sm text-red-500">{validationErrors.amount}</p>
+                      )}
+                      {/* Pre-fill helper */}
+                      {resolvedStructureAmount != null && !paymentAmount && (
+                        <button
+                          type="button"
+                          className="text-xs text-primary hover:underline"
+                          onClick={() => setPaymentAmount(String(resolvedStructureAmount))}
+                        >
+                          Fill full amount ({formatCurrency(resolvedStructureAmount)})
+                        </button>
+                      )}
+                    </div>
+                  )}
                   
                   <div className="space-y-2">
                     <Label>Payment Method</Label>
@@ -944,15 +1197,17 @@ const FeeManagement = () => {
                 <div className="flex gap-2 mt-4">
                   <Button 
                     onClick={collectFee} 
-                    className="flex-1" 
-                    disabled={paymentLoading || !selectedStudent || !selectedFeeType || !paymentAmount}
+                    className={`flex-1 ${isDaily ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white' : ''}`}
+                    disabled={paymentLoading || !selectedStudent || !selectedFeeType || selectedFeeType === 'all' || (isDaily ? resolvedStructureAmount == null : !paymentAmount)}
                   >
                     {paymentLoading ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : isDaily ? (
+                      <CheckCircle className="h-4 w-4 mr-2" />
                     ) : (
                       <Receipt className="h-4 w-4 mr-2" />
                     )}
-                    {paymentLoading ? 'Recording...' : 'Record Payment'}
+                    {paymentLoading ? 'Recording…' : isDaily ? 'Mark as Paid' : 'Record Payment'}
                   </Button>
                   {selectedStudent && (
                     <Button variant="outline" onClick={() => setSelectedStudent(null)} disabled={paymentLoading}>
@@ -961,16 +1216,290 @@ const FeeManagement = () => {
                   )}
                 </div>
               </div>
+              );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="records">
+        <TabsContent value="records" className="space-y-4">
+          {/* Filter / search bar */}
           <Card>
-            <CardHeader>
-              <CardTitle>Student Fee Records</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                <div className="space-y-1 md:col-span-2">
+                  <Label className="text-xs">Search Student</Label>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      value={recSearchQuery}
+                      onChange={e => setRecSearchQuery(e.target.value)}
+                      placeholder="Name or student ID…"
+                      className="h-8 text-sm pl-8"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Class</Label>
+                  <Select value={recClassFilter} onValueChange={setRecClassFilter}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Classes</SelectItem>
+                      {recClassLevels.map(lv => (
+                        <SelectItem key={lv} value={lv}>{lv.replace('_', ' ')}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Fee Type</Label>
+                  <Select value={recFeeTypeFilter} onValueChange={setRecFeeTypeFilter}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      {feeTypes.map(ft => (
+                        <SelectItem key={ft.id} value={String(ft.id)}>{ft.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {/* Status pills */}
+              <div className="flex flex-wrap gap-2 items-center">
+                {(['all', 'UNPAID', 'PARTIAL', 'PAID', 'WAIVED'] as const).map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setRecStatusFilter(s)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                      recStatusFilter === s
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-muted text-muted-foreground border-transparent hover:border-border'
+                    }`}
+                  >
+                    {s === 'all' ? 'All Status' : s === 'UNPAID' ? 'Arrears' : s.charAt(0) + s.slice(1).toLowerCase()}
+                    {s !== 'all' && (
+                      <span className="ml-1 opacity-70">
+                        ({recordsBills.filter(b => b.status === s).length})
+                      </span>
+                    )}
+                  </button>
+                ))}
+                {(recSearchQuery || recClassFilter !== 'all' || recFeeTypeFilter !== 'all' || recStatusFilter !== 'all') && (
+                  <button
+                    onClick={() => { setRecSearchQuery(''); setRecClassFilter('all'); setRecFeeTypeFilter('all'); setRecStatusFilter('all'); }}
+                    className="px-3 py-1 rounded-full text-xs border border-dashed border-muted-foreground/40 text-muted-foreground hover:border-muted-foreground ml-auto"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Summary totals row */}
+          {filteredRecords.length > 0 && (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-lg border bg-blue-50 border-blue-200 p-3 text-center">
+                <div className="text-xs text-blue-600 font-medium mb-0.5">Total Billed</div>
+                <div className="text-lg font-bold text-blue-800">{formatCurrency(recTotals.billed)}</div>
+              </div>
+              <div className="rounded-lg border bg-green-50 border-green-200 p-3 text-center">
+                <div className="text-xs text-green-600 font-medium mb-0.5">Total Paid</div>
+                <div className="text-lg font-bold text-green-800">{formatCurrency(recTotals.paid)}</div>
+              </div>
+              <div className={`rounded-lg border p-3 text-center ${recTotals.arrears > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
+                <div className={`text-xs font-medium mb-0.5 ${recTotals.arrears > 0 ? 'text-red-600' : 'text-gray-500'}`}>Arrears</div>
+                <div className={`text-lg font-bold ${recTotals.arrears > 0 ? 'text-red-800' : 'text-gray-600'}`}>{formatCurrency(recTotals.arrears)}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Main table */}
+          <Card>
+            <CardContent className="p-0">
+              {recordsBillsLoading ? (
+                <div className="p-6 space-y-3">
+                  {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+                </div>
+              ) : filteredRecords.length === 0 ? (
+                <div className="p-10 text-center text-muted-foreground">
+                  {recordsBills.length === 0 ? (
+                    <div className="space-y-2">
+                      <Receipt className="h-8 w-8 mx-auto opacity-30" />
+                      <p className="font-medium">No fee bills generated yet</p>
+                      <p className="text-sm">Go to Setup → Generate Term Bills to create student fee records.</p>
+                    </div>
+                  ) : (
+                    <p>No records match the current filters.</p>
+                  )}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/40">
+                        <th className="text-left p-3 font-medium text-muted-foreground">Student</th>
+                        <th className="text-left p-3 font-medium text-muted-foreground">Class</th>
+                        <th className="text-left p-3 font-medium text-muted-foreground">Fee Type</th>
+                        <th className="text-right p-3 font-medium text-muted-foreground">Billed</th>
+                        <th className="text-right p-3 font-medium text-muted-foreground">Paid</th>
+                        <th className="text-right p-3 font-medium text-muted-foreground">Arrears</th>
+                        <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {filteredRecords.map(b => {
+                        const arrearsAmount = Number(b.balance);
+                        const paidPct = Number(b.amount_billed) > 0
+                          ? Math.min(100, (Number(b.amount_paid) / Number(b.amount_billed)) * 100)
+                          : 0;
+                        const statusStyle: Record<string, string> = {
+                          PAID: 'bg-green-100 text-green-800 border-green-200',
+                          PARTIAL: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                          UNPAID: 'bg-red-100 text-red-800 border-red-200',
+                          WAIVED: 'bg-gray-100 text-gray-700 border-gray-200',
+                        };
+                        const statusLabel: Record<string, string> = {
+                          PAID: 'Paid',
+                          PARTIAL: 'Partial',
+                          UNPAID: 'Arrears',
+                          WAIVED: 'Waived',
+                        };
+                        return (
+                          <tr key={b.id} className="hover:bg-muted/30 transition-colors">
+                            <td className="p-3">
+                              <div className="font-medium">{b.student_name}</div>
+                              <div className="text-xs text-muted-foreground">{b.student_id}</div>
+                            </td>
+                            <td className="p-3">
+                              <Badge variant="outline" className="text-xs">
+                                {b.class_level.replace('_', ' ')}{b.class_section ? ` ${b.class_section}` : ''}
+                              </Badge>
+                            </td>
+                            <td className="p-3">
+                              <span className="font-medium">{b.fee_type_name}</span>
+                              {b.term_name && (
+                                <div className="text-xs text-muted-foreground">{b.term_name}</div>
+                              )}
+                            </td>
+                            <td className="p-3 text-right font-mono font-medium">
+                              {formatCurrency(Number(b.amount_billed))}
+                            </td>
+                            <td className="p-3 text-right">
+                              <div className="font-mono font-medium text-green-600">{formatCurrency(Number(b.amount_paid))}</div>
+                              {Number(b.amount_billed) > 0 && (
+                                <div className="w-full bg-muted rounded-full h-1 mt-1">
+                                  <div
+                                    className={`h-1 rounded-full ${b.status === 'PAID' ? 'bg-green-500' : 'bg-amber-400'}`}
+                                    style={{ width: `${paidPct}%` }}
+                                  />
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-3 text-right font-mono font-medium">
+                              {arrearsAmount > 0 ? (
+                                <span className="text-red-600">{formatCurrency(arrearsAmount)}</span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="p-3 text-center">
+                              <Badge variant="outline" className={`text-xs ${statusStyle[b.status] ?? ''}`}>
+                                {statusLabel[b.status] ?? b.status}
+                              </Badge>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <div className="px-3 py-2 border-t text-xs text-muted-foreground">
+                    {filteredRecords.length} record{filteredRecords.length !== 1 ? 's' : ''}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="payments" className="space-y-4">
+          {/* Filter bar */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Filter Payments</span>
+                {(pfDateFrom || pfDateTo || pfFeeType !== 'all' || pfMethod !== 'all' || pfVerified !== 'all') && (
+                  <Button
+                    variant="ghost" size="sm" className="h-6 px-2 text-xs ml-auto"
+                    onClick={() => { setPfDateFrom(''); setPfDateTo(''); setPfFeeType('all'); setPfMethod('all'); setPfVerified('all'); }}
+                  >
+                    Clear filters
+                  </Button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Date From</Label>
+                  <Input type="date" value={pfDateFrom} onChange={e => setPfDateFrom(e.target.value)} className="h-8 text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Date To</Label>
+                  <Input type="date" value={pfDateTo} onChange={e => setPfDateTo(e.target.value)} className="h-8 text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Fee Type</Label>
+                  <Select value={pfFeeType} onValueChange={setPfFeeType}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      {feeTypes.map(ft => <SelectItem key={ft.id} value={String(ft.id)}>{ft.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Method</Label>
+                  <Select value={pfMethod} onValueChange={setPfMethod}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Methods</SelectItem>
+                      <SelectItem value="CASH">Cash</SelectItem>
+                      <SelectItem value="CHEQUE">Cheque</SelectItem>
+                      <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                      <SelectItem value="MOBILE_MONEY">Mobile Money</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Verification</Label>
+                  <Select value={pfVerified} onValueChange={setPfVerified}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="verified">Verified</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 mt-3 pt-3 border-t text-sm">
+                <span className="text-muted-foreground">
+                  {filteredPayments.length} payment{filteredPayments.length !== 1 ? 's' : ''}
+                </span>
+                <span className="font-semibold text-green-600">Total: {formatCurrency(filteredTotal)}</span>
+                <Button
+                  size="sm" variant="outline" className="ml-auto h-7 gap-1.5 text-xs"
+                  onClick={exportPaymentsCSV}
+                  disabled={filteredPayments.length === 0}
+                >
+                  <Download className="h-3 w-3" /> Export CSV
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4">
               {loading ? (
                 <div className="space-y-4">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -978,10 +1507,10 @@ const FeeManagement = () => {
                   ))}
                 </div>
               ) : (
-                <DataTable 
-                  columns={feeColumns} 
-                  data={studentFees || []} 
-                  searchKey="student_name" 
+                <DataTable
+                  columns={paymentColumns}
+                  data={filteredPayments}
+                  searchKey="student_name"
                   searchPlaceholder="Search by student name..."
                 />
               )}
@@ -989,33 +1518,225 @@ const FeeManagement = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="payments">
-          <Card>
-            <CardHeader>
-              <CardTitle>Payment History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="space-y-4">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
-                  ))}
-                </div>
-              ) : (
-                <DataTable 
-                  columns={paymentColumns} 
-                  data={payments || []} 
-                  searchKey="student_name" 
-                  searchPlaceholder="Search payments..."
-                />
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         {/* ================================================================
-            SETUP TAB
+            ANALYTICS TAB
             ================================================================ */}
+        <TabsContent value="analytics" className="space-y-5">
+          {/* Quick stats row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
+                  <CalendarDays className="h-3.5 w-3.5" /> Today
+                </div>
+                <div className="text-xl font-bold text-green-600">
+                  {formatCurrency(payments.filter(p => p.payment_date.slice(0, 10) === new Date().toISOString().slice(0, 10)).reduce((s, p) => s + p.amount_paid, 0))}
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {payments.filter(p => p.payment_date.slice(0, 10) === new Date().toISOString().slice(0, 10)).length} transactions
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
+                  <TrendingUp className="h-3.5 w-3.5" /> This Week
+                </div>
+                <div className="text-xl font-bold text-blue-600">
+                  {formatCurrency(payments.filter(p => p.payment_date.slice(0, 10) >= new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)).reduce((s, p) => s + p.amount_paid, 0))}
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {payments.filter(p => p.payment_date.slice(0, 10) >= new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)).length} transactions
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
+                  <Receipt className="h-3.5 w-3.5" /> Avg per Payment
+                </div>
+                <div className="text-xl font-bold text-purple-600">
+                  {formatCurrency(payments.length > 0 ? payments.reduce((s, p) => s + p.amount_paid, 0) / payments.length : 0)}
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">{payments.length} total payments</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
+                  <BarChart3 className="h-3.5 w-3.5" /> Collection Rate
+                </div>
+                <div className="text-xl font-bold text-amber-600">
+                  {summary.collectionRate.toFixed(1)}%
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">of expected amount</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Charts row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* Collection by Fee Type */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-blue-500" /> Collection by Fee Type
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {collectionByFeeType.length === 0 ? (
+                  <div className="h-52 flex items-center justify-center text-muted-foreground text-sm">No collection data yet.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={230}>
+                    <BarChart
+                      data={collectionByFeeType.map(f => ({ name: f.fee_type__name, amount: Number(f.total), count: f.transactions }))}
+                      layout="vertical"
+                      margin={{ left: 8, right: 24, top: 4, bottom: 4 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" tickFormatter={v => `₵${(Number(v) / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+                      <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
+                      <RechartsTooltip formatter={(v: any) => [formatCurrency(Number(v)), 'Collected']} />
+                      <Bar dataKey="amount" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Collection by Collector */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Users className="h-4 w-4 text-emerald-500" /> Collection by Staff
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {collectionByCollector.length === 0 ? (
+                  <div className="h-52 flex items-center justify-center text-muted-foreground text-sm">No collection data yet.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={230}>
+                    <BarChart
+                      data={[...collectionByCollector]
+                        .sort((a, b) => Number(b.total) - Number(a.total))
+                        .slice(0, 8)
+                        .map(c => ({
+                          name: `${c.collected_by__first_name} ${c.collected_by__last_name}`.trim() || 'Unknown',
+                          amount: Number(c.total),
+                          count: c.transactions,
+                        }))}
+                      layout="vertical"
+                      margin={{ left: 8, right: 24, top: 4, bottom: 4 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" tickFormatter={v => `₵${(Number(v) / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+                      <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
+                      <RechartsTooltip formatter={(v: any) => [formatCurrency(Number(v)), 'Collected']} />
+                      <Bar dataKey="amount" fill="#10b981" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Status pie + Top collectors leaderboard */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* Payment Status Distribution */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-500" /> Student Payment Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {analyticsLoading ? (
+                  <div className="h-52 flex items-center justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : pieData.length === 0 ? (
+                  <div className="h-52 flex items-center justify-center text-muted-foreground text-sm">No data yet.</div>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%" cy="50%"
+                          innerRadius={55} outerRadius={85}
+                          dataKey="value"
+                          paddingAngle={2}
+                        >
+                          {pieData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={PIE_STATUS_COLORS[entry.name] ?? '#94a3b8'} />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip formatter={(v: any, name: any) => [`${v} students`, name]} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="flex flex-wrap gap-3 justify-center mt-1">
+                      {pieData.map(entry => (
+                        <div key={entry.name} className="flex items-center gap-1.5 text-xs">
+                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_STATUS_COLORS[entry.name] ?? '#94a3b8' }} />
+                          <span>{entry.name}: <strong>{entry.value}</strong></span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Top Collectors Leaderboard */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Award className="h-4 w-4 text-yellow-500" /> Top Collectors
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {collectionByCollector.length === 0 ? (
+                  <p className="text-center text-muted-foreground text-sm py-8">No collection data yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {[...collectionByCollector]
+                      .sort((a, b) => Number(b.total) - Number(a.total))
+                      .slice(0, 6)
+                      .map((c, i) => {
+                        const name = `${c.collected_by__first_name} ${c.collected_by__last_name}`.trim() || 'Unknown';
+                        const top = Number(collectionByCollector.reduce((mx, x) => Number(x.total) > mx ? Number(x.total) : mx, 0));
+                        const rankCls = [
+                          'bg-yellow-100 text-yellow-700 border border-yellow-300',
+                          'bg-gray-100 text-gray-600 border border-gray-300',
+                          'bg-orange-50 text-orange-700 border border-orange-200',
+                        ];
+                        return (
+                          <div key={i} className="flex items-center gap-3">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${rankCls[i] ?? 'bg-slate-50 text-slate-600 border border-slate-200'}`}>
+                              {i + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate">{name}</div>
+                              <div className="w-full bg-muted rounded-full h-1.5 mt-1">
+                                <div
+                                  className="h-1.5 rounded-full bg-green-500 transition-all"
+                                  style={{ width: `${top > 0 ? Math.min(100, (Number(c.total) / top) * 100) : 0}%` }}
+                                />
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className="text-sm font-semibold text-green-600">{formatCurrency(Number(c.total))}</div>
+                              <div className="text-xs text-muted-foreground">{c.transactions} txn</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
         <TabsContent value="setup" className="space-y-4">
           {/* Sub-nav */}
           <div className="flex gap-2 flex-wrap">

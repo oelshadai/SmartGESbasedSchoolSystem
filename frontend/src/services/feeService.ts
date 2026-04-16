@@ -109,8 +109,10 @@ export interface StudentSearchResult {
 }
 
 export interface FeeCollectionSummary {
+  total_billed: number;
   total_outstanding: number;
   total_collected: number;
+  total_payment_count: number;
   by_fee_type: Array<{
     fee_type__name: string;
     total: number;
@@ -525,7 +527,8 @@ class FeeService {
   }
 
   async generateTermBills(data: GenerateBillsInput): Promise<GenerateBillsResult> {
-    return this.makeRequest(() => secureApiClient.post('/fees/term-bills/generate/', data));
+    const result = await secureApiClient.post<GenerateBillsResult>('/fees/term-bills/generate/', data);
+    return result;
   }
 
   async updateTermBill(id: number, data: Partial<Pick<TermBill, 'amount_billed' | 'due_date' | 'notes'>>): Promise<TermBill> {

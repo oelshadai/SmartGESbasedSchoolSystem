@@ -139,9 +139,13 @@ class SecureApiClient {
       network: !error.response && !error.request
     };
     
-    // Log for debugging in development
+    // Log for debugging in development — skip expected 404s (e.g. optional permission checks)
     if (import.meta.env.DEV) {
-      console.error('API Error Details:', errorDetails);
+      const silentPaths = ['/staff-permissions/my-permissions/'];
+      const isSilent = silentPaths.some(p => errorDetails.url?.includes(p)) && errorDetails.status === 404;
+      if (!isSilent) {
+        console.error('API Error Details:', errorDetails);
+      }
     }
     
     // Create production-friendly error messages

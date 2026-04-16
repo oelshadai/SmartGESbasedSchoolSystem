@@ -39,6 +39,7 @@ import Announcements from "./pages/school/Announcements";
 import EventPlanner from "./pages/school/EventPlanner";
 import AdminAttendanceOverview from "./pages/school/AdminAttendanceOverview";
 import FeeManagement from "./pages/school/FeeManagement";
+import StaffPermissions from "./pages/school/StaffPermissions";
 import ParentPortalSettings from "./pages/school/ParentPortalSettings";
 import SchoolScoreEntry from "./pages/school/ScoreEntry";
 import ScoreEntrySetup from "./pages/school/ScoreEntrySetup";
@@ -133,6 +134,7 @@ const App = () => {
             <Route path="/school/score-entry-setup" element={<ScoreEntrySetup />} />
             <Route path="/school/score-entry-form" element={<ScoreEntryForm />} />
             <Route path="/school/multi-subject-score-entry" element={<MultiSubjectScoreEntry />} />
+            <Route path="/school/staff-permissions" element={<StaffPermissions />} />
           </Route>
 
           {/* Teacher */}

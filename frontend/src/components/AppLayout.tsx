@@ -8,7 +8,7 @@ import {
   FileText, Settings, LogOut, ChevronLeft, Menu, School, BarChart3,
   CalendarDays, Award, CreditCard, Shield, MessageSquare, Bell,
   HelpCircle, User, Clock, Briefcase, DollarSign, Globe, Calendar,
-  X, CheckCheck, ClipboardCheck, Megaphone
+  X, CheckCheck, ClipboardCheck, Megaphone, ShieldCheck
 } from 'lucide-react';
 import type { UserRole } from '@/types';
 
@@ -75,6 +75,7 @@ const getNavItems = (role: UserRole): NavItem[] => {
       { label: 'Events', path: '/school/events', icon: <CalendarDays className="h-5 w-5" /> },
       { label: 'Attendance Report', path: '/school/event-planner', icon: <Calendar className="h-5 w-5" /> },
       { label: 'Fees', path: '/school/fees', icon: <DollarSign className="h-5 w-5" /> },
+      { label: 'Staff Permissions', path: '/school/staff-permissions', icon: <ShieldCheck className="h-5 w-5" /> },
       { label: 'Parent Portal', path: '/school/parent-portal', icon: <Globe className="h-5 w-5" /> },
       { label: 'Settings', path: '/school/settings', icon: <Settings className="h-5 w-5" /> },
     ],

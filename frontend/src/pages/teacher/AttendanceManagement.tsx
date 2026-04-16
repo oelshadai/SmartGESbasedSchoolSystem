@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, CheckCircle, XCircle, Clock, Users, UserCheck } from "lucide-react";
+import { CalendarIcon, CheckCircle, XCircle, Clock, Users, UserCheck, DollarSign } from "lucide-react";
 import { format } from "date-fns";
 import { secureApiClient } from "@/lib/secureApiClient";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { feeService, type FeeType, type TeacherCollectionRosterEntry } from "@/services/feeService";
+import { staffPermissionService } from "@/services/staffPermissionService";
 
 interface Student {
   id: number;
@@ -34,15 +36,29 @@ const AttendanceManagement = () => {
   const [attendance, setAttendance] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
   const [attendanceAlreadyTaken, setAttendanceAlreadyTaken] = useState(false);
+  // Daily fee collection embedded in attendance
+  const [dailyFeeType, setDailyFeeType] = useState<FeeType | null>(null);
+  const [feeRoster, setFeeRoster] = useState<TeacherCollectionRosterEntry[]>([]);
+  const [feePaid, setFeePaid] = useState<Record<number, boolean>>({});
+  // Cover classes
+  const [coverClassIds, setCoverClassIds] = useState<number[]>([]);
+  const [coverClasses, setCoverClasses] = useState<Class[]>([]);
+  const [selectedCoverClass, setSelectedCoverClass] = useState<string>("");
+  const [coverStudents, setCoverStudents] = useState<Student[]>([]);
+  const [coverAttendance, setCoverAttendance] = useState<Record<number, string>>({});
+  const [coverAlreadyTaken, setCoverAlreadyTaken] = useState(false);
+  const [coverLoading, setCoverLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchClasses();
+    fetchCoverPermission();
   }, []);
 
   useEffect(() => {
     if (selectedClass) {
       fetchStudents();
+      fetchDailyFees();
     }
   }, [selectedClass, date]);
 
@@ -89,6 +105,105 @@ const AttendanceManagement = () => {
     }
   };
 
+  const fetchCoverPermission = async () => {
+    try {
+      const perm = await staffPermissionService.getMyPermissions();
+      if (perm && perm.can_cover_attendance && perm.cover_class_ids.length > 0) {
+        setCoverClassIds(perm.cover_class_ids);
+        // For each cover class id we need Class info — reuse /my-classes/ response
+        const res = await secureApiClient.get("/students/teacher-attendance/my-classes/");
+        const allCls: Class[] = (res as any).classes || [];
+        // Also try fetching from school classes endpoint to get cover classes not in my-classes
+        try {
+          const schoolCls = await secureApiClient.get("/schools/classes/");
+          const schoolArr: any[] = Array.isArray(schoolCls) ? schoolCls : (schoolCls as any).results || [];
+          const extra = schoolArr
+            .filter((c: any) => perm.cover_class_ids.includes(c.id) && !allCls.find(x => x.id === c.id))
+            .map((c: any) => ({ id: c.id, name: c.full_name || c.level, level: c.level, student_count: 0, attendance_taken_today: false }));
+          const combined = [...allCls.filter(c => perm.cover_class_ids.includes(c.id)), ...extra];
+          setCoverClasses(combined);
+          if (combined.length > 0) setSelectedCoverClass(String(combined[0].id));
+        } catch {
+          const filtered = allCls.filter(c => perm.cover_class_ids.includes(c.id));
+          setCoverClasses(filtered);
+          if (filtered.length > 0) setSelectedCoverClass(String(filtered[0].id));
+        }
+      }
+    } catch { /* no cover permission — fine */ }
+  };
+
+  useEffect(() => {
+    if (selectedCoverClass) fetchCoverStudents();
+  }, [selectedCoverClass, date]);
+
+  const fetchCoverStudents = async () => {
+    if (!selectedCoverClass) return;
+    try {
+      const dateStr = format(date, "yyyy-MM-dd");
+      const response = await secureApiClient.get(
+        `/students/teacher-attendance/class-students/?class_id=${selectedCoverClass}&date=${dateStr}`
+      );
+      setCoverStudents(response.students || []);
+      setCoverAlreadyTaken(response.attendance_already_taken || false);
+      const init: Record<number, string> = {};
+      response.students?.forEach((s: Student) => { init[s.id] = s.current_status; });
+      setCoverAttendance(init);
+    } catch {
+      toast({ title: "Error", description: "Failed to load cover class students", variant: "destructive" });
+    }
+  };
+
+  const saveCoverAttendance = async () => {
+    if (!selectedCoverClass) return;
+    setCoverLoading(true);
+    try {
+      const attendanceData = coverStudents.map(s => ({
+        student_id: s.id,
+        status: coverAttendance[s.id] || 'absent',
+      }));
+      const response = await secureApiClient.post("/students/teacher-attendance/save-attendance/", {
+        class_id: parseInt(selectedCoverClass),
+        date: format(date, "yyyy-MM-dd"),
+        attendance: attendanceData,
+      });
+      toast({ title: "Cover attendance saved", description: `${response.saved_count} new records, ${response.updated_count} updated.` });
+      setCoverAlreadyTaken(true);
+    } catch (error: any) {
+      toast({ title: "Error", description: error?.response?.data?.error || "Failed to save cover attendance", variant: "destructive" });
+    } finally {
+      setCoverLoading(false);
+    }
+  };
+
+  const fetchDailyFees = async () => {
+    if (!selectedClass) return;
+    try {
+      const allTypes = await feeService.getFeeTypes();
+      const dailyType = allTypes.find(
+        (ft: FeeType) =>
+          ft.collection_frequency === 'DAILY' &&
+          ft.allow_class_teacher_collection &&
+          ft.is_active &&
+          !ft.parent_fee_type
+      ) ?? null;
+      setDailyFeeType(dailyType);
+      setFeePaid({});
+      if (dailyType) {
+        const roster = await feeService.getClassCollectionRoster(
+          parseInt(selectedClass),
+          dailyType.id
+        );
+        setFeeRoster(roster);
+      } else {
+        setFeeRoster([]);
+      }
+    } catch {
+      // non-critical — attendance still works
+      setDailyFeeType(null);
+      setFeeRoster([]);
+    }
+  };
+
   const markAttendance = (studentId: number, status: string) => {
     setAttendance(prev => ({ ...prev, [studentId]: status }));
   };
@@ -128,14 +243,36 @@ const AttendanceManagement = () => {
         attendance: attendanceData
       });
 
+      // Also record daily fee payments if any student was marked paid
+      let feeMsg = "";
+      if (dailyFeeType) {
+        const paidStudents = feeRoster.filter(
+          (r) => feePaid[r.student_id] && r.amount != null
+        );
+        if (paidStudents.length > 0) {
+          try {
+            const feeRes = await feeService.bulkCollect({
+              fee_type: dailyFeeType.id,
+              class_id: parseInt(selectedClass),
+              payments: paidStudents.map((r) => ({ student: r.student_id, amount: r.amount! })),
+              payment_method: "CASH",
+            });
+            feeMsg = ` · GH₵${feeRes.total_amount.toFixed(2)} fee collected from ${feeRes.recorded} student(s).`;
+          } catch {
+            toast({ title: "Fee warning", description: "Attendance saved but fee collection failed.", variant: "destructive" });
+          }
+        }
+      }
+
       toast({ 
         title: "Success", 
-        description: `Attendance saved successfully. ${response.saved_count} new records, ${response.updated_count} updated.`
+        description: `Attendance saved. ${response.saved_count} new records, ${response.updated_count} updated.${feeMsg}`
       });
       
       // Refresh classes to update attendance status
       fetchClasses();
       setAttendanceAlreadyTaken(true);
+      setFeePaid({});
       
     } catch (error: any) {
       console.error('Error saving attendance:', error);
@@ -273,53 +410,88 @@ const AttendanceManagement = () => {
                       <th className="px-4 py-3 text-left text-sm font-medium">Student ID</th>
                       <th className="px-4 py-3 text-left text-sm font-medium">Name</th>
                       <th className="px-4 py-3 text-center text-sm font-medium">Status</th>
+                      {dailyFeeType && (
+                        <th className="px-4 py-3 text-center text-sm font-medium">
+                          <div className="flex items-center justify-center gap-1">
+                            <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                            {dailyFeeType.name}
+                          </div>
+                        </th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {students.map(student => (
-                      <tr key={student.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium">{student.student_id}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            {student.photo && (
-                              <img 
-                                src={student.photo} 
-                                alt={student.name}
-                                className="w-8 h-8 rounded-full object-cover"
-                              />
-                            )}
-                            <span className="text-sm">{student.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex justify-center gap-2">
-                            <Button
-                              size="sm"
-                              variant={attendance[student.id] === "present" ? "default" : "outline"}
-                              onClick={() => markAttendance(student.id, "present")}
-                              className={attendance[student.id] === "present" ? "bg-green-600 hover:bg-green-700" : ""}
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant={attendance[student.id] === "absent" ? "destructive" : "outline"}
-                              onClick={() => markAttendance(student.id, "absent")}
-                            >
-                              <XCircle className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant={attendance[student.id] === "late" ? "secondary" : "outline"}
-                              onClick={() => markAttendance(student.id, "late")}
-                              className={attendance[student.id] === "late" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : ""}
-                            >
-                              <Clock className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {students.map(student => {
+                          const rosterEntry = feeRoster.find(r => r.student_id === student.id);
+                          const hasFee = dailyFeeType && rosterEntry && rosterEntry.amount != null;
+                          const paid = !!feePaid[student.id];
+                          return (
+                            <tr key={student.id} className={`hover:bg-gray-50 ${paid ? 'bg-emerald-50' : ''}`}>
+                              <td className="px-4 py-3 text-sm font-medium">{student.student_id}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-3">
+                                  {student.photo && (
+                                    <img
+                                      src={student.photo}
+                                      alt={student.name}
+                                      className="w-8 h-8 rounded-full object-cover"
+                                    />
+                                  )}
+                                  <span className="text-sm">{student.name}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex justify-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant={attendance[student.id] === "present" ? "default" : "outline"}
+                                    onClick={() => markAttendance(student.id, "present")}
+                                    className={attendance[student.id] === "present" ? "bg-green-600 hover:bg-green-700" : ""}
+                                  >
+                                    <CheckCircle className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant={attendance[student.id] === "absent" ? "destructive" : "outline"}
+                                    onClick={() => markAttendance(student.id, "absent")}
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant={attendance[student.id] === "late" ? "secondary" : "outline"}
+                                    onClick={() => markAttendance(student.id, "late")}
+                                    className={attendance[student.id] === "late" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : ""}
+                                  >
+                                    <Clock className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                              {dailyFeeType && (
+                                <td className="px-4 py-3 text-center">
+                                  {hasFee ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setFeePaid(prev => ({ ...prev, [student.id]: !prev[student.id] }))
+                                      }
+                                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border transition-colors ${
+                                        paid
+                                          ? 'bg-emerald-100 border-emerald-400 text-emerald-800'
+                                          : 'bg-white border-gray-300 text-gray-500 hover:border-emerald-400 hover:text-emerald-700'
+                                      }`}
+                                    >
+                                      <DollarSign className="h-3 w-3" />
+                                      {paid ? `Paid  GH₵${rosterEntry!.amount!.toFixed(2)}` : `GH₵${rosterEntry!.amount!.toFixed(2)}`}
+                                    </button>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">—</span>
+                                  )}
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })}
                   </tbody>
                 </table>
               </div>
@@ -352,6 +524,119 @@ const AttendanceManagement = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Cover Classes Section ── */}
+      {coverClasses.length > 0 && (
+        <Card className="border-amber-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-amber-800">
+              <UserCheck className="h-5 w-5" />
+              Cover Attendance
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              You are covering these classes. Take attendance on behalf of the class teacher.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Cover class selector */}
+            {coverClasses.length > 1 && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">Select Cover Class</label>
+                <Select value={selectedCoverClass} onValueChange={setSelectedCoverClass}>
+                  <SelectTrigger className="max-w-xs">
+                    <SelectValue placeholder="Choose class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {coverClasses.map(cls => (
+                      <SelectItem key={cls.id} value={String(cls.id)}>
+                        {cls.name || cls.level}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {selectedCoverClass && coverStudents.length > 0 && (
+              <>
+                {coverAlreadyTaken && (
+                  <Badge variant="secondary">Attendance already taken for this date</Badge>
+                )}
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => {
+                    const all: Record<number, string> = {};
+                    coverStudents.forEach(s => { all[s.id] = 'present'; });
+                    setCoverAttendance(all);
+                  }}>Mark All Present</Button>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    const all: Record<number, string> = {};
+                    coverStudents.forEach(s => { all[s.id] = 'absent'; });
+                    setCoverAttendance(all);
+                  }}>Mark All Absent</Button>
+                </div>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-amber-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-medium">Student ID</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium">Name</th>
+                        <th className="px-4 py-3 text-center text-sm font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {coverStudents.map(student => (
+                        <tr key={student.id} className="hover:bg-amber-50/50">
+                          <td className="px-4 py-3 text-sm font-medium">{student.student_id}</td>
+                          <td className="px-4 py-3 text-sm">{student.name}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex justify-center gap-2">
+                              <Button
+                                size="sm"
+                                variant={coverAttendance[student.id] === "present" ? "default" : "outline"}
+                                onClick={() => setCoverAttendance(prev => ({ ...prev, [student.id]: "present" }))}
+                                className={coverAttendance[student.id] === "present" ? "bg-green-600 hover:bg-green-700" : ""}
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant={coverAttendance[student.id] === "absent" ? "destructive" : "outline"}
+                                onClick={() => setCoverAttendance(prev => ({ ...prev, [student.id]: "absent" }))}
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant={coverAttendance[student.id] === "late" ? "secondary" : "outline"}
+                                onClick={() => setCoverAttendance(prev => ({ ...prev, [student.id]: "late" }))}
+                                className={coverAttendance[student.id] === "late" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : ""}
+                              >
+                                <Clock className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Button
+                  onClick={saveCoverAttendance}
+                  disabled={coverLoading}
+                  className="w-full bg-amber-600 hover:bg-amber-700"
+                  size="lg"
+                >
+                  {coverLoading ? "Saving..." : "Save Cover Attendance"}
+                </Button>
+              </>
+            )}
+
+            {selectedCoverClass && coverStudents.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">No students found in this class.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

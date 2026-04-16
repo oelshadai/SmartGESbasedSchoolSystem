@@ -1,15 +1,26 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { DollarSign, Users, CheckCircle, Loader2, AlertCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  DollarSign, CheckCircle, Loader2, AlertCircle, Search, XCircle, Receipt,
+  Clock, Trash2,
+} from "lucide-react";
 import { secureApiClient } from "@/lib/secureApiClient";
-import { feeService, FeeType, TeacherCollectionRosterEntry } from "@/services/feeService";
+import {
+  feeService,
+  type FeeType,
+  type StudentSearchResult,
+  FREQUENCY_LABELS,
+} from "@/services/feeService";
+import { staffPermissionService } from "@/services/staffPermissionService";
 import { useToast } from "@/hooks/use-toast";
 
-interface ClassInfo {
+interface MyClass {
   id: number;
   name: string;
   level: string;
@@ -18,122 +29,253 @@ interface ClassInfo {
 const FeeCollection = () => {
   const { toast } = useToast();
 
-  const [classes, setClasses] = useState<ClassInfo[]>([]);
-  const [selectedClass, setSelectedClass] = useState<string>("");
+  // Fixed teacher class
+  const [myClass, setMyClass] = useState<MyClass | null>(null);
+  // Non-daily fee types this teacher can collect
   const [feeTypes, setFeeTypes] = useState<FeeType[]>([]);
-  const [selectedFeeType, setSelectedFeeType] = useState<string>("");
-  const [roster, setRoster] = useState<TeacherCollectionRosterEntry[]>([]);
-  const [checked, setChecked] = useState<Record<number, boolean>>({});
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<{ recorded: number; total_amount: number } | null>(null);
+  const [activeTabId, setActiveTabId] = useState<number | null>(null);
+  const [booting, setBooting] = useState(true);
 
+  // Special teacher mode
+  const [isSpecialCollector, setIsSpecialCollector] = useState(false);
+  const [isClassTeacher, setIsClassTeacher] = useState(false);
+  const [allClasses, setAllClasses] = useState<MyClass[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+
+  // Student search
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<StudentSearchResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<StudentSearchResult | null>(null);
+
+  // Fee structure
+  const [structureAmount, setStructureAmount] = useState<number | null>(null);
+  const [loadingStructure, setLoadingStructure] = useState(false);
+
+  // Payment form
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CHEQUE" | "BANK_TRANSFER" | "MOBILE_MONEY">("CASH");
+  const [referenceNumber, setReferenceNumber] = useState("");
+  const [notes, setNotes] = useState("");
+  const [paymentLoading, setPaymentLoading] = useState(false);
+
+  // Session payment log
+  interface SessionPayment {
+    studentName: string;
+    studentId: string;
+    feeTypeName: string;
+    amount: number;
+    method: string;
+    time: string;
+  }
+  const [recentPayments, setRecentPayments] = useState<SessionPayment[]>([]);
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    fetchClasses();
-    fetchFeeTypes();
+    (async () => {
+      // Check special permissions (returns null when no record exists)
+      const specialPerm = await staffPermissionService.getMyPermissions();
+
+      const canCollectSpecial =
+        (specialPerm?.can_collect_fees ?? false) &&
+        (specialPerm?.fee_collection_enabled ?? false) &&
+        (specialPerm?.school_fee_collection_enabled ?? false);
+
+      if (canCollectSpecial) {
+        setIsSpecialCollector(true);
+        // Load all classes for class selector
+        try {
+          const clsRes = await secureApiClient.get("/schools/classes/");
+          const clsArr: any[] = Array.isArray(clsRes) ? clsRes : (clsRes as any).results || [];
+          const mapped = clsArr.map((c: any) => ({ id: c.id, name: c.full_name || c.name || c.level, level: c.level }));
+          setAllClasses(mapped);
+          if (mapped.length > 0) setSelectedClassId(mapped[0].id);
+        } catch { /* handled in render */ }
+
+        // Fee types: those assigned to this special teacher (or all non-daily if no restriction)
+        try {
+          const all = await feeService.getFeeTypes();
+          const allowedIds = specialPerm?.collect_fee_type_ids ?? [];
+          const allowed = all.filter(
+            (ft: FeeType) =>
+              ft.is_active &&
+              !ft.parent_fee_type &&
+              ft.collection_frequency !== "DAILY" &&
+              (allowedIds.length === 0 || allowedIds.includes(ft.id)),
+          );
+          setFeeTypes(allowed);
+          if (allowed.length > 0) setActiveTabId(allowed[0].id);
+        } catch { /* handled in render */ }
+      } else {
+        // Regular class teacher flow
+        try {
+          const res = await secureApiClient.get("/students/teacher-attendance/my-classes/");
+          const classes: any[] = (res as any).classes || [];
+          if (classes.length > 0) {
+            const cls = { id: classes[0].id, name: classes[0].name, level: classes[0].level };
+            setMyClass(cls);
+            setSelectedClassId(cls.id);
+            setIsClassTeacher(true);
+          }
+        } catch { /* no class — handled in render */ }
+
+        try {
+          const all = await feeService.getFeeTypes();
+          const allowed = all.filter(
+            (ft: FeeType) =>
+              (ft.allow_class_teacher_collection || ft.allow_any_teacher_collection) &&
+              ft.is_active &&
+              !ft.parent_fee_type &&
+              ft.collection_frequency !== "DAILY",
+          );
+          setFeeTypes(allowed);
+          if (allowed.length > 0) setActiveTabId(allowed[0].id);
+        } catch { /* handled in render */ }
+      }
+
+      setBooting(false);
+    })();
   }, []);
 
-  const fetchClasses = async () => {
-    try {
-      const res = await secureApiClient.get("/students/teacher-attendance/my-classes/");
-      const list: ClassInfo[] = (res.classes || []).map((c: any) => ({
-        id: c.id,
-        name: c.name,
-        level: c.level,
-      }));
-      setClasses(list);
-      if (list.length === 1) setSelectedClass(String(list[0].id));
-    } catch {
-      toast({ title: "Error", description: "Could not load classes.", variant: "destructive" });
-    }
-  };
-
-  const fetchFeeTypes = async () => {
-    try {
-      const all = await feeService.getFeeTypes();
-      // Only show fee types the teacher is allowed to collect
-      const allowed = all.filter(
-        (ft: FeeType) =>
-          (ft.allow_class_teacher_collection || ft.allow_any_teacher_collection) &&
-          ft.is_active &&
-          !ft.parent_fee_type   // only main fee types (they encompass sub-types)
-      );
-      setFeeTypes(allowed);
-    } catch {
-      toast({ title: "Error", description: "Could not load fee types.", variant: "destructive" });
-    }
-  };
-
-  const loadRoster = useCallback(async () => {
-    if (!selectedClass || !selectedFeeType) return;
-    setLoading(true);
-    setRoster([]);
-    setChecked({});
-    setResult(null);
-    try {
-      const data = await feeService.getClassCollectionRoster(
-        parseInt(selectedClass),
-        parseInt(selectedFeeType)
-      );
-      setRoster(data);
-      // Pre-check all students who have an amount
-      const init: Record<number, boolean> = {};
-      data.forEach((s) => {
-        if (s.amount != null) init[s.student_id] = true;
-      });
-      setChecked(init);
-    } catch {
-      toast({ title: "Error", description: "Could not load class roster.", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedClass, selectedFeeType, toast]);
-
+  // ── Fetch structure amount when student + tab changes ──────────────────────
   useEffect(() => {
-    if (selectedClass && selectedFeeType) loadRoster();
-  }, [loadRoster]);
+    if (!selectedStudent || !activeTabId) { setStructureAmount(null); return; }
+    let cancelled = false;
+    setLoadingStructure(true);
+    feeService
+      .getFeeStructures({ fee_type: activeTabId, level: selectedStudent.class_level })
+      .then((data) => {
+        if (!cancelled) {
+          const raw = data[0]?.amount;
+          setStructureAmount(raw != null ? parseFloat(String(raw)) : null);
+        }
+      })
+      .catch(() => { if (!cancelled) setStructureAmount(null); })
+      .finally(() => { if (!cancelled) setLoadingStructure(false); });
+    return () => { cancelled = true; };
+  }, [selectedStudent?.id, activeTabId]);
 
-  const toggleAll = (value: boolean) => {
-    const next: Record<number, boolean> = {};
-    roster.forEach((s) => {
-      if (s.amount != null) next[s.student_id] = value;
-    });
-    setChecked(next);
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const switchTab = (id: number) => {
+    setActiveTabId(id);
+    resetForm();
   };
 
-  const checkedStudents = roster.filter((s) => checked[s.student_id] && s.amount != null);
-  const netTotal = checkedStudents.reduce((sum, s) => sum + (s.amount ?? 0), 0);
+  const resetForm = () => {
+    setSelectedStudent(null);
+    setSearchQuery("");
+    setSearchResults([]);
+    setStructureAmount(null);
+    setPaymentAmount("");
+    setReferenceNumber("");
+    setNotes("");
+    setPaymentMethod("CASH");
+  };
 
-  const handleSubmit = async () => {
-    if (checkedStudents.length === 0) {
-      toast({ title: "No students selected", description: "Tick at least one student to record payment.", variant: "destructive" });
+  const searchStudents = useCallback(async (q: string) => {
+    if (!selectedClassId || !q.trim()) { setSearchResults([]); return; }
+    setSearchLoading(true);
+    try {
+      const data = await feeService.searchStudents({ q, class_id: selectedClassId });
+      setSearchResults(data || []);
+    } catch {
+      toast({ title: "Error", description: "Student search failed.", variant: "destructive" });
+    } finally {
+      setSearchLoading(false);
+    }
+  }, [selectedClassId, toast]);
+
+  // Debounced auto-search — fires 350 ms after the user stops typing
+  useEffect(() => {
+    if (selectedStudent) return; // don't re-search after a student is selected
+    const id = setTimeout(() => searchStudents(searchQuery), 350);
+    return () => clearTimeout(id);
+  }, [searchQuery, selectedStudent, searchStudents]);
+
+  const selectStudent = (student: StudentSearchResult) => {
+    setSelectedStudent(student);
+    setSearchQuery(`${student.first_name} ${student.last_name}`);
+    setSearchResults([]);
+    setPaymentAmount("");
+    setStructureAmount(null);
+  };
+
+  const recordPayment = async () => {
+    if (!selectedStudent || !activeTabId || !paymentAmount) return;
+    const amount = parseFloat(paymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({ title: "Invalid amount", description: "Enter a valid amount greater than 0.", variant: "destructive" });
       return;
     }
-    setSubmitting(true);
+    setPaymentLoading(true);
     try {
-      const res = await feeService.bulkCollect({
-        fee_type: parseInt(selectedFeeType),
-        class_id: parseInt(selectedClass),
-        payments: checkedStudents.map((s) => ({
-          student: s.student_id,
-          amount: s.amount!,
-        })),
-        payment_method: "CASH",
+      await feeService.createFeePayment({
+        student: selectedStudent.id,
+        fee_type: activeTabId,
+        amount_paid: amount,
+        payment_method: paymentMethod,
+        reference_number: referenceNumber || undefined,
+        notes: notes || undefined,
       });
-      setResult(res);
-      setChecked({});
-      toast({ title: "Payments recorded!", description: `GH₵${res.total_amount.toFixed(2)} collected from ${res.recorded} student(s).` });
+      toast({
+        title: "Payment recorded!",
+        description: `GH₵${amount.toFixed(2)} collected from ${selectedStudent.first_name} ${selectedStudent.last_name}.`,
+      });
+      // Add to session log
+      setRecentPayments(prev => [{
+        studentName: `${selectedStudent.first_name} ${selectedStudent.last_name}`,
+        studentId: selectedStudent.student_id,
+        feeTypeName: activeFeeType?.name ?? "",
+        amount,
+        method: paymentMethod,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      }, ...prev]);
+      resetForm();
     } catch (e: any) {
-      toast({ title: "Error", description: e.message || "Failed to record payments.", variant: "destructive" });
+      toast({ title: "Error", description: e.message || "Failed to record payment.", variant: "destructive" });
     } finally {
-      setSubmitting(false);
+      setPaymentLoading(false);
     }
   };
 
-  const selectedFeeTypeName = feeTypes.find((f) => String(f.id) === selectedFeeType)?.name ?? "";
+  const activeFeeType = feeTypes.find((ft) => ft.id === activeTabId) ?? null;
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  if (booting) {
+    return (
+      <div className="p-8 flex items-center justify-center gap-2 text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" /> Loading…
+      </div>
+    );
+  }
+
+  if (feeTypes.length === 0) {
+    return (
+      <div className="p-8 text-center space-y-3">
+        <DollarSign className="h-10 w-10 mx-auto text-muted-foreground opacity-30" />
+        {isSpecialCollector ? (
+          <>
+            <p className="font-medium">No fee types assigned to you yet.</p>
+            <p className="text-sm text-muted-foreground">Ask the admin to assign fee types to your special collection permission.</p>
+          </>
+        ) : isClassTeacher ? (
+          <>
+            <p className="font-medium">No term fees to collect manually.</p>
+            <p className="text-sm text-muted-foreground">Daily fees (if any) are recorded directly in the Attendance page.</p>
+            <p className="text-sm text-muted-foreground">The admin hasn&#39;t enabled any term/periodic fees for class teacher collection yet.</p>
+          </>
+        ) : (
+          <>
+            <p className="font-medium">Fee collection not available.</p>
+            <p className="text-sm text-muted-foreground">You are not assigned as a class teacher and have no special fee collection permission.</p>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-3xl mx-auto">
+    <div className="p-4 md:p-6 space-y-5 max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow">
@@ -141,195 +283,297 @@ const FeeCollection = () => {
         </div>
         <div>
           <h1 className="text-xl font-bold">Fee Collection</h1>
-          <p className="text-sm text-muted-foreground">Record fee payments for your class</p>
+          <p className="text-sm text-muted-foreground">
+            {isSpecialCollector
+              ? "School-wide fee collection"
+              : myClass
+              ? `Class: ${myClass.name}`
+              : "Record fee payments for your students"}
+          </p>
         </div>
       </div>
 
-      {/* Selectors */}
+      {/* Class selector — special teachers only */}
+      {isSpecialCollector && allClasses.length > 0 && (
+        <div className="space-y-1">
+          <Label>Select Class</Label>
+          <Select
+            value={selectedClassId ? String(selectedClassId) : ""}
+            onValueChange={(v) => {
+              setSelectedClassId(parseInt(v));
+              resetForm();
+            }}
+          >
+            <SelectTrigger className="w-full max-w-xs">
+              <SelectValue placeholder="Select class" />
+            </SelectTrigger>
+            <SelectContent>
+              {allClasses.map((c) => (
+                <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Fee-type tab navigation */}
+      {feeTypes.length > 1 ? (
+        <div className="flex gap-2 flex-wrap">
+          {feeTypes.map((ft) => (
+            <button
+              key={ft.id}
+              type="button"
+              onClick={() => switchTab(ft.id)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                activeTabId === ft.id
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-white border-gray-200 text-gray-600 hover:border-primary hover:text-primary"
+              }`}
+            >
+              {ft.name}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <Badge className="text-sm px-3 py-1">{feeTypes[0].name}</Badge>
+          <span className="text-xs text-muted-foreground">
+            {FREQUENCY_LABELS[feeTypes[0].collection_frequency]}
+          </span>
+        </div>
+      )}
+
+      {/* Payment card */}
       <Card>
-        <CardContent className="pt-4 space-y-4 md:space-y-0 md:flex md:gap-4 md:items-end">
-          <div className="flex-1 space-y-1">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Class</p>
-            <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select class" />
-              </SelectTrigger>
-              <SelectContent>
-                {classes.map((c) => (
-                  <SelectItem key={c.id} value={String(c.id)}>
-                    {c.name}
-                  </SelectItem>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Receipt className="h-4 w-4" />
+            {activeFeeType?.name} — Record Payment
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+
+          {/* Student search */}
+          <div className="space-y-1">
+            <Label>Search Student</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  placeholder="Type a name or student ID…"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    if (!e.target.value.trim()) setSearchResults([]);
+                  }}
+                  autoComplete="off"
+                />
+              </div>
+              {searchLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground self-center" />}
+            </div>
+
+            {/* Dropdown results */}
+            {searchResults.length > 0 && (
+              <div className="border rounded-md max-h-48 overflow-y-auto shadow-sm">
+                {searchResults.map((s) => (
+                  <div
+                    key={s.id}
+                    className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-muted/60 border-b last:border-0"
+                    onClick={() => selectStudent(s)}
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{s.first_name} {s.last_name}</p>
+                      <p className="text-xs text-muted-foreground">{s.student_id} · {s.class_level} {s.section}</p>
+                    </div>
+                  </div>
                 ))}
-              </SelectContent>
-            </Select>
+              </div>
+            )}
           </div>
-          <div className="flex-1 space-y-1">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Fee Type</p>
-            <Select value={selectedFeeType} onValueChange={setSelectedFeeType}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select fee type" />
-              </SelectTrigger>
-              <SelectContent>
-                {feeTypes.map((ft) => (
-                  <SelectItem key={ft.id} value={String(ft.id)}>
-                    {ft.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button variant="outline" size="sm" onClick={loadRoster} disabled={!selectedClass || !selectedFeeType || loading}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
-          </Button>
+
+          {/* Selected student chip */}
+          {selectedStudent && (
+            <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
+              <div>
+                <p className="font-medium text-sm">{selectedStudent.first_name} {selectedStudent.last_name}</p>
+                <p className="text-xs text-muted-foreground">{selectedStudent.student_id} · {selectedStudent.class_level}</p>
+              </div>
+              <button type="button" onClick={resetForm} className="text-muted-foreground hover:text-destructive transition-colors">
+                <XCircle className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Fee structure amount */}
+          {selectedStudent && activeFeeType && (
+            <div className="space-y-1">
+              <Label>Fee Amount</Label>
+              {loadingStructure ? (
+                <div className="h-10 rounded-md border bg-muted animate-pulse" />
+              ) : structureAmount != null ? (
+                <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
+                  <DollarSign className="h-4 w-4 text-blue-500 shrink-0" />
+                  <span className="font-semibold text-blue-800">GH₵{structureAmount.toFixed(2)}</span>
+                  <Badge variant="outline" className="ml-auto text-xs border-blue-300 text-blue-700">
+                    {FREQUENCY_LABELS[activeFeeType.collection_frequency]}
+                  </Badge>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  No fee structure set for {selectedStudent.class_level}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Payment form — only shown once a student is selected */}
+          {selectedStudent && (
+            <div className="space-y-4 pt-1">
+              {/* Amount being paid */}
+              <div className="space-y-1">
+                <Label>
+                  Amount Being Paid (GH₵) *
+                  {structureAmount != null && (
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      (fee: GH₵{structureAmount.toFixed(2)})
+                    </span>
+                  )}
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  placeholder={structureAmount != null ? String(structureAmount) : "0.00"}
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                />
+                {structureAmount != null && !paymentAmount && (
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => setPaymentAmount(String(structureAmount))}
+                  >
+                    Fill full amount (GH₵{structureAmount.toFixed(2)})
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Payment method */}
+                <div className="space-y-1">
+                  <Label>Payment Method</Label>
+                  <Select value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CASH">Cash</SelectItem>
+                      <SelectItem value="CHEQUE">Cheque</SelectItem>
+                      <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                      <SelectItem value="MOBILE_MONEY">Mobile Money</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Reference number */}
+                <div className="space-y-1">
+                  <Label>
+                    Reference
+                    {(paymentMethod === "CHEQUE" || paymentMethod === "BANK_TRANSFER") && (
+                      <span className="text-red-500 ml-1">*</span>
+                    )}
+                  </Label>
+                  <Input
+                    placeholder={
+                      paymentMethod === "CHEQUE" ? "Cheque no." :
+                      paymentMethod === "BANK_TRANSFER" ? "Txn ref." :
+                      paymentMethod === "MOBILE_MONEY" ? "Txn ID" : "Optional"
+                    }
+                    value={referenceNumber}
+                    onChange={(e) => setReferenceNumber(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-1">
+                <Label>Notes</Label>
+                <Textarea
+                  placeholder="Optional notes…"
+                  rows={2}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={recordPayment}
+                disabled={paymentLoading || !paymentAmount}
+              >
+                {paymentLoading ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Recording…</>
+                ) : (
+                  <><CheckCircle className="h-4 w-4 mr-2" /> Record Payment</>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!selectedStudent && (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Search and select a student to record a payment.
+            </p>
+          )}
         </CardContent>
       </Card>
 
-      {/* Result card */}
-      {result && (
-        <Card className="border-green-300 bg-green-50">
-          <CardContent className="pt-4 flex items-center gap-3">
-            <CheckCircle className="h-6 w-6 text-green-600 shrink-0" />
-            <div>
-              <p className="font-semibold text-green-800">Collection Saved!</p>
-              <p className="text-sm text-green-700">
-                Collected <strong>GH₵{result.total_amount.toFixed(2)}</strong> from{" "}
-                <strong>{result.recorded}</strong> student{result.recorded !== 1 ? "s" : ""}.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Roster */}
-      {roster.length > 0 && (
+      {/* Session log */}
+      {recentPayments.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                {selectedFeeTypeName} — Students
+                <Clock className="h-4 w-4 text-emerald-600" />
+                This Session
+                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs">
+                  {recentPayments.length} payment{recentPayments.length !== 1 ? "s" : ""}
+                </Badge>
               </CardTitle>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => toggleAll(true)}>
-                  Check All
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => toggleAll(false)}>
-                  Clear All
-                </Button>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-emerald-700">
+                  Total: GH₵{recentPayments.reduce((s, p) => s + p.amount, 0).toFixed(2)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setRecentPayments([])}
+                  className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1"
+                >
+                  <Trash2 className="h-3 w-3" /> Clear
+                </button>
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              {roster.map((student) => {
-                const hasAmount = student.amount != null;
-                return (
-                  <div
-                    key={student.student_id}
-                    className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 transition-colors ${
-                      hasAmount
-                        ? checked[student.student_id]
-                          ? "bg-green-50 border border-green-200"
-                          : "hover:bg-muted/50"
-                        : "opacity-50 bg-gray-50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {hasAmount ? (
-                        <Checkbox
-                          id={`s-${student.student_id}`}
-                          checked={!!checked[student.student_id]}
-                          onCheckedChange={(v) =>
-                            setChecked((prev) => ({ ...prev, [student.student_id]: !!v }))
-                          }
-                        />
-                      ) : (
-                        <div className="h-4 w-4 rounded border border-gray-300 bg-gray-100 shrink-0" />
-                      )}
-                      <label
-                        htmlFor={hasAmount ? `s-${student.student_id}` : undefined}
-                        className={`text-sm font-medium truncate ${hasAmount ? "cursor-pointer" : "cursor-default text-muted-foreground"}`}
-                      >
-                        {student.full_name}
-                      </label>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {hasAmount ? (
-                        <>
-                          <Badge variant="outline" className="font-mono text-xs text-emerald-700 border-emerald-300 bg-emerald-50">
-                            GH₵{student.amount!.toFixed(2)}
-                          </Badge>
-                          {student.tier_label && (
-                            <Badge variant="secondary" className="text-xs text-purple-700 bg-purple-50 border-purple-200">
-                              {student.tier_label}
-                            </Badge>
-                          )}
-                        </>
-                      ) : (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" /> Not assigned
-                        </span>
-                      )}
-                    </div>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {recentPayments.map((p, i) => (
+                <div key={i} className="flex items-center justify-between px-4 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{p.studentName}</p>
+                    <p className="text-xs text-muted-foreground">{p.studentId} · {p.feeTypeName} · {p.method.replace("_", " ")}</p>
                   </div>
-                );
-              })}
+                  <div className="shrink-0 text-right ml-4">
+                    <p className="text-sm font-semibold text-emerald-700">GH₵{p.amount.toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground">{p.time}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
       )}
-
-      {/* Summary + Submit */}
-      {roster.length > 0 && (
-        <Card className="sticky bottom-4 border-primary/30 shadow-lg">
-          <CardContent className="pt-4 flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                {checkedStudents.length} of {roster.filter((s) => s.amount != null).length} students selected
-              </p>
-              <p className="text-lg font-bold text-emerald-700">
-                Net Total: GH₵{netTotal.toFixed(2)}
-              </p>
-            </div>
-            <Button
-              size="lg"
-              onClick={handleSubmit}
-              disabled={submitting || checkedStudents.length === 0}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4 mr-2" /> Record Payments
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {!selectedClass || !selectedFeeType ? (
-        <Card>
-          <CardContent className="p-6 text-center text-muted-foreground text-sm">
-            Select a class and fee type to load the student roster.
-          </CardContent>
-        </Card>
-      ) : loading ? (
-        <Card>
-          <CardContent className="p-6 flex items-center justify-center gap-2 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" /> Loading roster…
-          </CardContent>
-        </Card>
-      ) : roster.length === 0 ? (
-        <Card>
-          <CardContent className="p-6 text-center text-muted-foreground text-sm">
-            No students found for this class and fee type.
-          </CardContent>
-        </Card>
-      ) : null}
     </div>
   );
 };
