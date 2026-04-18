@@ -181,7 +181,7 @@ const StudentProfile = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 pb-24 space-y-5">
+    <div className="max-w-2xl mx-auto px-2 sm:px-4 pb-24 space-y-4 sm:space-y-5">
 
       {/* Header */}
       <div className="flex items-center justify-between pt-2">
@@ -211,18 +211,18 @@ const StudentProfile = () => {
       )}
 
       {/* Avatar card */}
-      <div className="bg-card border border-border rounded-2xl p-5">
-        <div className="flex items-center gap-4">
+      <div className="bg-card border border-border rounded-2xl p-4 sm:p-5">
+        <div className="flex items-center gap-3 sm:gap-4">
           {student.photo ? (
-            <img src={student.photo} alt={student.name} className="h-16 w-16 rounded-2xl object-cover shrink-0" />
+            <img src={student.photo} alt={student.name} className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl object-cover shrink-0" />
           ) : (
-            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-              <span className="text-xl font-bold text-primary">{initials(student.name)}</span>
+            <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+              <span className="text-lg sm:text-xl font-bold text-primary">{initials(student.name)}</span>
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="text-base font-bold text-foreground truncate">{student.name}</p>
-            <p className="text-xs text-muted-foreground">{student.school ?? 'School'}</p>
+            <p className="text-sm sm:text-base font-bold text-foreground truncate">{student.name}</p>
+            <p className="text-xs text-muted-foreground truncate">{student.school ?? 'School'}</p>
             <div className="flex flex-wrap gap-1.5 mt-2">
               <Badge className="bg-primary/10 text-primary border-0 text-[10px]">{student.student_id}</Badge>
               <Badge className="bg-muted text-muted-foreground border-0 text-[10px]">{student.class}</Badge>

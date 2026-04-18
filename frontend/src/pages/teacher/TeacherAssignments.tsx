@@ -426,20 +426,20 @@ const TeacherAssignments = () => {
     );
   }
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5 sm:space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Assignments</h1>
-          <p className="text-muted-foreground mt-1">Create and manage assignments for your classes</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Assignments</h1>
+          <p className="text-sm text-muted-foreground mt-1">Create and manage assignments for your classes</p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={handleCreateAssignment}>
+            <Button onClick={handleCreateAssignment} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               New Assignment
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto w-[95vw] sm:w-full">
             <DialogHeader>
               <DialogTitle>
                 {currentStep === 1 ? 'Create New Assignment' : 'Add Questions'}
@@ -497,7 +497,7 @@ const TeacherAssignments = () => {
                     required
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <Label htmlFor="type">Type *</Label>
                     <Select value={formData.assignment_type} onValueChange={(value) => {
@@ -577,7 +577,7 @@ const TeacherAssignments = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <Label htmlFor="due_date">Due Date</Label>
                     <Input
@@ -769,23 +769,23 @@ const TeacherAssignments = () => {
 
       {/* Assigned Classes Section */}
       <div className="animated-border">
-        <div className="animated-border-content p-6">
+        <div className="animated-border-content p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <Users className="h-5 w-5" />
-            <h3 className="text-lg font-semibold">My Assigned Classes</h3>
+            <h3 className="text-base sm:text-lg font-semibold">My Assigned Classes</h3>
           </div>
           {classes.length === 0 ? (
             <p className="text-muted-foreground text-center py-4">
               No classes assigned yet.
             </p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {classes.map((cls) => (
                 <div key={cls.id} className="animated-border-subtle">
-                  <div className="animated-border-subtle-content p-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-medium text-foreground">
+                  <div className="animated-border-subtle-content p-3 sm:p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h4 className="font-medium text-foreground truncate">
                           {cls.class.name}
                         </h4>
                         <p className="text-sm text-muted-foreground">
@@ -795,8 +795,8 @@ const TeacherAssignments = () => {
                           Level {cls.class.level} • Section {cls.class.section || 'A'}
                         </p>
                       </div>
-                      <Badge variant="secondary">
-                        {cls.assignment_count} assignments
+                      <Badge variant="secondary" className="shrink-0 text-[10px] sm:text-xs">
+                        {cls.assignment_count}
                       </Badge>
                     </div>
                   </div>
@@ -808,8 +808,8 @@ const TeacherAssignments = () => {
       </div>
 
       {/* Class Filter */}
-      <div className="flex items-center gap-4">
-        <div className="w-64">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+        <div className="w-full sm:w-64">
           <Select value={selectedClass} onValueChange={setSelectedClass}>
             <SelectTrigger>
               <SelectValue placeholder="All classes" />
@@ -848,26 +848,37 @@ const TeacherAssignments = () => {
         ) : (
           assignments.map((assignment) => (
             <div key={assignment.id} className="animated-assignment-card">
-              <div className="animated-assignment-card-content p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2.5 rounded-lg bg-muted text-muted-foreground">
+              <div className="animated-assignment-card-content p-3 sm:p-4">
+                {/* Mobile: stacked layout / Desktop: row layout */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0 sm:justify-between">
+                  <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
+                    <div className="p-2 sm:p-2.5 rounded-lg bg-muted text-muted-foreground shrink-0">
                       {typeIcons[assignment.assignment_type] || <FileText className="h-4 w-4" />}
                     </div>
-                    <div>
-                      <h3 className="font-medium text-foreground">{assignment.title}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {assignment.class_name} • Due: {new Date(assignment.due_date).toLocaleDateString()} • Max Score: {assignment.max_score}
-                      </p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2 sm:block">
+                        <h3 className="font-medium text-foreground text-sm sm:text-base truncate">{assignment.title}</h3>
+                        {/* Status badge - shown inline on mobile next to title */}
+                        <Badge variant="outline" className={`shrink-0 sm:hidden text-[10px] ${statusColors[assignment.status]}`}>
+                          {assignment.status}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs sm:text-sm text-muted-foreground mt-1">
+                        <span>{assignment.class_name}</span>
+                        <span className="text-muted-foreground/50">•</span>
+                        <span>Due: {new Date(assignment.due_date).toLocaleDateString()}</span>
+                        <span className="text-muted-foreground/50">•</span>
+                        <span>Max: {assignment.max_score}</span>
+                      </div>
                       {assignment.description && (
-                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2 hidden sm:block">
                           {assignment.description}
                         </p>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
+                  <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 pl-9 sm:pl-0">
+                    <div className="hidden sm:block text-right">
                       <Badge variant="outline" className={statusColors[assignment.status]}>
                         {assignment.status}
                       </Badge>
@@ -875,14 +886,18 @@ const TeacherAssignments = () => {
                         Created {new Date(assignment.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="flex gap-2">
+                    <p className="text-[10px] text-muted-foreground sm:hidden">
+                      Created {new Date(assignment.created_at).toLocaleDateString()}
+                    </p>
+                    <div className="flex gap-1.5 sm:gap-2 shrink-0">
                       <Button 
                         size="sm" 
                         variant="outline"
                         onClick={() => handleViewSubmissions(assignment.id)}
                         title="View submissions"
+                        className="h-8 w-8 p-0 sm:h-9 sm:w-9"
                       >
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </Button>
                       
                       {assignment.status === 'DRAFT' && (
@@ -891,6 +906,7 @@ const TeacherAssignments = () => {
                           variant="default"
                           onClick={() => handlePublishDraftAssignment(assignment.id)}
                           title="Publish assignment"
+                          className="h-8 sm:h-9 text-xs sm:text-sm px-2 sm:px-3"
                         >
                           Publish
                         </Button>
@@ -902,6 +918,7 @@ const TeacherAssignments = () => {
                           variant="outline"
                           onClick={() => handlePublishDraftAssignment(assignment.id)}
                           title="Republish assignment (update student assignments)"
+                          className="h-8 sm:h-9 text-xs sm:text-sm px-2 sm:px-3"
                         >
                           Republish
                         </Button>
@@ -909,8 +926,8 @@ const TeacherAssignments = () => {
                       
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button size="sm" variant="outline">
-                            <MoreHorizontal className="h-4 w-4" />
+                          <Button size="sm" variant="outline" className="h-8 w-8 p-0 sm:h-9 sm:w-9">
+                            <MoreHorizontal className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -1032,7 +1049,7 @@ const QuestionCreator = ({ onAddQuestion, onPublish, questions, assignmentType }
         />
       </div>
       
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div>
           <Label htmlFor="question_type">Type</Label>
           <Select value={questionData.question_type} onValueChange={(value) => setQuestionData({...questionData, question_type: value})}>

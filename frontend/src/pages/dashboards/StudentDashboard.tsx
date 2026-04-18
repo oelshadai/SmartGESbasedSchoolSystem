@@ -215,7 +215,7 @@ const StudentDashboard = () => {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-5 sm:space-y-6 animate-fade-in">
 
       {/* Alert notifications */}
       {recentAlerts.length > 0 && (
@@ -250,17 +250,17 @@ const StudentDashboard = () => {
       )}
 
       {/* Welcome header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
         {student.photo ? (
-          <img src={student.photo} alt={student.name} className="h-14 w-14 rounded-full object-cover border-2 border-primary/20" />
+          <img src={student.photo} alt={student.name} className="h-12 w-12 sm:h-14 sm:w-14 rounded-full object-cover border-2 border-primary/20" />
         ) : (
-          <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <GraduationCap className="h-7 w-7 text-primary" />
+          <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <GraduationCap className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
           </div>
         )}
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Welcome, {student.first_name}!</h1>
-          <p className="text-sm text-muted-foreground">{student.school} · {student.class}</p>
+        <div className="min-w-0">
+          <h1 className="text-lg sm:text-xl font-bold text-foreground truncate">Welcome, {student.first_name}!</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground truncate">{student.school} · {student.class}</p>
         </div>
       </div>
 
@@ -277,7 +277,7 @@ const StudentDashboard = () => {
                   <span className="text-xs font-medium text-muted-foreground">{s.label}</span>
                   <div className={`p-1.5 rounded-lg ${s.bg} border ${s.bg.replace('bg-', 'border-').replace('/10', '/30')} ${s.color}`}>{s.icon}</div>
                 </div>
-                <p className="text-3xl font-bold text-foreground leading-none">{s.value}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-foreground leading-none">{s.value}</p>
                 <p className="text-xs text-muted-foreground mt-1.5">{s.sub}</p>
               </div>
             </div>
@@ -298,7 +298,7 @@ const StudentDashboard = () => {
                   <span className="text-xs font-medium text-muted-foreground">{s.label}</span>
                   <div className={`p-1.5 rounded-lg ${s.bg} border ${s.bg.replace('bg-', 'border-').replace('/10', '/30')} ${s.color}`}>{s.icon}</div>
                 </div>
-                <p className="text-3xl font-bold text-foreground leading-none">{s.value}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-foreground leading-none">{s.value}</p>
                 <p className="text-xs text-muted-foreground mt-1.5">{s.sub}</p>
               </div>
             </div>
@@ -306,11 +306,11 @@ const StudentDashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
 
         {/* Recent assignments — 2 cols */}
-        <div className="lg:col-span-2 animated-border">
-          <div className="animated-border-content p-5">
+        <div className="md:col-span-2 animated-border">
+          <div className="animated-border-content p-4 sm:p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-foreground flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-primary" /> Recent Assignments
@@ -359,7 +359,7 @@ const StudentDashboard = () => {
 
         {/* Classmates */}
         <div className="animated-border">
-          <div className="animated-border-content p-5">
+          <div className="animated-border-content p-4 sm:p-5">
             <h3 className="font-semibold text-foreground flex items-center gap-2 mb-4">
               <Users className="h-4 w-4 text-primary" /> Classmates
               <span className="ml-auto text-xs text-muted-foreground font-normal">{classmates.length}</span>
@@ -387,7 +387,7 @@ const StudentDashboard = () => {
 
       {/* Announcements */}
       <div className="animated-border">
-        <div className="animated-border-content p-5">
+        <div className="animated-border-content p-4 sm:p-5">
           <h3 className="font-semibold text-foreground flex items-center gap-2 mb-4">
             <Bell className="h-4 w-4 text-primary" /> Announcements
             <span className="ml-auto text-xs text-muted-foreground font-normal">{announcements.length} total</span>
@@ -421,7 +421,7 @@ const StudentDashboard = () => {
 
       {/* Student profile */}
       <div className="animated-border">
-        <div className="animated-border-content p-5">
+        <div className="animated-border-content p-4 sm:p-5">
           <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
             <GraduationCap className="h-4 w-4 text-primary" /> My Profile
           </h3>
@@ -442,8 +442,8 @@ const StudentDashboard = () => {
             ].map(({ label, value, icon }) => (
               <div key={label} className="flex items-center gap-2 py-2 border-b border-border/50">
                 <span className="text-muted-foreground shrink-0">{icon}</span>
-                <span className="text-muted-foreground shrink-0 w-28">{label}:</span>
-                <span className="text-foreground font-medium truncate">{value || 'N/A'}</span>
+                <span className="text-muted-foreground shrink-0 text-xs sm:text-sm">{label}:</span>
+                <span className="text-foreground font-medium truncate text-xs sm:text-sm">{value || 'N/A'}</span>
               </div>
             ))}
           </div>

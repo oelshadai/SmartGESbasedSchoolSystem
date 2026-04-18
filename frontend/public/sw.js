@@ -46,7 +46,17 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match('/')))
+      .catch(() => {
+        // Only return cached HTML fallback for navigation requests (not JS/CSS modules)
+        return caches.match(request).then((cached) => {
+          if (cached) return cached;
+          // Only fallback to index.html for navigation requests
+          if (request.mode === 'navigate') {
+            return caches.match('/');
+          }
+          return new Response('', { status: 408, statusText: 'Offline' });
+        });
+      })
   );
 });
 

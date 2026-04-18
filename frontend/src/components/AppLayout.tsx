@@ -209,12 +209,12 @@ const AppLayout = () => {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm lg:hidden" onClick={() => setMobileOpen(false)} />
+        <div className="fixed inset-0 z-40 bg-foreground/30 backdrop-blur-sm lg:hidden transition-opacity" onClick={() => setMobileOpen(false)} />
       )}
 
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 flex flex-col bg-sidebar text-sidebar-foreground transition-all duration-300 ${
-          collapsed ? 'w-[72px]' : 'w-64'
+        className={`fixed lg:static inset-y-0 left-0 z-50 flex flex-col bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out ${
+          collapsed ? 'w-[72px]' : 'w-[280px] sm:w-64'
         } ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
       >
         <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
@@ -228,7 +228,7 @@ const AppLayout = () => {
           {!collapsed && <span className="font-bold text-sm truncate">School Report</span>}
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+        <nav className="flex-1 overflow-y-auto py-3 sm:py-4 px-2 sm:px-3 space-y-0.5 sm:space-y-1">
           {navItems.map((item) => {
             const active = location.pathname === item.path;
             return (
@@ -236,7 +236,7 @@ const AppLayout = () => {
                 key={item.path}
                 to={item.path}
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                className={`flex items-center gap-3 px-3 py-3 sm:py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                   active
                     ? 'bg-sidebar-accent text-orange-400 border-l-[3px] border-orange-500 pl-[9px] shadow-sm'
                     : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
@@ -275,10 +275,10 @@ const AppLayout = () => {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-14 sm:h-16 border-b border-border flex items-center justify-between px-4 sm:px-6 bg-card/50 backdrop-blur-sm">
-          <button onClick={() => setMobileOpen(true)} className="lg:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted">
+          <button onClick={() => setMobileOpen(true)} className="lg:hidden p-2.5 -ml-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted active:bg-muted/80 transition-colors">
             <Menu className="h-5 w-5" />
           </button>
-          <div className="lg:hidden text-sm font-semibold text-foreground truncate mx-2">
+          <div className="lg:hidden text-sm font-semibold text-foreground truncate mx-2 flex-1">
             {navItems.find(item => item.path === location.pathname)?.label || 'Dashboard'}
           </div>
           <div className="hidden lg:block" />

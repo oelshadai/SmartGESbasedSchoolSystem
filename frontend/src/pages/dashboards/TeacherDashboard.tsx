@@ -243,13 +243,13 @@ const TeacherDashboard = () => {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-5 sm:space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Teacher Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Welcome, {safeData.teacher.first_name || 'Teacher'}! Manage your classes and assignments</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Teacher Dashboard</h1>
+        <p className="text-sm text-muted-foreground mt-1">Welcome, {safeData.teacher.first_name || 'Teacher'}! Manage your classes and assignments</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {stats.map((s) => (
           <StatCard key={s.label} label={s.label} value={s.value} icon={s.icon} color={s.color} trend={s.sub} />
         ))}
@@ -280,7 +280,7 @@ const TeacherDashboard = () => {
         </div>
 
         <div className="animated-border">
-          <div className="animated-border-content p-6">
+          <div className="animated-border-content p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-foreground">School Announcements</h3>
               <Bell className="h-4 w-4 text-blue-500" />
@@ -309,9 +309,9 @@ const TeacherDashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         <div className="animated-border">
-          <div className="animated-border-content p-6">
+          <div className="animated-border-content p-4 sm:p-6">
             <h3 className="font-semibold text-foreground mb-4">Teaching Subjects</h3>
             <div className="space-y-3">
               {safeData.teaching_subjects.length > 0 ? (
@@ -330,36 +330,36 @@ const TeacherDashboard = () => {
           </div>
         </div>
         <div className="animated-border pulse-glow">
-          <div className="animated-border-content p-6">
+          <div className="animated-border-content p-4 sm:p-6">
             <h3 className="font-semibold text-foreground mb-4">Teacher Profile</h3>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2">
                 <span className="text-muted-foreground">Name:</span>
-                <span className="text-foreground">{safeData.teacher.name}</span>
+                <span className="text-foreground font-medium sm:font-normal truncate">{safeData.teacher.name}</span>
               </div>
-              <div className="flex justify-between border-t border-border pt-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-border pt-2">
                 <span className="text-muted-foreground">Email:</span>
-                <span className="text-foreground">{safeData.teacher.email}</span>
+                <span className="text-foreground font-medium sm:font-normal truncate">{safeData.teacher.email}</span>
               </div>
-              <div className="flex justify-between border-t border-border pt-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-border pt-2">
                 <span className="text-muted-foreground">Employee ID:</span>
-                <span className="text-foreground">{safeData.teacher.employee_id}</span>
+                <span className="text-foreground font-medium sm:font-normal">{safeData.teacher.employee_id}</span>
               </div>
-              <div className="flex justify-between border-t border-border pt-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-border pt-2">
                 <span className="text-muted-foreground">School:</span>
-                <span className="text-foreground">{safeData.teacher.school}</span>
+                <span className="text-foreground font-medium sm:font-normal truncate">{safeData.teacher.school}</span>
               </div>
-              <div className="flex justify-between border-t border-border pt-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-border pt-2">
                 <span className="text-muted-foreground">Qualification:</span>
-                <span className="text-foreground">{safeData.teacher.qualification || 'N/A'}</span>
+                <span className="text-foreground font-medium sm:font-normal">{safeData.teacher.qualification || 'N/A'}</span>
               </div>
-              <div className="flex justify-between border-t border-border pt-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-border pt-2">
                 <span className="text-muted-foreground">Experience:</span>
-                <span className="text-foreground">{safeData.teacher.experience_years} years</span>
+                <span className="text-foreground font-medium sm:font-normal">{safeData.teacher.experience_years} years</span>
               </div>
-              <div className="flex justify-between border-t border-border pt-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-border pt-2">
                 <span className="text-muted-foreground">Hire Date:</span>
-                <span className="text-foreground">{safeData.teacher.hire_date ? new Date(safeData.teacher.hire_date).toLocaleDateString() : 'N/A'}</span>
+                <span className="text-foreground font-medium sm:font-normal">{safeData.teacher.hire_date ? new Date(safeData.teacher.hire_date).toLocaleDateString() : 'N/A'}</span>
               </div>
             </div>
           </div>

@@ -176,27 +176,14 @@ const StudentBehavior = () => {
 
   const fetchActiveTerm = async () => {
     try {
-      // Try to get the active/current term set by admin
-      const response = await secureApiClient.get('/schools/academic-years/');
-      const academicYears = Array.isArray(response) ? response : response.results || response.data || [];
-      
-      // Find the active academic year and its current term
-      for (const year of academicYears) {
-        if (year.is_active && year.terms && Array.isArray(year.terms)) {
-          const currentTerm = year.terms.find((t: any) => t.is_current) || year.terms[year.terms.length - 1];
-          if (currentTerm) {
-            setActiveTerm({ id: currentTerm.id, name: currentTerm.name, academic_year_name: year.name });
-            return;
-          }
-        }
-      }
-      // Fallback: use latest term across all years
-      for (const year of academicYears) {
-        if (year.terms && year.terms.length > 0) {
-          const t = year.terms[year.terms.length - 1];
-          setActiveTerm({ id: t.id, name: t.name, academic_year_name: year.name });
-          return;
-        }
+      // Use the current term set by admin in school settings
+      const response = await secureApiClient.get('/schools/terms/current/');
+      if (response?.id) {
+        setActiveTerm({
+          id: response.id,
+          name: response.name || 'Current Term',
+          academic_year_name: response.academic_year_name || ''
+        });
       }
     } catch (error) {
       console.error('Failed to fetch active term:', error);
@@ -246,15 +233,6 @@ const StudentBehavior = () => {
       });
       return;
     }
-    if (!activeTerm) {
-      toast({ 
-        title: "Error", 
-        description: "No active term found. Please ask the admin to set the current term in Settings.", 
-        variant: "destructive" 
-      });
-      return;
-    }
-    
     // Validate required fields for terminal report
     if (!formData.conduct || !formData.attitude || !formData.punctuality) {
       toast({ 
@@ -266,11 +244,13 @@ const StudentBehavior = () => {
     }
     
     try {
-      const submitData = {
+      const submitData: any = {
         ...formData,
         student: parseInt(formData.student),
-        term: activeTerm!.id
       };
+      if (activeTerm) {
+        submitData.term = activeTerm.id;
+      }
       
       if (editingRecord) {
         await secureApiClient.put(`/students/behaviour/${editingRecord.id}/`, submitData);
@@ -654,7 +634,7 @@ const StudentBehavior = () => {
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={students.length === 0 || !formData.student || !activeTerm}
+                  disabled={students.length === 0 || !formData.student}
                 >
                   {editingRecord ? 'Update' : 'Create'} Record
                 </Button>

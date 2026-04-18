@@ -367,7 +367,7 @@ const ScoreEntry = () => {
           description: 'You have not been assigned to any class or subject.',
           variant: 'destructive',
         });
-      }
+      } 
 
       if (currentTermResponse?.id) {
         setCurrentTerm({

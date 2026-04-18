@@ -370,6 +370,134 @@
   background: hsl(var(--card));
 }
 
+/* Login card with continuous animated glow */
+@keyframes loginGlow {
+  0%, 100% {
+    box-shadow:
+      0 0 20px rgba(249, 115, 22, 0.15),
+      0 0 40px rgba(249, 115, 22, 0.08),
+      0 0 60px rgba(251, 191, 36, 0.05);
+  }
+  50% {
+    box-shadow:
+      0 0 30px rgba(249, 115, 22, 0.3),
+      0 0 60px rgba(249, 115, 22, 0.15),
+      0 0 90px rgba(251, 191, 36, 0.1);
+  }
+}
+
+@keyframes loginBorderRotate {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.login-glow-card {
+  position: relative;
+  border-radius: 1.5rem;
+  padding: 2px;
+  background: linear-gradient(
+    270deg,
+    rgba(249, 115, 22, 0.6),
+    rgba(251, 191, 36, 0.4),
+    rgba(249, 115, 22, 0.2),
+    rgba(251, 191, 36, 0.4),
+    rgba(249, 115, 22, 0.6)
+  );
+  background-size: 400% 400%;
+  animation: loginBorderRotate 6s ease infinite, loginGlow 3s ease-in-out infinite;
+}
+
+.login-glow-card::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: calc(1.5rem + 4px);
+  background: linear-gradient(
+    270deg,
+    rgba(249, 115, 22, 0.25),
+    rgba(251, 191, 36, 0.15),
+    rgba(249, 115, 22, 0.05),
+    rgba(251, 191, 36, 0.15),
+    rgba(249, 115, 22, 0.25)
+  );
+  background-size: 400% 400%;
+  animation: loginBorderRotate 6s ease infinite;
+  filter: blur(12px);
+  z-index: -1;
+}
+
+.login-glow-card-inner {
+  background: hsl(222 47% 8%);
+  border-radius: calc(1.5rem - 2px);
+  position: relative;
+  z-index: 1;
+}
+
+/* Animated gradient text for login title */
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.login-gradient-text {
+  background: linear-gradient(
+    270deg,
+    #f97316,
+    #fbbf24,
+    #f59e0b,
+    #ef4444,
+    #f97316,
+    #fbbf24
+  );
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientShift 4s ease infinite;
+}
+
+/* Glowing stat cards on login page */
+.login-stat-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  border-radius: 1rem;
+  transition: all 0.3s ease;
+}
+
+.login-stat-card:hover {
+  border-color: rgba(249, 115, 22, 0.5);
+  box-shadow:
+    0 0 15px rgba(249, 115, 22, 0.15),
+    0 0 30px rgba(249, 115, 22, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transform: translateY(-2px);
+}
+
+.login-stat-card::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: calc(1rem + 1px);
+  background: linear-gradient(
+    135deg,
+    rgba(249, 115, 22, 0.3),
+    transparent 40%,
+    transparent 60%,
+    rgba(251, 191, 36, 0.2)
+  );
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.login-stat-card:hover::after {
+  opacity: 1;
+}
+
 /* Reduce motion for accessibility */
 @media (prefers-reduced-motion: reduce) {
   .animated-border,
@@ -379,7 +507,9 @@
   .animated-quick-action,
   .animated-stats-card,
   .animated-stats-card::before,
-  .animated-assignment-card {
+  .animated-assignment-card,
+  .login-glow-card,
+  .login-glow-card::before {
     animation: none;
   }
   

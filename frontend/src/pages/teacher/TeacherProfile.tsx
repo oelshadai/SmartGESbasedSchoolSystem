@@ -151,10 +151,10 @@ const TeacherProfile = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-3xl">
+    <div className="space-y-5 animate-fade-in max-w-3xl mx-auto px-1 sm:px-0 pb-20">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
-        <p className="text-muted-foreground mt-1">View and update your profile information</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">My Profile</h1>
+        <p className="text-sm text-muted-foreground mt-1">View and update your profile information</p>
       </div>
 
       {error && (
@@ -171,13 +171,13 @@ const TeacherProfile = () => {
 
       <div className="relative group rounded-2xl border border-primary/20 bg-primary/5 p-4 shadow-lg overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary to-primary/40 opacity-60 group-hover:opacity-100 transition-opacity" />
-        <div className="flex items-center gap-4 mb-6">
-          <div className="h-20 w-20 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-2xl font-bold">
+        <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <div className="h-14 w-14 sm:h-20 sm:w-20 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-lg sm:text-2xl font-bold shrink-0">
             {getInitials(profile.first_name, profile.last_name)}
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-foreground">{profile.full_name}</h2>
-            <p className="text-muted-foreground">Teacher · {user?.school?.name || 'School'}</p>
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-xl font-bold text-foreground truncate">{profile.full_name}</h2>
+            <p className="text-sm text-muted-foreground">Teacher · {user?.school?.name || 'School'}</p>
             <p className="text-xs text-muted-foreground mt-1">Joined: {formatDate(profile.hire_date)}</p>
           </div>
         </div>
@@ -200,7 +200,7 @@ const TeacherProfile = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         <div className="relative group rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 shadow-lg overflow-hidden space-y-4">
           <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 opacity-60 group-hover:opacity-100 transition-opacity" />
           <h3 className="font-semibold text-foreground flex items-center gap-2">
@@ -299,32 +299,35 @@ const TeacherProfile = () => {
           <h3 className="font-semibold text-foreground">Change Password</h3>
           <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">No approval needed</Badge>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div>
-            <Label>Current Password</Label>
+            <Label className="text-xs sm:text-sm">Current Password</Label>
             <Input 
               type="password" 
               value={passwordData.current_password}
               onChange={(e) => setPasswordData(prev => ({ ...prev, current_password: e.target.value }))}
               className="mt-1" 
+              placeholder="Enter current password"
             />
           </div>
           <div>
-            <Label>New Password</Label>
+            <Label className="text-xs sm:text-sm">New Password</Label>
             <Input 
               type="password" 
               value={passwordData.new_password}
               onChange={(e) => setPasswordData(prev => ({ ...prev, new_password: e.target.value }))}
               className="mt-1" 
+              placeholder="New password"
             />
           </div>
           <div>
-            <Label>Confirm Password</Label>
+            <Label className="text-xs sm:text-sm">Confirm Password</Label>
             <Input 
               type="password" 
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="mt-1" 
+              placeholder="Confirm password"
             />
           </div>
         </div>
@@ -344,9 +347,9 @@ const TeacherProfile = () => {
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">Changes will be reviewed by admin before taking effect.</p>
-        <Button onClick={handleSaveProfile} disabled={saving || !!pendingRequest}>
+        <Button onClick={handleSaveProfile} disabled={saving || !!pendingRequest} className="w-full sm:w-auto">
           {saving ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           ) : (

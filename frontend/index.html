@@ -52,39 +52,163 @@
         padding: 0;
         overflow-x: hidden;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-        background-color: #ffffff;
+        background-color: #0a0f1a;
       }
-      
-      /* Loading spinner */
-      .loading-spinner {
+
+      /* ── Splash screen ── */
+      .splash-screen {
         position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 40px;
-        height: 40px;
-        border: 3px solid #e5e7eb;
-        border-top: 3px solid #3ecf8e;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
+        inset: 0;
         z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(ellipse at center, #111827 0%, #0a0f1a 70%);
+        transition: opacity 0.5s ease, visibility 0.5s ease;
       }
-      
-      @keyframes spin {
-        0% { transform: translate(-50%, -50%) rotate(0deg); }
-        100% { transform: translate(-50%, -50%) rotate(360deg); }
+      .splash-screen.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
       }
-      
-      /* Hide spinner when app loads */
-      .app-loaded .loading-spinner {
-        display: none;
+
+      /* Logo container */
+      .splash-logo-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Animated glow ring behind logo */
+      .splash-glow {
+        position: absolute;
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        background: conic-gradient(
+          from 0deg,
+          rgba(249,115,22,0.0),
+          rgba(249,115,22,0.45),
+          rgba(251,191,36,0.30),
+          rgba(249,115,22,0.0)
+        );
+        animation: splash-rotate 1.8s linear infinite;
+        filter: blur(6px);
+      }
+      @keyframes splash-rotate {
+        to { transform: rotate(360deg); }
+      }
+
+      /* Pulsing outer halo */
+      .splash-halo {
+        position: absolute;
+        width: 180px;
+        height: 180px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(249,115,22,0.15) 0%, transparent 70%);
+        animation: splash-pulse 2s ease-in-out infinite;
+      }
+      @keyframes splash-pulse {
+        0%, 100% { transform: scale(1); opacity: 0.6; }
+        50% { transform: scale(1.25); opacity: 1; }
+      }
+
+      /* Logo image */
+      .splash-logo {
+        position: relative;
+        z-index: 2;
+        width: 90px;
+        height: 90px;
+        object-fit: contain;
+        animation: splash-fade-in 0.8s ease-out both;
+        filter: drop-shadow(0 0 20px rgba(249,115,22,0.4));
+      }
+      @keyframes splash-fade-in {
+        from { opacity: 0; transform: scale(0.7); }
+        to   { opacity: 1; transform: scale(1); }
+      }
+
+      /* App name text */
+      .splash-text {
+        margin-top: 24px;
+        color: #ffffff;
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        opacity: 0;
+        animation: splash-text-in 0.6s ease-out 0.4s forwards;
+      }
+      @keyframes splash-text-in {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+
+      .splash-sub {
+        margin-top: 6px;
+        color: #94a3b8;
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        opacity: 0;
+        animation: splash-text-in 0.6s ease-out 0.7s forwards;
+      }
+
+      /* Dot loader */
+      .splash-dots {
+        display: flex;
+        gap: 6px;
+        margin-top: 32px;
+        opacity: 0;
+        animation: splash-text-in 0.5s ease-out 1s forwards;
+      }
+      .splash-dots span {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #f97316;
+        animation: splash-dot-bounce 1.2s ease-in-out infinite;
+      }
+      .splash-dots span:nth-child(2) { animation-delay: 0.15s; }
+      .splash-dots span:nth-child(3) { animation-delay: 0.3s; }
+      @keyframes splash-dot-bounce {
+        0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+        40% { transform: translateY(-10px); opacity: 1; }
+      }
+
+      /* Reduced motion */
+      @media (prefers-reduced-motion: reduce) {
+        .splash-glow, .splash-halo, .splash-logo,
+        .splash-text, .splash-sub, .splash-dots,
+        .splash-dots span {
+          animation: none !important;
+          opacity: 1 !important;
+          transform: none !important;
+        }
       }
     </style>
   </head>
   <body>
     <div id="root">
-      <!-- Loading spinner shown until React app loads -->
-      <div class="loading-spinner"></div>
+      <!-- Splash screen shown until React app mounts -->
+      <div class="splash-screen" id="splash">
+        <div class="splash-logo-wrap">
+          <div class="splash-halo"></div>
+          <div class="splash-glow"></div>
+          <img
+            src="/EliteTech logo with 3D cube design.png"
+            alt="Loading"
+            class="splash-logo"
+          />
+        </div>
+        <div class="splash-text">School Report</div>
+        <div class="splash-sub">SaaS Platform</div>
+        <div class="splash-dots">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
     </div>
     
     <!-- Main app script -->
