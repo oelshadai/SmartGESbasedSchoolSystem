@@ -298,18 +298,18 @@ const AttendanceManagement = () => {
   const summary = getAttendanceSummary();
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
             <Users className="h-5 w-5" />
-            Class Attendance Management
+            Class Attendance
           </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Take attendance for your assigned classes. Attendance data is saved permanently.
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Take attendance for your assigned classes.
           </p>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium mb-2 block">Select Class</label>
@@ -368,42 +368,42 @@ const AttendanceManagement = () => {
           {selectedClass && students.length > 0 && (
             <>
               {/* Attendance Summary */}
-              <div className="grid grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 bg-muted/50 rounded-lg">
                 <div className="text-center">
-                  <p className="text-2xl font-bold">{summary.total}</p>
-                  <p className="text-sm text-muted-foreground">Total</p>
+                  <p className="text-xl sm:text-2xl font-bold">{summary.total}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Total</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-green-600">{summary.present}</p>
-                  <p className="text-sm text-muted-foreground">Present</p>
+                  <p className="text-xl sm:text-2xl font-bold text-green-600">{summary.present}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Present</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-red-600">{summary.absent}</p>
-                  <p className="text-sm text-muted-foreground">Absent</p>
+                  <p className="text-xl sm:text-2xl font-bold text-red-600">{summary.absent}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Absent</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-yellow-600">{summary.late}</p>
-                  <p className="text-sm text-muted-foreground">Late</p>
+                  <p className="text-xl sm:text-2xl font-bold text-yellow-600">{summary.late}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Late</p>
                 </div>
               </div>
 
               {/* Quick Actions */}
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={markAllPresent}>
+              <div className="flex flex-wrap gap-2 items-center">
+                <Button variant="outline" size="sm" onClick={markAllPresent} className="text-xs sm:text-sm">
                   Mark All Present
                 </Button>
-                <Button variant="outline" size="sm" onClick={markAllAbsent}>
+                <Button variant="outline" size="sm" onClick={markAllAbsent} className="text-xs sm:text-sm">
                   Mark All Absent
                 </Button>
                 {attendanceAlreadyTaken && (
-                  <Badge variant="secondary" className="ml-auto">
-                    Attendance already taken for this date
+                  <Badge variant="secondary" className="text-xs sm:ml-auto">
+                    Already taken
                   </Badge>
                 )}
               </div>
 
-              {/* Student List */}
-              <div className="border rounded-lg overflow-hidden">
+              {/* Desktop Table - hidden on small screens */}
+              <div className="hidden sm:block border rounded-lg overflow-hidden">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
@@ -496,6 +496,84 @@ const AttendanceManagement = () => {
                 </table>
               </div>
 
+              {/* Mobile Cards - visible only on small screens */}
+              <div className="sm:hidden space-y-3">
+                {students.map(student => {
+                  const rosterEntry = feeRoster.find(r => r.student_id === student.id);
+                  const hasFee = dailyFeeType && rosterEntry && rosterEntry.amount != null;
+                  const paid = !!feePaid[student.id];
+                  const status = attendance[student.id];
+                  return (
+                    <div key={student.id} className={`border rounded-xl p-3 space-y-2.5 ${paid ? 'bg-emerald-50 border-emerald-200' : 'bg-card'}`}>
+                      {/* Student info row */}
+                      <div className="flex items-center gap-3">
+                        {student.photo ? (
+                          <img src={student.photo} alt={student.name} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm truncate">{student.name}</p>
+                          <p className="text-xs text-muted-foreground">{student.student_id}</p>
+                        </div>
+                        <Badge variant={status === 'present' ? 'default' : status === 'absent' ? 'destructive' : status === 'late' ? 'secondary' : 'outline'}
+                          className={`text-xs flex-shrink-0 ${status === 'present' ? 'bg-green-600' : status === 'late' ? 'bg-yellow-500 text-white' : ''}`}
+                        >
+                          {status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : status === 'late' ? 'Late' : 'Unmarked'}
+                        </Badge>
+                      </div>
+                      {/* Status buttons */}
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant={status === "present" ? "default" : "outline"}
+                          onClick={() => markAttendance(student.id, "present")}
+                          className={`flex-1 h-9 text-xs ${status === "present" ? "bg-green-600 hover:bg-green-700" : ""}`}
+                        >
+                          <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                          Present
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={status === "absent" ? "destructive" : "outline"}
+                          onClick={() => markAttendance(student.id, "absent")}
+                          className="flex-1 h-9 text-xs"
+                        >
+                          <XCircle className="h-3.5 w-3.5 mr-1" />
+                          Absent
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={status === "late" ? "secondary" : "outline"}
+                          onClick={() => markAttendance(student.id, "late")}
+                          className={`flex-1 h-9 text-xs ${status === "late" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : ""}`}
+                        >
+                          <Clock className="h-3.5 w-3.5 mr-1" />
+                          Late
+                        </Button>
+                      </div>
+                      {/* Fee toggle */}
+                      {dailyFeeType && hasFee && (
+                        <button
+                          type="button"
+                          onClick={() => setFeePaid(prev => ({ ...prev, [student.id]: !prev[student.id] }))}
+                          className={`w-full inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold border transition-colors ${
+                            paid
+                              ? 'bg-emerald-100 border-emerald-400 text-emerald-800'
+                              : 'bg-white border-gray-300 text-gray-500 hover:border-emerald-400 hover:text-emerald-700'
+                          }`}
+                        >
+                          <DollarSign className="h-3 w-3" />
+                          {paid ? `Paid GH₵${rosterEntry!.amount!.toFixed(2)}` : `Pay GH₵${rosterEntry!.amount!.toFixed(2)}`}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
               <Button 
                 onClick={saveAttendance} 
                 disabled={loading || students.length === 0} 
@@ -528,22 +606,22 @@ const AttendanceManagement = () => {
       {/* ── Cover Classes Section ── */}
       {coverClasses.length > 0 && (
         <Card className="border-amber-200">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-amber-800">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-amber-800 text-lg sm:text-xl">
               <UserCheck className="h-5 w-5" />
               Cover Attendance
             </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              You are covering these classes. Take attendance on behalf of the class teacher.
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Take attendance on behalf of the class teacher.
             </p>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 space-y-4">
             {/* Cover class selector */}
             {coverClasses.length > 1 && (
               <div>
                 <label className="text-sm font-medium mb-2 block">Select Cover Class</label>
                 <Select value={selectedCoverClass} onValueChange={setSelectedCoverClass}>
-                  <SelectTrigger className="max-w-xs">
+                  <SelectTrigger className="max-w-full sm:max-w-xs">
                     <SelectValue placeholder="Choose class" />
                   </SelectTrigger>
                   <SelectContent>
@@ -560,21 +638,23 @@ const AttendanceManagement = () => {
             {selectedCoverClass && coverStudents.length > 0 && (
               <>
                 {coverAlreadyTaken && (
-                  <Badge variant="secondary">Attendance already taken for this date</Badge>
+                  <Badge variant="secondary" className="text-xs">Already taken for this date</Badge>
                 )}
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => {
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" className="text-xs sm:text-sm" onClick={() => {
                     const all: Record<number, string> = {};
                     coverStudents.forEach(s => { all[s.id] = 'present'; });
                     setCoverAttendance(all);
                   }}>Mark All Present</Button>
-                  <Button variant="outline" size="sm" onClick={() => {
+                  <Button variant="outline" size="sm" className="text-xs sm:text-sm" onClick={() => {
                     const all: Record<number, string> = {};
                     coverStudents.forEach(s => { all[s.id] = 'absent'; });
                     setCoverAttendance(all);
                   }}>Mark All Absent</Button>
                 </div>
-                <div className="border rounded-lg overflow-hidden">
+
+                {/* Desktop Table */}
+                <div className="hidden sm:block border rounded-lg overflow-hidden">
                   <table className="w-full">
                     <thead className="bg-amber-50">
                       <tr>
@@ -620,6 +700,49 @@ const AttendanceManagement = () => {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Mobile Cards */}
+                <div className="sm:hidden space-y-3">
+                  {coverStudents.map(student => {
+                    const status = coverAttendance[student.id];
+                    return (
+                      <div key={student.id} className="border border-amber-200 rounded-xl p-3 space-y-2.5 bg-card">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                            <Users className="h-4 w-4 text-amber-700" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm truncate">{student.name}</p>
+                            <p className="text-xs text-muted-foreground">{student.student_id}</p>
+                          </div>
+                          <Badge variant={status === 'present' ? 'default' : status === 'absent' ? 'destructive' : status === 'late' ? 'secondary' : 'outline'}
+                            className={`text-xs flex-shrink-0 ${status === 'present' ? 'bg-green-600' : status === 'late' ? 'bg-yellow-500 text-white' : ''}`}
+                          >
+                            {status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : status === 'late' ? 'Late' : 'Unmarked'}
+                          </Badge>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant={status === "present" ? "default" : "outline"}
+                            onClick={() => setCoverAttendance(prev => ({ ...prev, [student.id]: "present" }))}
+                            className={`flex-1 h-9 text-xs ${status === "present" ? "bg-green-600 hover:bg-green-700" : ""}`}>
+                            <CheckCircle className="h-3.5 w-3.5 mr-1" /> Present
+                          </Button>
+                          <Button size="sm" variant={status === "absent" ? "destructive" : "outline"}
+                            onClick={() => setCoverAttendance(prev => ({ ...prev, [student.id]: "absent" }))}
+                            className="flex-1 h-9 text-xs">
+                            <XCircle className="h-3.5 w-3.5 mr-1" /> Absent
+                          </Button>
+                          <Button size="sm" variant={status === "late" ? "secondary" : "outline"}
+                            onClick={() => setCoverAttendance(prev => ({ ...prev, [student.id]: "late" }))}
+                            className={`flex-1 h-9 text-xs ${status === "late" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : ""}`}>
+                            <Clock className="h-3.5 w-3.5 mr-1" /> Late
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
                 <Button
                   onClick={saveCoverAttendance}
                   disabled={coverLoading}

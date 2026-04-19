@@ -554,7 +554,8 @@ const ClassReports = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          {/* Desktop Table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b">
@@ -622,6 +623,46 @@ const ClassReports = () => {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="sm:hidden space-y-3">
+            {recentReports.length > 0 ? (
+              recentReports.map((report) => (
+                <div key={report.id} className="border rounded-xl p-3 space-y-2 bg-card">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{report.studentName}</p>
+                      <p className="text-xs text-muted-foreground">{report.studentId}</p>
+                    </div>
+                    <Badge 
+                      variant={report.status === 'Generated' ? 'default' : 'secondary'}
+                      className={`text-xs flex-shrink-0 ${report.status === 'Generated' ? 'bg-success text-success-foreground' : ''}`}
+                    >
+                      {report.status}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span>{report.term} {report.year}</span>
+                    <span>•</span>
+                    <span>{new Date(report.date).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold">{report.average}%</span>
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="outline" title="Preview" onClick={() => handleViewReport(report)} className="h-8 w-8 p-0">
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button size="sm" variant="outline" title="Download" onClick={() => handleDownloadReport(report)} disabled={downloadingId === report.id} className="h-8 w-8 p-0">
+                        {downloadingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">No report data available</div>
+            )}
           </div>
         </CardContent>
       </Card>

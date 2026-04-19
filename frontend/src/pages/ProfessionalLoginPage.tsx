@@ -229,19 +229,7 @@ const ProfessionalLoginPage = () => {
                 ))}
               </div>
 
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-3 pt-4">
-                {[
-                  { label: 'Schools', value: '500+' },
-                  { label: 'Students', value: '50K+' },
-                  { label: 'Uptime', value: '99.9%' }
-                ].map((stat, index) => (
-                  <div key={index} className="login-stat-card text-center p-4">
-                    <div className="text-xl font-bold login-gradient-text">{stat.value}</div>
-                    <div className="text-[11px] text-slate-400 mt-1 uppercase tracking-wider font-medium">{stat.label}</div>
-                  </div>
-                ))}
-              </div>
+
             </div>
           </div>
 

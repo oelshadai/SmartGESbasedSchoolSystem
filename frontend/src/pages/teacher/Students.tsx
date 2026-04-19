@@ -48,6 +48,7 @@ const Students = () => {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [canAddStudents, setCanAddStudents] = useState(true);
   const [formData, setFormData] = useState({
     student_id: '',
     first_name: '',
@@ -64,7 +65,17 @@ const Students = () => {
 
   useEffect(() => {
     fetchStudents();
+    fetchPermission();
   }, []);
+
+  const fetchPermission = async () => {
+    try {
+      const res = await secureApiClient.get('/schools/settings/');
+      setCanAddStudents(res.teachers_can_add_students !== false);
+    } catch {
+      // default to true if settings unavailable
+    }
+  };
 
   const fetchStudents = async () => {
     try {
@@ -317,10 +328,12 @@ const Students = () => {
           <h1 className="text-2xl font-bold text-foreground">My Students</h1>
           <p className="text-muted-foreground mt-1">View and manage students in your class</p>
         </div>
-        <Button onClick={() => setShowAddDialog(true)} className="gap-2">
-          <UserPlus className="h-4 w-4" />
-          Add Student
-        </Button>
+        {canAddStudents && (
+          <Button onClick={() => setShowAddDialog(true)} className="gap-2">
+            <UserPlus className="h-4 w-4" />
+            Add Student
+          </Button>
+        )}
       </div>
       
       {students.length === 0 ? (
@@ -328,11 +341,13 @@ const Students = () => {
           <div className="animated-border-content p-8 text-center">
             <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <p className="text-lg font-medium text-foreground">No students found in your class</p>
-            <p className="text-sm mt-2 text-muted-foreground">Click "Add Student" to add students to your class.</p>
-            <Button onClick={() => setShowAddDialog(true)} className="mt-4 gap-2">
-              <UserPlus className="h-4 w-4" />
-              Add Your First Student
-            </Button>
+            <p className="text-sm mt-2 text-muted-foreground">{canAddStudents ? 'Click "Add Student" to add students to your class.' : 'Your school admin manages student enrollment.'}</p>
+            {canAddStudents && (
+              <Button onClick={() => setShowAddDialog(true)} className="mt-4 gap-2">
+                <UserPlus className="h-4 w-4" />
+                Add Your First Student
+              </Button>
+            )}
           </div>
         </div>
       ) : (

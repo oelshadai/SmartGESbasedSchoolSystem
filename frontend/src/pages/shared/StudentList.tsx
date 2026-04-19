@@ -29,32 +29,55 @@ const StudentList = () => {
       </div>
 
       <div className="stat-card overflow-hidden p-0">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="text-left p-4 text-sm font-medium text-muted-foreground">Student ID</th>
-              <th className="text-left p-4 text-sm font-medium text-muted-foreground">Name</th>
-              <th className="text-left p-4 text-sm font-medium text-muted-foreground">Class</th>
-              <th className="text-left p-4 text-sm font-medium text-muted-foreground">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {mockStudents.map((s) => (
-              <tr key={s.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer">
-                <td className="p-4 text-sm font-mono text-muted-foreground">{s.student_id}</td>
-                <td className="p-4 text-sm font-medium text-foreground">{s.first_name} {s.last_name}</td>
-                <td className="p-4 text-sm text-muted-foreground">{s.class}</td>
-                <td className="p-4">
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                    s.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
-                  }`}>
-                    {s.status}
-                  </span>
-                </td>
+        {/* Desktop Table */}
+        <div className="hidden sm:block">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="text-left p-4 text-sm font-medium text-muted-foreground">Student ID</th>
+                <th className="text-left p-4 text-sm font-medium text-muted-foreground">Name</th>
+                <th className="text-left p-4 text-sm font-medium text-muted-foreground">Class</th>
+                <th className="text-left p-4 text-sm font-medium text-muted-foreground">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {mockStudents.map((s) => (
+                <tr key={s.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer">
+                  <td className="p-4 text-sm font-mono text-muted-foreground">{s.student_id}</td>
+                  <td className="p-4 text-sm font-medium text-foreground">{s.first_name} {s.last_name}</td>
+                  <td className="p-4 text-sm text-muted-foreground">{s.class}</td>
+                  <td className="p-4">
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                      s.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+                    }`}>
+                      {s.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="sm:hidden p-3 space-y-3">
+          {mockStudents.map((s) => (
+            <div key={s.id} className="border rounded-xl p-3 bg-card cursor-pointer hover:bg-muted/30 transition-colors">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{s.first_name} {s.last_name}</p>
+                  <p className="text-xs text-muted-foreground font-mono">{s.student_id}</p>
+                </div>
+                <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${
+                  s.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+                }`}>
+                  {s.status}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">{s.class}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

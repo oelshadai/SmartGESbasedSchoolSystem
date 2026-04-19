@@ -248,7 +248,8 @@ const AssignmentGrading = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            {/* Desktop Table */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
@@ -331,6 +332,49 @@ const AssignmentGrading = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="sm:hidden p-3 space-y-3">
+              {submissions.map((submission) => (
+                <div key={submission.id} className="border rounded-xl p-3 space-y-2 bg-card">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{submission.student.name}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{submission.student.student_id}</p>
+                    </div>
+                    <Badge className={`text-xs flex-shrink-0 ${getStatusColor(submission.status)}`}>
+                      <span className="flex items-center gap-1">
+                        {getStatusIcon(submission.status)}
+                        {submission.status}
+                      </span>
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      {submission.submitted_at
+                        ? new Date(submission.submitted_at).toLocaleDateString()
+                        : 'Not submitted'}
+                    </span>
+                    <span className="font-bold">
+                      {submission.score !== null
+                        ? `${submission.score}/${selectedAssignmentData?.max_score}`
+                        : '-'}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    {submission.status === 'SUBMITTED' && (
+                      <Button size="sm" className="flex-1 h-8 text-xs" onClick={() => handleGradeSubmission(submission)}>Grade</Button>
+                    )}
+                    {submission.status === 'GRADED' && (
+                      <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => handleGradeSubmission(submission)}>Edit Grade</Button>
+                    )}
+                    {submission.can_reopen && (
+                      <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => reopenSubmission(submission.id)}>Reopen</Button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

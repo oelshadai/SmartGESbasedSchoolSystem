@@ -487,7 +487,7 @@ const StudentsManagement = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {classes.map((cls: any) => (
-                      <SelectItem key={cls.id} value={cls.id.toString()}>{cls.name}</SelectItem>
+                      <SelectItem key={cls.id} value={cls.id.toString()}>{cls.full_name || `${cls.level_display || cls.level} ${cls.section || ''}`.trim()}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

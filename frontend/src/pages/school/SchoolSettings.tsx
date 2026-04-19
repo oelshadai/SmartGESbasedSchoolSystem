@@ -40,6 +40,7 @@ interface SchoolSettings {
   term_closing_date?: string;
   term_reopening_date?: string;
   show_promotion_on_terminal: boolean;
+  teachers_can_add_students: boolean;
 }
 
 interface Term {
@@ -396,6 +397,16 @@ const SchoolSettings = () => {
                 value={settings.term_reopening_date || ''} 
                 onChange={(e) => updateSetting('term_reopening_date', e.target.value)}
                 className="mt-1" 
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Allow Teachers to Add Students</Label>
+                <p className="text-xs text-muted-foreground">When off, only school admins can add students</p>
+              </div>
+              <Switch 
+                checked={settings.teachers_can_add_students} 
+                onCheckedChange={(checked) => updateSetting('teachers_can_add_students', checked)}
               />
             </div>
           </CardContent>

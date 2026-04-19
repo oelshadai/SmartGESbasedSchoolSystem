@@ -1335,6 +1335,8 @@ const FeeManagement = () => {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
+                  {/* Desktop Table */}
+                  <div className="hidden sm:block">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-muted/40">
@@ -1413,6 +1415,73 @@ const FeeManagement = () => {
                       })}
                     </tbody>
                   </table>
+                  </div>
+
+                  {/* Mobile Cards */}
+                  <div className="sm:hidden p-3 space-y-3">
+                    {filteredRecords.map(b => {
+                      const arrearsAmount = Number(b.balance);
+                      const paidPct = Number(b.amount_billed) > 0
+                        ? Math.min(100, (Number(b.amount_paid) / Number(b.amount_billed)) * 100)
+                        : 0;
+                      const statusStyle: Record<string, string> = {
+                        PAID: 'bg-green-100 text-green-800 border-green-200',
+                        PARTIAL: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                        UNPAID: 'bg-red-100 text-red-800 border-red-200',
+                        WAIVED: 'bg-gray-100 text-gray-700 border-gray-200',
+                      };
+                      const statusLabel: Record<string, string> = {
+                        PAID: 'Paid',
+                        PARTIAL: 'Partial',
+                        UNPAID: 'Arrears',
+                        WAIVED: 'Waived',
+                      };
+                      return (
+                        <div key={b.id} className="border rounded-xl p-3 space-y-2 bg-card">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate">{b.student_name}</p>
+                              <p className="text-xs text-muted-foreground">{b.student_id}</p>
+                            </div>
+                            <Badge variant="outline" className={`text-xs flex-shrink-0 ${statusStyle[b.status] ?? ''}`}>
+                              {statusLabel[b.status] ?? b.status}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs">
+                            <Badge variant="outline" className="text-xs">
+                              {b.class_level.replace('_', ' ')}{b.class_section ? ` ${b.class_section}` : ''}
+                            </Badge>
+                            <span className="font-medium">{b.fee_type_name}</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-xs">
+                            <div>
+                              <p className="text-muted-foreground">Billed</p>
+                              <p className="font-mono font-medium">{formatCurrency(Number(b.amount_billed))}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Paid</p>
+                              <p className="font-mono font-medium text-green-600">{formatCurrency(Number(b.amount_paid))}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Arrears</p>
+                              <p className={`font-mono font-medium ${arrearsAmount > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+                                {arrearsAmount > 0 ? formatCurrency(arrearsAmount) : '—'}
+                              </p>
+                            </div>
+                          </div>
+                          {Number(b.amount_billed) > 0 && (
+                            <div className="w-full bg-muted rounded-full h-1.5">
+                              <div
+                                className={`h-1.5 rounded-full ${b.status === 'PAID' ? 'bg-green-500' : 'bg-amber-400'}`}
+                                style={{ width: `${paidPct}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
                   <div className="px-3 py-2 border-t text-xs text-muted-foreground">
                     {filteredRecords.length} record{filteredRecords.length !== 1 ? 's' : ''}
                   </div>
@@ -2235,6 +2304,8 @@ const FeeManagement = () => {
                     </Card>
                   ) : (
                     <div className="overflow-x-auto rounded-lg border">
+                      {/* Desktop Table */}
+                      <div className="hidden sm:block">
                       <table className="w-full text-sm">
                         <thead className="bg-muted/50 border-b">
                           <tr>
@@ -2268,6 +2339,43 @@ const FeeManagement = () => {
                           ))}
                         </tbody>
                       </table>
+                      </div>
+
+                      {/* Mobile Cards */}
+                      <div className="sm:hidden p-3 space-y-3">
+                        {termBills.map(b => (
+                          <div key={b.id} className="border rounded-xl p-3 space-y-2 bg-card">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="font-medium text-sm truncate">{b.student_name}</p>
+                                <p className="text-xs text-muted-foreground">{b.student_id}</p>
+                              </div>
+                              <Badge variant="outline" className={`text-xs flex-shrink-0 ${BILL_STATUS_COLORS[b.status]}`}>
+                                {b.status}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>{b.class_level} {b.class_section}</span>
+                              <span>•</span>
+                              <span className="font-medium text-foreground">{b.fee_type_name}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-xs">
+                              <div>
+                                <p className="text-muted-foreground">Billed</p>
+                                <p className="font-mono font-medium">{formatCurrency(b.amount_billed)}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Paid</p>
+                                <p className="font-mono font-medium text-green-600">{formatCurrency(b.amount_paid)}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Balance</p>
+                                <p className="font-mono font-medium text-red-600">{formatCurrency(b.balance)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

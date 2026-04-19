@@ -86,7 +86,8 @@ export default function AdminUsers() {
         <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
       ) : (
         <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Desktop Table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
@@ -133,6 +134,45 @@ export default function AdminUsers() {
             </table>
             {users.length === 0 && (
               <p className="text-center text-muted-foreground py-10">No users found.</p>
+            )}
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="sm:hidden p-3 space-y-3">
+            {users.length === 0 ? (
+              <p className="text-center text-muted-foreground py-10">No users found.</p>
+            ) : (
+              users.map(u => (
+                <div key={u.id} className="border rounded-xl p-3 space-y-2 bg-card">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{u.first_name} {u.last_name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                    </div>
+                    {u.is_active
+                      ? <span className="flex items-center gap-1 text-green-500 text-xs flex-shrink-0"><CheckCircle className="h-3.5 w-3.5" /> Active</span>
+                      : <span className="flex items-center gap-1 text-red-500 text-xs flex-shrink-0"><XCircle className="h-3.5 w-3.5" /> Inactive</span>}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge className={`text-xs border ${ROLE_COLORS[u.role] || 'bg-slate-500/20 text-slate-400'}`}>{u.role}</Badge>
+                    {u.school_name && <span className="text-xs text-muted-foreground">{u.school_name}</span>}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      {u.last_login ? `Last login: ${new Date(u.last_login).toLocaleDateString()}` : 'Never logged in'}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className={`h-7 text-xs ${u.is_active ? 'text-red-500 hover:text-red-400' : 'text-green-500 hover:text-green-400'}`}
+                      onClick={() => toggleActive(u)}
+                      disabled={u.role === 'SUPER_ADMIN'}
+                    >
+                      {u.is_active ? 'Deactivate' : 'Activate'}
+                    </Button>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>

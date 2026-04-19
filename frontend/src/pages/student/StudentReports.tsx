@@ -156,7 +156,7 @@ const StudentReports = () => {
     if (!studentId) return;
 
     try {
-      // Use raw fetch with Authorization header — same pattern as ReportPreviewModal
+      // Try server-side PDF generation first
       const apiBase = import.meta.env.VITE_API_URL || '/api';
       const response = await fetch(`${apiBase}/reports/report-cards/generate_pdf_report/`, {
         method: 'POST',
@@ -167,7 +167,16 @@ const StudentReports = () => {
         body: JSON.stringify({ student_id: studentId, term_id: termId })
       });
 
-      if (!response.ok) throw new Error(`Server returned ${response.status}`);
+      if (!response.ok) {
+        // Fallback: open the report view in a new tab for browser Print → Save as PDF
+        const tokenValue = token || '';
+        const printUrl = `${apiBase}/students/published-reports/${termId}/view/?token=${encodeURIComponent(tokenValue)}`;
+        const win = window.open(printUrl, '_blank');
+        if (win) {
+          win.addEventListener('load', () => { try { win.print(); } catch {} });
+        }
+        return;
+      }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -180,7 +189,15 @@ const StudentReports = () => {
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error('Download failed:', err);
-      setError('Failed to download PDF. Please try again.');
+      // Fallback: open in new tab for printing
+      try {
+        const apiBase = import.meta.env.VITE_API_URL || '/api';
+        const tokenValue = token || '';
+        const printUrl = `${apiBase}/students/published-reports/${termId}/view/?token=${encodeURIComponent(tokenValue)}`;
+        window.open(printUrl, '_blank');
+      } catch {
+        setError('Failed to download PDF. Please try again.');
+      }
     }
   };
 

@@ -368,7 +368,8 @@ const MultiSubjectScoreEntry = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="overflow-x-auto">
+                  {/* Desktop Table */}
+                  <div className="hidden sm:block overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
                         <tr className="border-b">
@@ -433,6 +434,65 @@ const MultiSubjectScoreEntry = () => {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Mobile Cards */}
+                  <div className="sm:hidden space-y-3">
+                    {students.map(student => (
+                      <div key={student.id} className="border rounded-xl p-3 space-y-2 bg-card">
+                        <div className="flex items-center justify-between">
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">{student.full_name}</p>
+                            <p className="text-xs text-muted-foreground">{student.student_id}</p>
+                          </div>
+                          <div className="bg-green-50 rounded-lg px-3 py-1 flex-shrink-0">
+                            <p className="text-xs text-muted-foreground text-center">Total</p>
+                            <p className="font-bold text-center">{getTotalScore(student.id, currentSubject.id)}</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="text-xs text-muted-foreground block mb-1">CA1 /20</label>
+                            <Input
+                              key={`m_${student.id}_${currentSubject.id}_ca1`}
+                              type="number"
+                              max="20"
+                              min="0"
+                              className="h-9 text-center text-sm"
+                              value={getScore(student.id, currentSubject.id, 'ca1')}
+                              onChange={e => updateScore(student.id, currentSubject.id, 'ca1', e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground block mb-1">CA2 /20</label>
+                            <Input
+                              key={`m_${student.id}_${currentSubject.id}_ca2`}
+                              type="number"
+                              max="20"
+                              min="0"
+                              className="h-9 text-center text-sm"
+                              value={getScore(student.id, currentSubject.id, 'ca2')}
+                              onChange={e => updateScore(student.id, currentSubject.id, 'ca2', e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground block mb-1">Exam /60</label>
+                            <Input
+                              key={`m_${student.id}_${currentSubject.id}_exam`}
+                              type="number"
+                              max="60"
+                              min="0"
+                              className="h-9 text-center text-sm"
+                              value={getScore(student.id, currentSubject.id, 'exam')}
+                              onChange={e => updateScore(student.id, currentSubject.id, 'exam', e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
