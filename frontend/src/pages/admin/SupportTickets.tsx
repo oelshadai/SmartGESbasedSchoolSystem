@@ -49,24 +49,40 @@ const SupportTickets = () => {
       label: 'Open Tickets', 
       value: mockTickets.filter(t => t.status === 'open').length, 
       color: 'from-blue-500 to-cyan-500',
+      border: 'border-blue-500/20',
+      glow: 'shadow-blue-500/10',
+      bg: 'bg-blue-500/20',
+      gradient: 'from-blue-500 to-cyan-500',
       icon: MessageSquare
     },
     { 
       label: 'In Progress', 
       value: mockTickets.filter(t => t.status === 'in_progress').length, 
       color: 'from-purple-500 to-pink-500',
+      border: 'border-purple-500/20',
+      glow: 'shadow-purple-500/10',
+      bg: 'bg-purple-500/20',
+      gradient: 'from-purple-500 to-pink-500',
       icon: Clock
     },
     { 
       label: 'Resolved Today', 
       value: mockTickets.filter(t => t.status === 'resolved').length, 
       color: 'from-green-500 to-emerald-500',
+      border: 'border-green-500/20',
+      glow: 'shadow-green-500/10',
+      bg: 'bg-green-500/20',
+      gradient: 'from-green-500 to-emerald-500',
       icon: CheckCircle2
     },
     { 
       label: 'Critical Issues', 
       value: mockTickets.filter(t => t.priority === 'critical').length, 
       color: 'from-red-500 to-orange-500',
+      border: 'border-red-500/20',
+      glow: 'shadow-red-500/10',
+      bg: 'bg-red-500/20',
+      gradient: 'from-red-500 to-orange-500',
       icon: AlertTriangle
     },
   ];
@@ -103,10 +119,13 @@ const SupportTickets = () => {
           {stats.map((stat, index) => {
             const Icon = stat.icon;
             return (
-              <div key={stat.label} className="group relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-800/50 p-6 hover:border-slate-700/50 transition-all duration-300">
-                  <div className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${stat.color} bg-opacity-20 mb-4`}>
+              <div key={stat.label} className={`relative group rounded-2xl border ${stat.border} bg-slate-900/60 backdrop-blur-xl p-6 shadow-xl ${stat.glow} hover:scale-[1.02] transition-all duration-300 overflow-hidden`}>
+                {/* Top accent line */}
+                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${stat.gradient} opacity-70 group-hover:opacity-100 transition-opacity`} />
+                {/* Background glow bubble */}
+                <div className={`absolute -top-8 -right-8 w-24 h-24 ${stat.bg} rounded-full blur-2xl opacity-70 group-hover:opacity-100 transition-opacity`} />
+                <div className="relative">
+                  <div className={`inline-flex p-3 rounded-xl ${stat.bg} border ${stat.border} mb-4`}>
                     <Icon className="h-6 w-6 text-white" />
                   </div>
                   <div>
