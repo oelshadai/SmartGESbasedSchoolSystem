@@ -108,9 +108,19 @@ const getNavItems = (role: UserRole): NavItem[] => {
       { label: 'Reports', path: '/student/reports', icon: <FileText className="h-5 w-5" /> },
       { label: 'Grades', path: '/student/grades', icon: <Award className="h-5 w-5" /> },
       { label: 'Attendance', path: '/student/attendance', icon: <CalendarDays className="h-5 w-5" /> },
+      { label: 'Bills', path: '/student/bills', icon: <DollarSign className="h-5 w-5" /> },
       { label: 'Schedule', path: '/student/schedule', icon: <Clock className="h-5 w-5" /> },
       { label: 'Announcements', path: '/student/announcements', icon: <Bell className="h-5 w-5" /> },
       { label: 'Profile', path: '/student/profile', icon: <User className="h-5 w-5" /> },
+    ],
+    PARENT: [
+      { label: 'Dashboard', path: '/parent/dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
+      { label: 'Attendance', path: '/parent/attendance', icon: <CalendarDays className="h-5 w-5" /> },
+      { label: 'Grades', path: '/parent/grades', icon: <Award className="h-5 w-5" /> },
+      { label: 'Reports', path: '/parent/reports', icon: <FileText className="h-5 w-5" /> },
+      { label: 'Bills', path: '/parent/bills', icon: <DollarSign className="h-5 w-5" /> },
+      { label: 'Announcements', path: '/parent/announcements', icon: <Bell className="h-5 w-5" /> },
+      { label: 'Profile', path: '/parent/profile', icon: <User className="h-5 w-5" /> },
     ],
   };
   return base[role] || [];
@@ -204,6 +214,7 @@ const AppLayout = () => {
     PRINCIPAL: 'Principal',
     TEACHER: 'Teacher',
     STUDENT: 'Student',
+    PARENT: 'Parent / Guardian',
   };
 
   return (

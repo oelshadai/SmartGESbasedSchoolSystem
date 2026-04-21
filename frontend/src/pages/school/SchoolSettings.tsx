@@ -51,6 +51,7 @@ interface Term {
   start_date: string;
   end_date: string;
   is_current: boolean;
+  total_days: number;
 }
 
 const SchoolSettings = () => {
@@ -60,6 +61,8 @@ const SchoolSettings = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [termDays, setTermDays] = useState<Record<number, string>>({});
+  const [savingTermId, setSavingTermId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchSettings();
@@ -73,7 +76,12 @@ const SchoolSettings = () => {
         secureApiClient.get('/schools/terms/')
       ]);
       setSettings(settingsResponse);
-      setTerms(termsResponse.results || termsResponse || []);
+      const termList: Term[] = termsResponse.results || termsResponse || [];
+      setTerms(termList);
+      // Populate termDays with current values
+      const days: Record<number, string> = {};
+      termList.forEach((t: Term) => { days[t.id] = String(t.total_days ?? 0); });
+      setTermDays(days);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Failed to load settings');
@@ -147,6 +155,24 @@ const SchoolSettings = () => {
   const updateSetting = (key: keyof SchoolSettings, value: any) => {
     if (!settings) return;
     setSettings({ ...settings, [key]: value });
+  };
+
+  const saveTermDays = async (termId: number) => {
+    const days = parseInt(termDays[termId] ?? '0');
+    if (isNaN(days) || days < 0) {
+      toast.error('Please enter a valid number of days');
+      return;
+    }
+    try {
+      setSavingTermId(termId);
+      await secureApiClient.patch(`/schools/terms/${termId}/`, { total_days: days });
+      setTerms(prev => prev.map(t => t.id === termId ? { ...t, total_days: days } : t));
+      toast.success('School days updated');
+    } catch (err: any) {
+      toast.error('Failed to update school days');
+    } finally {
+      setSavingTermId(null);
+    }
   };
 
   const getCurrentTermDisplay = () => {
@@ -536,6 +562,61 @@ const SchoolSettings = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Term School Days */}
+      {terms.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5" />
+              Term School Days
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Set the total number of school days for each term. This appears on report cards as the attendance denominator (e.g. "11 out of 65 days").
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="divide-y">
+              {terms.map(term => (
+                <div key={term.id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm">{term.display_name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {term.start_date} → {term.end_date}
+                      {term.is_current && (
+                        <span className="ml-2 bg-green-100 text-green-700 border border-green-300 rounded-full px-2 py-0.5 text-xs">Current</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Input
+                      type="number"
+                      min="0"
+                      max="365"
+                      className="w-20 text-center"
+                      value={termDays[term.id] ?? '0'}
+                      onChange={e => setTermDays(prev => ({ ...prev, [term.id]: e.target.value }))}
+                    />
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">days</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => saveTermDays(term.id)}
+                      disabled={savingTermId === term.id}
+                    >
+                      {savingTermId === term.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Save className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving}>

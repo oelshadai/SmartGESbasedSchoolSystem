@@ -44,6 +44,7 @@ export interface TeacherCollectionRosterEntry {
   sub_fee_type_id: number | null;
   tier_label: string;
   amount: number | null;
+  paid_today?: number;
 }
 
 export const FREQUENCY_LABELS: Record<CollectionFrequency, string> = {
@@ -113,6 +114,10 @@ export interface FeeCollectionSummary {
   total_outstanding: number;
   total_collected: number;
   total_payment_count: number;
+  daily_collected: number;
+  daily_expected: number;
+  non_daily_collected: number;
+  non_daily_outstanding: number;
   by_fee_type: Array<{
     fee_type__name: string;
     total: number;
@@ -377,10 +382,16 @@ class FeeService {
       const data = response || {};
       return { 
         data: {
-          total_outstanding: data.total_outstanding || 0,
-          total_collected: data.total_collected || 0,
+          total_billed: data.total_billed ?? 0,
+          total_outstanding: data.total_outstanding ?? 0,
+          total_collected: data.total_collected ?? 0,
+          total_payment_count: data.total_payment_count ?? 0,
+          daily_collected: data.daily_collected ?? 0,
+          daily_expected: data.daily_expected ?? 0,
+          non_daily_collected: data.non_daily_collected ?? 0,
+          non_daily_outstanding: data.non_daily_outstanding ?? 0,
           by_fee_type: data.by_fee_type || [],
-          by_collector: data.by_collector || []
+          by_collector: data.by_collector || [],
         }
       };
     });
@@ -405,6 +416,19 @@ class FeeService {
     }>;
   }> {
     return this.makeRequest(() => secureApiClient.get(`/fees/reports/class_summary/?class_id=${classId}`));
+  }
+
+  async getAllClassesSummary(): Promise<Array<{
+    class_id: number;
+    class_name: string;
+    level: string;
+    section: string;
+    total_students: number;
+    daily_collected: number;
+    term_collected: number;
+    total_collected: number;
+  }>> {
+    return this.makeRequest(() => secureApiClient.get('/fees/reports/all_classes_summary/'));
   }
 
   // Fee Collections (for tracking collection sessions)
@@ -563,11 +587,12 @@ class FeeService {
   }
 
   async getClassCollectionRoster(classId: number, mainFeeTypeId: number): Promise<TeacherCollectionRosterEntry[]> {
-    return this.makeRequest(() =>
-      secureApiClient.get('/fees/student-sub-types/class_roster/', {
+    return this.makeRequest(async () => {
+      const response = await secureApiClient.get('/fees/student-sub-types/class_roster/', {
         params: { class_id: classId, main_fee_type: mainFeeTypeId },
-      })
-    );
+      });
+      return { data: Array.isArray(response) ? response : response?.results || [] };
+    });
   }
 
   async bulkCollect(data: {
@@ -577,7 +602,10 @@ class FeeService {
     payment_method?: string;
     notes?: string;
   }): Promise<{ recorded: number; total_amount: number }> {
-    return this.makeRequest(() => secureApiClient.post('/fees/payments/bulk_collect/', data));
+    return this.makeRequest(async () => {
+      const response = await secureApiClient.post('/fees/payments/bulk_collect/', data);
+      return { data: response };
+    });
   }
 }
 

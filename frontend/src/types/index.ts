@@ -1,5 +1,11 @@
 export type UserRole = 'SUPER_ADMIN' | 'SCHOOL_ADMIN' | 'PRINCIPAL' | 'TEACHER' | 'STUDENT' | 'PARENT';
 
+export interface ChildInfo {
+  student_id: string;
+  name: string;
+  relationship: string;
+}
+
 export interface User {
   id: number;
   email?: string;
@@ -7,10 +13,12 @@ export interface User {
   first_name: string;
   last_name: string;
   role: UserRole;
+  phone_number?: string;
   school?: {
     id: number;
     name: string;
   };
+  children?: ChildInfo[];
 }
 
 export interface School {

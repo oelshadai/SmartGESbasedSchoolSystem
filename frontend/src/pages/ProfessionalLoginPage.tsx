@@ -420,19 +420,7 @@ const ProfessionalLoginPage = () => {
           </div>
         </div>
 
-        {/* Mobile feature highlights (visible below form on small screens) */}
-        <div className="lg:hidden mt-8 grid grid-cols-3 gap-2 px-2">
-          {[
-            { label: 'Schools', value: '500+' },
-            { label: 'Students', value: '50K+' },
-            { label: 'Uptime', value: '99.9%' }
-          ].map((stat, index) => (
-            <div key={index} className="login-stat-card text-center p-3">
-              <div className="text-base font-bold login-gradient-text">{stat.value}</div>
-              <div className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-wider font-medium">{stat.label}</div>
-            </div>
-          ))}
-        </div>
+
       </div>
 
       {/* Forgot Password Modal */}

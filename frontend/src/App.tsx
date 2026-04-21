@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { useAuthStore, getRoleDashboardPath } from "@/stores/authStore";
 
 import LoginPage from "./pages/ProfessionalLoginPage";
@@ -26,6 +26,12 @@ import AdminAnalytics from "./pages/superadmin/AdminAnalytics";
 import AdminSettings from "./pages/superadmin/AdminSettings";
 import StudentDashboard from "./pages/dashboards/StudentDashboard";
 import ParentDashboard from "./pages/parent/ParentDashboard";
+import ParentAttendance from "./pages/parent/ParentAttendance";
+import ParentGrades from "./pages/parent/ParentGrades";
+import ParentReports from "./pages/parent/ParentReports";
+import ParentBills from "./pages/parent/ParentBills";
+import ParentAnnouncements from "./pages/parent/ParentAnnouncements";
+import ParentProfile from "./pages/parent/ParentProfile";
 
 // School Admin
 import AcademicYearManagement from "./pages/school/AcademicYearManagement";
@@ -73,6 +79,12 @@ import ClassSchedule from "./pages/student/ClassSchedule";
 import StudentAnnouncements from "./pages/student/StudentAnnouncements";
 import StudentProfile from "./pages/student/StudentProfile";
 import StudentReports from "./pages/student/StudentReports";
+import StudentBills from "./pages/student/StudentBills";
+
+const ParentBillsPage = () => {
+  const { studentId } = useParams<{ studentId: string }>();
+  return <StudentBills studentIdOverride={studentId} />;
+};
 
 import StudentList from "./pages/shared/StudentList";
 import { PWAInstallPrompt } from "./components/pwa/PWAInstallPrompt";
@@ -168,6 +180,7 @@ const App = () => {
             <Route path="/student/schedule" element={<ClassSchedule />} />
             <Route path="/student/announcements" element={<StudentAnnouncements />} />
             <Route path="/student/reports" element={<StudentReports />} />
+            <Route path="/student/bills" element={<StudentBills />} />
             <Route path="/student/profile" element={<StudentProfile />} />
           </Route>
 
@@ -176,6 +189,13 @@ const App = () => {
           {/* Parent */}
           <Route element={<ProtectedRoute allowedRoles={['PARENT']}><AppLayout /></ProtectedRoute>}>
             <Route path="/parent/dashboard" element={<ParentDashboard />} />
+            <Route path="/parent/attendance" element={<ParentAttendance />} />
+            <Route path="/parent/grades" element={<ParentGrades />} />
+            <Route path="/parent/reports" element={<ParentReports />} />
+            <Route path="/parent/bills" element={<ParentBills />} />
+            <Route path="/parent/bills/:studentId" element={<ParentBillsPage />} />
+            <Route path="/parent/announcements" element={<ParentAnnouncements />} />
+            <Route path="/parent/profile" element={<ParentProfile />} />
           </Route>
         </Routes>
       </BrowserRouter>

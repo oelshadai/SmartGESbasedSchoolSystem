@@ -115,11 +115,28 @@ const ReportPreviewModal = ({
           ? `${apiBase}/reports/template-preview-public/?token=${encodeURIComponent(accessToken)}&format=pdf`
           : `${apiBase}/reports/preview-iframe/?format=pdf`;
         
-        window.open(pdfUrl, '_blank');
+        const pdfResponse = await fetch(pdfUrl, {
+          method: 'GET',
+          credentials: 'include'
+        });
+
+        if (!pdfResponse.ok) {
+          throw new Error(`Failed to generate PDF: ${pdfResponse.status}`);
+        }
+
+        const blob = await pdfResponse.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'report_template_preview.pdf';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
         
         toast({
-          title: 'PDF Generated',
-          description: 'PDF opened in new tab successfully.',
+          title: 'PDF Downloaded',
+          description: 'Report template PDF has been downloaded successfully.',
         });
       }
     } catch (error) {

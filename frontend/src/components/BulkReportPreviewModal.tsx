@@ -27,6 +27,7 @@ const BulkReportPreviewModal = ({
   const { toast } = useToast();
   const [currentStudentIndex, setCurrentStudentIndex] = useState(0);
   const [publishing, setPublishing] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   
   if (!isOpen) return null;
 
@@ -106,6 +107,16 @@ const BulkReportPreviewModal = ({
   };
 
   const handleSavePDF = async () => {
+    if (!currentStudent || !termId) {
+      toast({
+        title: 'PDF Error',
+        description: 'Student or term is missing.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setDownloadingPdf(true);
     try {
       const currentStudentScores = allScores[currentStudent.id] || {};
       const currentScoresParam = encodeURIComponent(JSON.stringify(currentStudentScores));
@@ -113,19 +124,38 @@ const BulkReportPreviewModal = ({
       const pdfUrl = accessToken && accessToken.length > 0
         ? `${apiBase}/reports/template-preview-public/?student_id=${currentStudent.id}&term_id=${termId}&current_scores=${currentScoresParam}&token=${encodeURIComponent(accessToken)}&format=pdf`
         : `${apiBase}/reports/preview-iframe/?student_id=${currentStudent.id}&term_id=${termId}&current_scores=${currentScoresParam}&format=pdf`;
-      
-      window.open(pdfUrl, '_blank');
+
+      const response = await fetch(pdfUrl, {
+        method: 'GET',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed with status ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${currentStudent.student_id || currentStudent.full_name}_${termId}_Report.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
       
       toast({
-        title: 'PDF Generated',
-        description: `PDF for ${currentStudent.full_name} opened in new tab.`,
+        title: 'PDF Downloaded',
+        description: `PDF for ${currentStudent.full_name} has been downloaded.`,
       });
-    } catch (error) {
+    } catch {
       toast({
         title: 'PDF Error',
         description: 'Failed to generate PDF. Please try again.',
         variant: 'destructive'
       });
+    } finally {
+      setDownloadingPdf(false);
     }
   };
 
@@ -165,8 +195,8 @@ const BulkReportPreviewModal = ({
               <Printer className="w-4 h-4" />
               <span className="hidden sm:inline ml-1">Print</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={handleSavePDF} className="px-2">
-              <Download className="w-4 h-4" />
+            <Button variant="outline" size="sm" onClick={handleSavePDF} className="px-2" disabled={downloadingPdf}>
+              {downloadingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               <span className="hidden sm:inline ml-1">PDF</span>
             </Button>
             <Button

@@ -221,8 +221,9 @@ export const authService = {
       throw new Error('Student ID and password are required');
     }
     
-    // Production-ready input sanitization
-    const sanitizedStudentId = studentId.trim().replace(/[^a-zA-Z0-9_-]/g, '');
+    // Sanitize: trim whitespace only — preserve slashes, dots, and other
+    // characters that may be part of real student ID formats (e.g. BS9/2023/001).
+    const sanitizedStudentId = studentId.trim();
     
     const attemptCheck = LoginAttemptTracker.canAttemptLogin(sanitizedStudentId);
     if (!attemptCheck.allowed) {

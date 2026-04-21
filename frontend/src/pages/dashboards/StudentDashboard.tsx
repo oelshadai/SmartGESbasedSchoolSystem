@@ -3,7 +3,8 @@ import {
   BookOpen, ClipboardList, CheckCircle2, Clock,
   AlertCircle, Loader2, TrendingUp, Users, Star,
   GraduationCap, Phone, Mail, Calendar, User, Bell, Pin,
-  UserCheck, UserX, Timer, X, FileText, BookOpenCheck
+  UserCheck, UserX, Timer, X, FileText, BookOpenCheck,
+  DollarSign, TrendingDown, ArrowRight,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -120,6 +121,7 @@ const StudentDashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<StudentDashboardData | null>(null);
   const [attendance, setAttendance] = useState<AttendanceSummary | null>(null);
+  const [feeSummary, setFeeSummary] = useState<{ total_billed: number; total_balance: number; total_daily_paid: number; grand_total_paid: number } | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<number>>(new Set());
@@ -144,6 +146,10 @@ const StudentDashboard = () => {
         ]);
         setData(dashRes);
         if (attRes?.summary) setAttendance(attRes.summary);
+        // Fetch fee summary quietly
+        secureApiClient.get<any>('/fees/term-bills/my-bills/').then((d) => {
+          if (d?.summary) setFeeSummary(d.summary);
+        }).catch(() => null);
         const annList = Array.isArray(annRes) ? annRes : (annRes as any)?.results ?? [];
         setAnnouncements(annList);
         const notifList = Array.isArray(notifRes) ? notifRes : (notifRes as any)?.results ?? [];
@@ -305,6 +311,51 @@ const StudentDashboard = () => {
           ))}
         </div>
       </div>
+
+      {/* Fee summary widget */}
+      {feeSummary !== null && (
+        <div className="rounded-2xl border bg-gradient-to-r from-blue-950/40 to-indigo-950/40 border-blue-800/40 p-4 sm:p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-sm flex items-center gap-2 text-blue-200">
+              <DollarSign className="h-4 w-4" /> My Fees
+            </h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-blue-300 hover:text-blue-100 gap-1"
+              onClick={() => navigate('/student/bills')}
+            >
+              View Bills <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center">
+              <div className="text-xs text-muted-foreground mb-0.5">Total Paid</div>
+              <div className="text-base font-bold text-green-400">
+                GH₵ {feeSummary.grand_total_paid.toLocaleString('en-GH', { minimumFractionDigits: 2 })}
+              </div>
+            </div>
+            <div className="text-center border-x border-blue-800/40">
+              <div className="text-xs text-muted-foreground mb-0.5">Balance Owing</div>
+              <div className={`text-base font-bold ${feeSummary.total_balance > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                GH₵ {feeSummary.total_balance.toLocaleString('en-GH', { minimumFractionDigits: 2 })}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-xs text-muted-foreground mb-0.5">Daily Paid</div>
+              <div className="text-base font-bold text-indigo-300">
+                GH₵ {feeSummary.total_daily_paid.toLocaleString('en-GH', { minimumFractionDigits: 2 })}
+              </div>
+            </div>
+          </div>
+          {feeSummary.total_balance > 0 && (
+            <div className="mt-3 flex items-center gap-2 text-xs text-amber-300 bg-amber-950/40 border border-amber-800/40 rounded-lg px-3 py-2">
+              <TrendingDown className="h-3.5 w-3.5 shrink-0" />
+              You have an outstanding balance of GH₵ {feeSummary.total_balance.toLocaleString('en-GH', { minimumFractionDigits: 2 })}. Please contact the school office.
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
 

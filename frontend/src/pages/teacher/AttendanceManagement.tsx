@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, CheckCircle, XCircle, Clock, Users, UserCheck, DollarSign } from "lucide-react";
+import { CalendarIcon, CheckCircle, XCircle, Clock, Users, UserCheck, DollarSign, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { secureApiClient } from "@/lib/secureApiClient";
 import { useToast } from "@/hooks/use-toast";
@@ -40,6 +40,8 @@ const AttendanceManagement = () => {
   const [dailyFeeType, setDailyFeeType] = useState<FeeType | null>(null);
   const [feeRoster, setFeeRoster] = useState<TeacherCollectionRosterEntry[]>([]);
   const [feePaid, setFeePaid] = useState<Record<number, boolean>>({});
+  const [savedFeeAmount, setSavedFeeAmount] = useState<number>(0);
+  const [savedFeeCount, setSavedFeeCount] = useState<number>(0);
   // Cover classes
   const [coverClassIds, setCoverClassIds] = useState<number[]>([]);
   const [coverClasses, setCoverClasses] = useState<Class[]>([]);
@@ -188,12 +190,24 @@ const AttendanceManagement = () => {
       ) ?? null;
       setDailyFeeType(dailyType);
       setFeePaid({});
+      setSavedFeeAmount(0);
+      setSavedFeeCount(0);
       if (dailyType) {
         const roster = await feeService.getClassCollectionRoster(
           parseInt(selectedClass),
           dailyType.id
         );
-        setFeeRoster(roster);
+        console.log('[Attendance] Fee roster loaded:', roster);
+        setFeeRoster(roster || []);
+        // Restore already-collected amount from backend
+        const alreadyCollected = (roster || []).reduce((s, r) => s + (r.paid_today || 0), 0);
+        const alreadyCount = (roster || []).filter(r => (r.paid_today || 0) > 0).length;
+        setSavedFeeAmount(alreadyCollected);
+        setSavedFeeCount(alreadyCount);
+        // Pre-mark students who already paid today
+        const prePaid: Record<number, boolean> = {};
+        (roster || []).forEach(r => { if ((r.paid_today || 0) > 0) prePaid[r.student_id] = true; });
+        setFeePaid(prePaid);
       } else {
         setFeeRoster([]);
       }
@@ -247,7 +261,7 @@ const AttendanceManagement = () => {
       let feeMsg = "";
       if (dailyFeeType) {
         const paidStudents = feeRoster.filter(
-          (r) => feePaid[r.student_id] && r.amount != null
+          (r) => feePaid[r.student_id] && r.amount != null && !(r.paid_today && r.paid_today > 0)
         );
         if (paidStudents.length > 0) {
           try {
@@ -257,6 +271,8 @@ const AttendanceManagement = () => {
               payments: paidStudents.map((r) => ({ student: r.student_id, amount: r.amount! })),
               payment_method: "CASH",
             });
+            setSavedFeeAmount(prev => prev + (feeRes.total_amount || 0));
+            setSavedFeeCount(prev => prev + (feeRes.recorded || 0));
             feeMsg = ` · GH₵${feeRes.total_amount.toFixed(2)} fee collected from ${feeRes.recorded} student(s).`;
           } catch {
             toast({ title: "Fee warning", description: "Attendance saved but fee collection failed.", variant: "destructive" });
@@ -368,7 +384,7 @@ const AttendanceManagement = () => {
           {selectedClass && students.length > 0 && (
             <>
               {/* Attendance Summary */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 bg-muted/50 rounded-lg">
+              <div className={`grid grid-cols-2 ${dailyFeeType ? 'sm:grid-cols-5' : 'sm:grid-cols-4'} gap-3 sm:gap-4 p-3 sm:p-4 bg-muted/50 rounded-lg`}>
                 <div className="text-center">
                   <p className="text-xl sm:text-2xl font-bold">{summary.total}</p>
                   <p className="text-xs sm:text-sm text-muted-foreground">Total</p>
@@ -385,6 +401,23 @@ const AttendanceManagement = () => {
                   <p className="text-xl sm:text-2xl font-bold text-yellow-600">{summary.late}</p>
                   <p className="text-xs sm:text-sm text-muted-foreground">Late</p>
                 </div>
+                {dailyFeeType && (() => {
+                  const roster = feeRoster || [];
+                  const withAmount = roster.filter(r => r.amount != null);
+                  const totalCollectable = withAmount.reduce((s, r) => s + (r.amount || 0), 0);
+                  const pendingCollect = roster.filter(r => feePaid[r.student_id] && r.amount != null).reduce((s, r) => s + (r.amount || 0), 0);
+                  const collected = savedFeeAmount + pendingCollect;
+                  return (
+                    <div className="text-center col-span-2 sm:col-span-1">
+                      <p className="text-xl sm:text-2xl font-bold text-emerald-600">
+                        GH₵{collected.toFixed(2)}
+                      </p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        {totalCollectable > 0 ? `of GH₵${totalCollectable.toFixed(2)}` : 'Fee Collected'}
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Quick Actions */}
@@ -405,13 +438,13 @@ const AttendanceManagement = () => {
               {/* Desktop Table - hidden on small screens */}
               <div className="hidden sm:block border rounded-lg overflow-hidden">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-muted">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Student ID</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Name</th>
-                      <th className="px-4 py-3 text-center text-sm font-medium">Status</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Student ID</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Name</th>
+                      <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Status</th>
                       {dailyFeeType && (
-                        <th className="px-4 py-3 text-center text-sm font-medium">
+                        <th className="px-4 py-3 text-center text-sm font-medium text-foreground">
                           <div className="flex items-center justify-center gap-1">
                             <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
                             {dailyFeeType.name}
@@ -422,11 +455,12 @@ const AttendanceManagement = () => {
                   </thead>
                   <tbody className="divide-y">
                     {students.map(student => {
-                          const rosterEntry = feeRoster.find(r => r.student_id === student.id);
+                          const rosterEntry = (feeRoster || []).find(r => r.student_id === student.id);
                           const hasFee = dailyFeeType && rosterEntry && rosterEntry.amount != null;
+                          const alreadyPaidToday = !!(rosterEntry?.paid_today && rosterEntry.paid_today > 0);
                           const paid = !!feePaid[student.id];
                           return (
-                            <tr key={student.id} className={`hover:bg-gray-50 ${paid ? 'bg-emerald-50' : ''}`}>
+                            <tr key={student.id} className={`hover:bg-muted/50 ${paid ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''}`}>
                               <td className="px-4 py-3 text-sm font-medium">{student.student_id}</td>
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-3">
@@ -470,20 +504,32 @@ const AttendanceManagement = () => {
                               {dailyFeeType && (
                                 <td className="px-4 py-3 text-center">
                                   {hasFee ? (
+                                    alreadyPaidToday ? (
+                                      <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border bg-emerald-100 border-emerald-400 text-emerald-800 dark:bg-emerald-900/40 dark:border-emerald-600 dark:text-emerald-300 cursor-default">
+                                        <CheckCircle className="h-3 w-3" />
+                                        Paid GH₵{rosterEntry!.paid_today!.toFixed(2)}
+                                      </span>
+                                    ) : (
                                     <button
                                       type="button"
-                                      onClick={() =>
-                                        setFeePaid(prev => ({ ...prev, [student.id]: !prev[student.id] }))
-                                      }
+                                      onClick={() => {
+                                        setFeePaid(prev => ({ ...prev, [student.id]: !prev[student.id] }));
+                                      }}
                                       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border transition-colors ${
                                         paid
-                                          ? 'bg-emerald-100 border-emerald-400 text-emerald-800'
-                                          : 'bg-white border-gray-300 text-gray-500 hover:border-emerald-400 hover:text-emerald-700'
+                                          ? 'bg-emerald-100 border-emerald-400 text-emerald-800 dark:bg-emerald-900/40 dark:border-emerald-600 dark:text-emerald-300'
+                                          : 'bg-card border-border text-muted-foreground hover:border-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-400'
                                       }`}
                                     >
                                       <DollarSign className="h-3 w-3" />
                                       {paid ? `Paid  GH₵${rosterEntry!.amount!.toFixed(2)}` : `GH₵${rosterEntry!.amount!.toFixed(2)}`}
                                     </button>
+                                    )
+                                  ) : rosterEntry && rosterEntry.amount == null ? (
+                                    <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
+                                      <AlertTriangle className="h-3 w-3" />
+                                      Not assigned
+                                    </span>
                                   ) : (
                                     <span className="text-xs text-muted-foreground">—</span>
                                   )}
@@ -499,8 +545,9 @@ const AttendanceManagement = () => {
               {/* Mobile Cards - visible only on small screens */}
               <div className="sm:hidden space-y-3">
                 {students.map(student => {
-                  const rosterEntry = feeRoster.find(r => r.student_id === student.id);
+                  const rosterEntry = (feeRoster || []).find(r => r.student_id === student.id);
                   const hasFee = dailyFeeType && rosterEntry && rosterEntry.amount != null;
+                  const alreadyPaidToday = !!(rosterEntry?.paid_today && rosterEntry.paid_today > 0);
                   const paid = !!feePaid[student.id];
                   const status = attendance[student.id];
                   return (
@@ -555,7 +602,13 @@ const AttendanceManagement = () => {
                         </Button>
                       </div>
                       {/* Fee toggle */}
-                      {dailyFeeType && hasFee && (
+                      {dailyFeeType && hasFee && alreadyPaidToday && (
+                        <span className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold border bg-emerald-100 border-emerald-400 text-emerald-800 cursor-default">
+                          <CheckCircle className="h-3 w-3" />
+                          Paid GH₵{rosterEntry!.paid_today!.toFixed(2)}
+                        </span>
+                      )}
+                      {dailyFeeType && hasFee && !alreadyPaidToday && (
                         <button
                           type="button"
                           onClick={() => setFeePaid(prev => ({ ...prev, [student.id]: !prev[student.id] }))}
@@ -569,10 +622,49 @@ const AttendanceManagement = () => {
                           {paid ? `Paid GH₵${rosterEntry!.amount!.toFixed(2)}` : `Pay GH₵${rosterEntry!.amount!.toFixed(2)}`}
                         </button>
                       )}
+                      {dailyFeeType && !hasFee && rosterEntry && rosterEntry.amount == null && (
+                        <div className="w-full text-center text-xs text-amber-600 font-medium flex items-center justify-center gap-1 py-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          Fee not assigned
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
+
+              {/* Fee collection summary before save */}
+              {dailyFeeType && (() => {
+                const paidStudents = (feeRoster || []).filter(r => feePaid[r.student_id] && r.amount != null);
+                const unassignedCount = (feeRoster || []).filter(r => r.amount == null).length;
+                const totalFee = paidStudents.reduce((sum, r) => sum + (r.amount || 0), 0);
+                return (paidStudents.length > 0 || unassignedCount > 0) ? (
+                  <div className="p-3 sm:p-4 rounded-lg border space-y-2 bg-emerald-50 border-emerald-200">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
+                      <DollarSign className="h-4 w-4" />
+                      Fee Collection Summary
+                    </div>
+                    {paidStudents.length > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-emerald-700">Students paying:</span>
+                        <span className="font-bold text-emerald-800">{paidStudents.length} student{paidStudents.length !== 1 ? 's' : ''}</span>
+                      </div>
+                    )}
+                    {paidStudents.length > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-emerald-700">Total to collect:</span>
+                        <span className="font-bold text-emerald-800 text-base">GH₵{totalFee.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {unassignedCount > 0 && (
+                      <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 mt-1">
+                        <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span>{unassignedCount} student{unassignedCount !== 1 ? 's have' : ' has'} no fee tier assigned. Ask admin to assign their {dailyFeeType.name} sub-type.</span>
+                      </div>
+                    )}
+                  </div>
+                ) : null;
+              })()}
 
               <Button 
                 onClick={saveAttendance} 
@@ -580,7 +672,13 @@ const AttendanceManagement = () => {
                 className="w-full"
                 size="lg"
               >
-                {loading ? "Saving..." : "Save Attendance"}
+                {loading ? "Saving..." : (() => {
+                  const paidCount = (feeRoster || []).filter(r => feePaid[r.student_id] && r.amount != null).length;
+                  const totalFee = (feeRoster || []).filter(r => feePaid[r.student_id] && r.amount != null).reduce((s, r) => s + (r.amount || 0), 0);
+                  return paidCount > 0
+                    ? `Save Attendance & Collect GH₵${totalFee.toFixed(2)}`
+                    : "Save Attendance";
+                })()}
               </Button>
             </>
           )}

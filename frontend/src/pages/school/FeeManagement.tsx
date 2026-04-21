@@ -99,7 +99,11 @@ const FeeManagement = () => {
     totalCollected: 0,
     outstanding: 0,
     collectionRate: 0,
-    totalPaymentCount: 0
+    totalPaymentCount: 0,
+    dailyCollected: 0,
+    dailyExpected: 0,
+    nonDailyCollected: 0,
+    nonDailyOutstanding: 0,
   });
 
   // ------ Analytics state ------
@@ -107,6 +111,12 @@ const FeeManagement = () => {
   const [collectionByCollector, setCollectionByCollector] = useState<Array<{ collected_by__first_name: string; collected_by__last_name: string; total: number; transactions: number }>>([]);
   const [paymentStatusBreakdown, setPaymentStatusBreakdown] = useState<Array<{ status: string; count: number; total_balance: number }>>([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsSubTab, setAnalyticsSubTab] = useState<'overview' | 'by_class'>('overview');
+  const [byClassData, setByClassData] = useState<Array<{
+    class_id: number; class_name: string; level: string; section: string;
+    total_students: number; daily_collected: number; term_collected: number; total_collected: number;
+  }>>([]);
+  const [byClassLoading, setByClassLoading] = useState(false);
 
   // ------ Records tab state ------
   const [recordsBills, setRecordsBills] = useState<TermBill[]>([]);
@@ -285,7 +295,11 @@ const FeeManagement = () => {
         totalCollected: collected,
         outstanding: outstanding,
         collectionRate: billed > 0 ? (collected / billed) * 100 : 0,
-        totalPaymentCount: data.total_payment_count ?? 0
+        totalPaymentCount: data.total_payment_count ?? 0,
+        dailyCollected: data.daily_collected ?? 0,
+        dailyExpected: data.daily_expected ?? 0,
+        nonDailyCollected: data.non_daily_collected ?? 0,
+        nonDailyOutstanding: data.non_daily_outstanding ?? 0,
       });
       setCollectionByFeeType(data.by_fee_type || []);
       setCollectionByCollector(data.by_collector || []);
@@ -462,6 +476,19 @@ const FeeManagement = () => {
       console.error('Failed to fetch analytics', e);
     } finally {
       setAnalyticsLoading(false);
+    }
+  };
+
+  const fetchByClassData = async () => {
+    try {
+      setByClassLoading(true);
+      const data = await feeService.getAllClassesSummary();
+      setByClassData(data);
+    } catch (e) {
+      console.error('Failed to fetch class summary', e);
+      toast.error('Could not load class collection data');
+    } finally {
+      setByClassLoading(false);
     }
   };
 
@@ -881,30 +908,39 @@ const FeeManagement = () => {
           ))
         ) : (
           <>
-            <StatCard 
-              label="Total Expected" 
-              value={formatCurrency(summary.totalExpected)} 
-              icon={<DollarSign className="h-5 w-5" />} 
-              color="text-blue-600" 
+            <StatCard
+              label="Daily Fees Collected"
+              value={formatCurrency(summary.dailyCollected)}
+              icon={<CalendarDays className="h-5 w-5" />}
+              color="text-blue-600"
+              trend={summary.dailyExpected > 0
+                ? `${((summary.dailyCollected / summary.dailyExpected) * 100).toFixed(1)}% of expected`
+                : undefined}
             />
-            <StatCard 
-              label="Total Collected" 
-              value={formatCurrency(summary.totalCollected)} 
-              icon={<TrendingUp className="h-5 w-5" />} 
-              color="text-green-600" 
-              trend={`${summary.collectionRate.toFixed(1)}% collection rate`}
+            <StatCard
+              label="Daily Fees Expected"
+              value={formatCurrency(summary.dailyExpected)}
+              icon={<Users className="h-5 w-5" />}
+              color="text-indigo-600"
+              trend={summary.dailyExpected > 0
+                ? `${formatCurrency(summary.dailyExpected - summary.dailyCollected)} outstanding`
+                : 'Set term days in Settings'}
             />
-            <StatCard 
-              label="Outstanding" 
-              value={formatCurrency(summary.outstanding)} 
-              icon={<AlertCircle className="h-5 w-5" />} 
-              color="text-red-600" 
+            <StatCard
+              label="Term/Other Collected"
+              value={formatCurrency(summary.nonDailyCollected)}
+              icon={<TrendingUp className="h-5 w-5" />}
+              color="text-green-600"
+              trend={`${summary.totalPaymentCount} total transactions`}
             />
-            <StatCard 
-              label="Total Payments" 
-              value={(summary.totalPaymentCount || 0).toLocaleString()} 
-              icon={<Receipt className="h-5 w-5" />} 
-              color="text-purple-600" 
+            <StatCard
+              label="Term/Other Outstanding"
+              value={formatCurrency(summary.nonDailyOutstanding)}
+              icon={<AlertCircle className="h-5 w-5" />}
+              color="text-red-600"
+              trend={summary.totalExpected > 0
+                ? `${((summary.nonDailyCollected / (summary.nonDailyCollected + summary.nonDailyOutstanding || 1)) * 100).toFixed(1)}% collected`
+                : undefined}
             />
           </>
         )}
@@ -1591,7 +1627,176 @@ const FeeManagement = () => {
             ANALYTICS TAB
             ================================================================ */}
         <TabsContent value="analytics" className="space-y-5">
-          {/* Quick stats row */}
+          {/* Sub-nav: Overview vs By Class */}
+          <div className="flex gap-2">
+            <Button
+              variant={analyticsSubTab === 'overview' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setAnalyticsSubTab('overview')}
+            >
+              <BarChart3 className="h-4 w-4 mr-1.5" /> Overview
+            </Button>
+            <Button
+              variant={analyticsSubTab === 'by_class' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setAnalyticsSubTab('by_class');
+                if (byClassData.length === 0) fetchByClassData();
+              }}
+            >
+              <Users className="h-4 w-4 mr-1.5" /> By Class
+            </Button>
+          </div>
+
+          {/* ---- BY CLASS VIEW ---- */}
+          {analyticsSubTab === 'by_class' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-semibold">Fee Collection by Class</h3>
+                  <p className="text-sm text-muted-foreground">Daily fees vs term/other fees collected per class</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchByClassData} disabled={byClassLoading}>
+                  <RefreshCw className={`h-4 w-4 mr-1.5 ${byClassLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+
+              {byClassLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} className="h-14 w-full" />
+                  ))}
+                </div>
+              ) : byClassData.length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center text-muted-foreground">
+                    No fee collection data yet. Payments will appear here once fees are collected.
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  {/* Summary totals bar */}
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { label: 'Total Daily Collected', value: byClassData.reduce((s, c) => s + c.daily_collected, 0), color: 'text-blue-600' },
+                      { label: 'Total Term/Other Collected', value: byClassData.reduce((s, c) => s + c.term_collected, 0), color: 'text-green-600' },
+                      { label: 'Grand Total', value: byClassData.reduce((s, c) => s + c.total_collected, 0), color: 'text-purple-600' },
+                    ].map(item => (
+                      <Card key={item.label}>
+                        <CardContent className="p-3">
+                          <div className="text-xs text-muted-foreground mb-1">{item.label}</div>
+                          <div className={`text-lg font-bold ${item.color}`}>{formatCurrency(item.value)}</div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Stacked bar chart */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">Collection by Class</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={Math.max(220, byClassData.length * 44)}>
+                        <BarChart
+                          data={byClassData.map(c => ({
+                            name: c.class_name,
+                            Daily: c.daily_collected,
+                            'Term/Other': c.term_collected,
+                          }))}
+                          layout="vertical"
+                          margin={{ left: 8, right: 32, top: 4, bottom: 4 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                          <XAxis type="number" tickFormatter={v => `₵${(Number(v) / 1000).toFixed(1)}k`} tick={{ fontSize: 11 }} />
+                          <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 11 }} />
+                          <RechartsTooltip formatter={(v: any, name: any) => [formatCurrency(Number(v)), name]} />
+                          <Bar dataKey="Daily" stackId="a" fill="#3b82f6" name="Daily" />
+                          <Bar dataKey="Term/Other" stackId="a" fill="#10b981" name="Term/Other" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                      <div className="flex gap-4 justify-center mt-2 text-xs">
+                        <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-blue-500" /> Daily Fees</div>
+                        <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-emerald-500" /> Term/Other Fees</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Detail table */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">Breakdown Table</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b bg-muted/40">
+                              <th className="text-left px-4 py-2.5 font-medium">Class</th>
+                              <th className="text-right px-4 py-2.5 font-medium">Students</th>
+                              <th className="text-right px-4 py-2.5 font-medium text-blue-600">Daily Fees</th>
+                              <th className="text-right px-4 py-2.5 font-medium text-emerald-600">Term/Other</th>
+                              <th className="text-right px-4 py-2.5 font-medium text-purple-700">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {byClassData.map((cls, i) => {
+                              const maxTotal = Math.max(...byClassData.map(c => c.total_collected), 1);
+                              return (
+                                <tr key={cls.class_id} className={i % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
+                                  <td className="px-4 py-3 font-medium">{cls.class_name}</td>
+                                  <td className="px-4 py-3 text-right text-muted-foreground">{cls.total_students}</td>
+                                  <td className="px-4 py-3 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <div className="w-16 bg-muted rounded-full h-1.5 hidden md:block">
+                                        <div className="h-1.5 rounded-full bg-blue-400" style={{ width: `${maxTotal > 0 ? (cls.daily_collected / maxTotal) * 100 : 0}%` }} />
+                                      </div>
+                                      <span className="text-blue-700 font-medium">{formatCurrency(cls.daily_collected)}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <div className="w-16 bg-muted rounded-full h-1.5 hidden md:block">
+                                        <div className="h-1.5 rounded-full bg-emerald-400" style={{ width: `${maxTotal > 0 ? (cls.term_collected / maxTotal) * 100 : 0}%` }} />
+                                      </div>
+                                      <span className="text-emerald-700 font-medium">{formatCurrency(cls.term_collected)}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3 text-right font-semibold text-purple-700">{formatCurrency(cls.total_collected)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                          <tfoot>
+                            <tr className="border-t bg-muted/40 font-semibold">
+                              <td className="px-4 py-2.5">Total</td>
+                              <td className="px-4 py-2.5 text-right text-muted-foreground">
+                                {byClassData.reduce((s, c) => s + c.total_students, 0)}
+                              </td>
+                              <td className="px-4 py-2.5 text-right text-blue-700">
+                                {formatCurrency(byClassData.reduce((s, c) => s + c.daily_collected, 0))}
+                              </td>
+                              <td className="px-4 py-2.5 text-right text-emerald-700">
+                                {formatCurrency(byClassData.reduce((s, c) => s + c.term_collected, 0))}
+                              </td>
+                              <td className="px-4 py-2.5 text-right text-purple-700">
+                                {formatCurrency(byClassData.reduce((s, c) => s + c.total_collected, 0))}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ---- OVERVIEW ---- */}
+          {analyticsSubTab === 'overview' && (<>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="p-4">
@@ -1805,6 +2010,7 @@ const FeeManagement = () => {
               </CardContent>
             </Card>
           </div>
+          </>)}
         </TabsContent>
         <TabsContent value="setup" className="space-y-4">
           {/* Sub-nav */}

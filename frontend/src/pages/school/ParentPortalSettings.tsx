@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Save, Users, Shield, Loader2, Trash2, Eye, EyeOff,
   AlertCircle, RefreshCw, GraduationCap, Link2, UserPlus, Copy, CheckCircle2,
+  Phone, Mail, X, UserCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import secureApiClient from '@/lib/secureApiClient';
@@ -46,6 +47,7 @@ interface ParentAccount {
   email: string;
   phone_number: string;
   is_active: boolean;
+  role?: string;
   children: ChildLink[];
 }
 
@@ -102,9 +104,20 @@ const ParentPortalSettings = () => {
   const [generatedCreds, setGeneratedCreds] = useState<GeneratedCreds | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
+  // Inline manual-entry form for students with no guardian email
+  const [manualFormId, setManualFormId] = useState<string | null>(null);
+  const [manualForm, setManualForm] = useState({
+    email: '', first_name: '', last_name: '', phone_number: '', relationship: 'Guardian',
+  });
+
   // ---- Accounts: existing parents ----
   const [parents, setParents] = useState<ParentAccount[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(false);
+
+  // Detail view modal
+  const [viewParent, setViewParent] = useState<ParentAccount | null>(null);
+  const [resettingPassword, setResettingPassword] = useState(false);
+  const [resetResult, setResetResult] = useState<{ email: string; new_password: string } | null>(null);
 
   // Link child form
   const [linkingParentId, setLinkingParentId] = useState<number | null>(null);
@@ -126,7 +139,7 @@ const ParentPortalSettings = () => {
     setSettingsLoading(true);
     try {
       const resp = await secureApiClient.get('/schools/parent-portal-settings/');
-      setSettings(resp.data || DEFAULT_SETTINGS);
+      setSettings(resp || DEFAULT_SETTINGS);
     } catch {
       toast.error('Failed to load portal settings');
     } finally {
@@ -140,8 +153,9 @@ const ParentPortalSettings = () => {
       const payload: Record<string, unknown> = { ...settings };
       delete payload.paystack_secret_key_saved;
       if (newSecretKey.trim()) payload.paystack_secret_key = newSecretKey.trim();
-      const resp = await secureApiClient.patch('/schools/parent-portal-settings/', payload);
-      setSettings(resp.data.data || resp.data);
+      const resp: any = await secureApiClient.patch('/schools/parent-portal-settings/', payload);
+      // Backend returns { message, data: {...settings} }
+      setSettings(resp?.data ?? resp);
       setNewSecretKey('');
       toast.success('Parent portal settings saved');
     } catch (e: any) {
@@ -156,7 +170,7 @@ const ParentPortalSettings = () => {
     setStudentsLoading(true);
     try {
       const resp = await secureApiClient.get('/schools/parent-accounts/students_without_parent/');
-      setStudentsWithout(resp.data || []);
+      setStudentsWithout(Array.isArray(resp) ? resp : (resp.data || []));
     } catch {
       toast.error('Failed to load students list');
     } finally {
@@ -164,20 +178,27 @@ const ParentPortalSettings = () => {
     }
   };
 
-  const createForStudent = async (student: StudentWithoutParent) => {
+  const createForStudent = async (
+    student: StudentWithoutParent,
+    overrides?: { email: string; first_name: string; last_name: string; phone_number: string; relationship: string }
+  ) => {
     setCreatingForId(student.student_id);
     try {
       const resp = await secureApiClient.post('/schools/parent-accounts/create_for_student/', {
         student_id: student.student_id,
+        ...(overrides ?? {}),
       });
-      const data = resp.data;
+      const data: any = resp;
       setGeneratedCreds({
         student_name: student.name,
-        parent_name: student.guardian_name || data.email,
+        parent_name: overrides?.first_name
+          ? `${overrides.first_name} ${overrides.last_name}`.trim()
+          : student.guardian_name || data.email,
         email: data.email,
         password: data.generated_password,
       });
-      // Refresh both lists
+      setManualFormId(null);
+      setManualForm({ email: '', first_name: '', last_name: '', phone_number: '', relationship: 'Guardian' });
       loadStudentsWithout();
       loadParents();
     } catch (e: any) {
@@ -199,7 +220,7 @@ const ParentPortalSettings = () => {
     setAccountsLoading(true);
     try {
       const resp = await secureApiClient.get('/schools/parent-accounts/');
-      setParents(resp.data || []);
+      setParents(Array.isArray(resp) ? resp : (resp.data || []));
     } catch {
       toast.error('Failed to load parent accounts');
     } finally {
@@ -235,14 +256,35 @@ const ParentPortalSettings = () => {
     }
   };
 
-  const deleteParent = async (parentId: number, name: string) => {
-    if (!confirm(`Delete account for ${name}? This cannot be undone.`)) return;
+  const deleteParent = async (parentId: number, name: string, role?: string) => {
+    const isDualRole = role && role !== 'PARENT';
+    const msg = isDualRole
+      ? `Remove parent links for ${name}? Their ${role} account will be kept.`
+      : `Delete account for ${name}? This cannot be undone.`;
+    if (!confirm(msg)) return;
     try {
-      await secureApiClient.delete(`/schools/parent-accounts/${parentId}/`);
-      toast.success('Parent account deleted');
+      const resp: any = await secureApiClient.delete(`/schools/parent-accounts/${parentId}/`);
+      if (resp?.deleted === false) {
+        toast.success(`Parent links removed. ${name}'s account was kept (${role} role).`);
+      } else {
+        toast.success('Parent account deleted');
+      }
       setParents(prev => prev.filter(p => p.id !== parentId));
     } catch (e: any) {
       toast.error(e?.response?.data?.error || 'Failed to delete account');
+    }
+  };
+
+  const resetParentPassword = async (parentId: number) => {
+    setResettingPassword(true);
+    setResetResult(null);
+    try {
+      const resp = await secureApiClient.post('/schools/parent-accounts/reset_password/', { parent_id: parentId });
+      setResetResult(resp as any);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Failed to reset password');
+    } finally {
+      setResettingPassword(false);
     }
   };
 
@@ -470,39 +512,138 @@ const ParentPortalSettings = () => {
               ) : (
                 <div className="space-y-2">
                   {studentsWithout.map(s => (
-                    <div key={s.student_id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/20">
-                      <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1">
-                        <div>
-                          <p className="font-medium text-sm truncate">{s.name}</p>
-                          <p className="text-xs text-muted-foreground">{s.student_id} {s.class && `Â· ${s.class}`}</p>
+                    <div key={s.student_id} className="rounded-lg border bg-muted/20 p-3 space-y-0">
+                      {/* Info + button row */}
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1">
+                          <div>
+                            <p className="font-medium text-sm truncate">{s.name}</p>
+                            <p className="text-xs text-muted-foreground">{s.student_id}{s.class && ` · ${s.class}`}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Guardian</p>
+                            <p className="text-sm truncate">{s.guardian_name || '—'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Email</p>
+                            {s.guardian_email
+                              ? <p className="text-sm text-blue-600 truncate">{s.guardian_email}</p>
+                              : <p className="text-xs text-orange-500 italic">No email on file</p>
+                            }
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Phone</p>
+                            <p className="text-sm">{s.guardian_phone || '—'}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Guardian</p>
-                          <p className="text-sm truncate">{s.guardian_name || 'â€”'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Email</p>
-                          {s.guardian_email
-                            ? <p className="text-sm text-blue-600 truncate">{s.guardian_email}</p>
-                            : <p className="text-xs text-orange-500 italic">No email â€” edit student to add</p>
-                          }
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Phone</p>
-                          <p className="text-sm">{s.guardian_phone || 'â€”'}</p>
-                        </div>
+
+                        {s.guardian_email ? (
+                          <Button
+                            size="sm"
+                            disabled={creatingForId === s.student_id}
+                            onClick={() => createForStudent(s)}
+                          >
+                            {creatingForId === s.student_id
+                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                              : <><UserPlus className="h-3 w-3 mr-1" />Create Account</>
+                            }
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant={manualFormId === s.student_id ? 'secondary' : 'outline'}
+                            onClick={() => {
+                              if (manualFormId === s.student_id) {
+                                setManualFormId(null);
+                              } else {
+                                setManualFormId(s.student_id);
+                                setManualForm({
+                                  email: '',
+                                  first_name: s.guardian_name?.split(' ')[0] ?? '',
+                                  last_name: s.guardian_name?.split(' ').slice(1).join(' ') ?? '',
+                                  phone_number: s.guardian_phone ?? '',
+                                  relationship: 'Guardian',
+                                });
+                              }
+                            }}
+                          >
+                            <UserPlus className="h-3 w-3 mr-1" />
+                            {manualFormId === s.student_id ? 'Cancel' : 'Add Parent'}
+                          </Button>
+                        )}
                       </div>
-                      <Button
-                        size="sm"
-                        disabled={!s.guardian_email || creatingForId === s.student_id}
-                        onClick={() => createForStudent(s)}
-                        title={!s.guardian_email ? 'Guardian email required' : 'Create parent account'}
-                      >
-                        {creatingForId === s.student_id
-                          ? <Loader2 className="h-3 w-3 animate-spin" />
-                          : <><UserPlus className="h-3 w-3 mr-1" />Create Account</>
-                        }
-                      </Button>
+
+                      {/* Inline form for students without a guardian email */}
+                      {manualFormId === s.student_id && (
+                        <div className="border-t mt-3 pt-3 space-y-3">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            Parent / Guardian Details
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs">Email <span className="text-red-500">*</span></Label>
+                              <Input
+                                className="h-8 text-sm"
+                                type="email"
+                                placeholder="parent@example.com"
+                                value={manualForm.email}
+                                onChange={e => setManualForm(f => ({ ...f, email: e.target.value }))}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Relationship</Label>
+                              <Input
+                                className="h-8 text-sm"
+                                placeholder="Mother / Father / Guardian"
+                                value={manualForm.relationship}
+                                onChange={e => setManualForm(f => ({ ...f, relationship: e.target.value }))}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">First Name</Label>
+                              <Input
+                                className="h-8 text-sm"
+                                placeholder="First name"
+                                value={manualForm.first_name}
+                                onChange={e => setManualForm(f => ({ ...f, first_name: e.target.value }))}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Last Name</Label>
+                              <Input
+                                className="h-8 text-sm"
+                                placeholder="Last name"
+                                value={manualForm.last_name}
+                                onChange={e => setManualForm(f => ({ ...f, last_name: e.target.value }))}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Phone (optional)</Label>
+                              <Input
+                                className="h-8 text-sm"
+                                placeholder="+233 ..."
+                                value={manualForm.phone_number}
+                                onChange={e => setManualForm(f => ({ ...f, phone_number: e.target.value }))}
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              disabled={!manualForm.email.trim() || creatingForId === s.student_id}
+                              onClick={() => createForStudent(s, manualForm)}
+                            >
+                              {creatingForId === s.student_id
+                                ? <><Loader2 className="h-3 w-3 animate-spin mr-1" />Creating…</>
+                                : <><UserPlus className="h-3 w-3 mr-1" />Create Parent Account</>
+                              }
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setManualFormId(null)}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -540,6 +681,11 @@ const ParentPortalSettings = () => {
                             <Badge variant={parent.is_active ? 'default' : 'secondary'} className="text-xs">
                               {parent.is_active ? 'Active' : 'Inactive'}
                             </Badge>
+                            {parent.role && parent.role !== 'PARENT' && (
+                              <Badge variant="outline" className="text-xs border-amber-400 text-amber-700">
+                                {parent.role.replace('_', ' ')}
+                              </Badge>
+                            )}
                           </div>
                           <p className="text-sm text-muted-foreground mt-0.5">
                             {parent.email} {parent.phone_number && `Â· ${parent.phone_number}`}
@@ -599,19 +745,183 @@ const ParentPortalSettings = () => {
                           )}
                         </div>
 
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-red-600 hover:text-red-700 shrink-0"
-                          onClick={() => deleteParent(parent.id, parent.name)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 w-8 p-0"
+                            onClick={() => { setResetResult(null); setViewParent(parent); }}
+                            title="View details"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                            onClick={() => deleteParent(parent.id, parent.name, parent.role)}
+                            title="Delete account"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ================================================================
+          Parent detail modal
+          ================================================================ */}
+      {viewParent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => { setViewParent(null); setResetResult(null); }}>
+          <Card className="w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <UserCheck className="h-5 w-5 text-primary" />
+                    {viewParent.name}
+                  </CardTitle>
+                  <Badge
+                    variant={viewParent.is_active ? 'default' : 'secondary'}
+                    className="mt-1.5 text-xs"
+                  >
+                    {viewParent.is_active ? 'Active' : 'Inactive'}
+                  </Badge>
+                  {viewParent.role && viewParent.role !== 'PARENT' && (
+                    <Badge variant="outline" className="mt-1.5 ml-1 text-xs border-amber-400 text-amber-700">
+                      Also: {viewParent.role.replace('_', ' ')}
+                    </Badge>
+                  )}
+                </div>
+                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { setViewParent(null); setResetResult(null); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Contact info */}
+              <div className="rounded-lg bg-muted/40 border p-3 space-y-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Contact Information</h4>
+                <div className="flex items-center gap-2 text-sm">
+                  <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span>{viewParent.email || <span className="italic text-muted-foreground">No email</span>}</span>
+                  {viewParent.email && (
+                    <button className="ml-auto text-muted-foreground hover:text-foreground" onClick={() => copyToClipboard(viewParent.email, 'view-email')}>
+                      {copiedField === 'view-email' ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                  )}
+                </div>
+                {viewParent.phone_number && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span>{viewParent.phone_number}</span>
+                    <button className="ml-auto text-muted-foreground hover:text-foreground" onClick={() => copyToClipboard(viewParent.phone_number, 'view-phone')}>
+                      {copiedField === 'view-phone' ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Credentials */}
+              <div className="rounded-lg bg-muted/40 border p-3 space-y-3">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Portal Credentials</h4>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Login Email</Label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 bg-background border rounded px-3 py-1.5 text-sm font-mono">{viewParent.email}</code>
+                    <button className="text-muted-foreground hover:text-foreground" onClick={() => copyToClipboard(viewParent.email, 'cred-email')}>
+                      {copiedField === 'cred-email' ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {resetResult ? (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">New Password</Label>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 bg-background border rounded px-3 py-1.5 text-sm font-mono">{resetResult.new_password}</code>
+                      <button className="text-muted-foreground hover:text-foreground" onClick={() => copyToClipboard(resetResult!.new_password, 'cred-pass')}>
+                        {copiedField === 'cred-pass' ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded p-2">
+                      Save this password now — it will not be shown again.
+                    </p>
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    disabled={resettingPassword}
+                    onClick={() => resetParentPassword(viewParent.id)}
+                  >
+                    {resettingPassword ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <EyeOff className="h-3.5 w-3.5 mr-1" />}
+                    Reset Password
+                  </Button>
+                )}
+              </div>
+
+              {/* Linked children */}
+              <div>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  Linked Children ({viewParent.children.length})
+                </h4>
+                {viewParent.children.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic text-center py-4">No children linked to this account</p>
+                ) : (
+                  <div className="space-y-2">
+                    {viewParent.children.map(child => (
+                      <div key={child.link_id} className="rounded-lg border bg-card p-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            <GraduationCap className="h-4 w-4 text-primary shrink-0" />
+                            <div>
+                              <p className="font-semibold text-sm">{child.student_name}</p>
+                              <p className="text-xs text-muted-foreground">{child.student_id}{child.class ? ` · ${child.class}` : ''}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {child.is_primary_guardian && (
+                              <Badge variant="outline" className="text-xs py-0">Primary</Badge>
+                            )}
+                            <Badge variant="secondary" className="text-xs py-0">{child.relationship}</Badge>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setViewParent(null);
+                    setLinkingParentId(viewParent.id);
+                    setLinkStudentId('');
+                    setLinkRelationship('Guardian');
+                  }}
+                >
+                  <Link2 className="h-4 w-4 mr-1" /> Link Child
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  onClick={() => { setViewParent(null); deleteParent(viewParent.id, viewParent.name, viewParent.role); }}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" /> Delete Account
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
