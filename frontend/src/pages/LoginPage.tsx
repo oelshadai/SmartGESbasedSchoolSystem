@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore, getRoleDashboardPath } from '@/stores/authStore';
 import { authService } from '@/services/authService';
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { GraduationCap, Loader2, BookOpen, Lock, LucideIcon } from 'lucide-react';
 import AnimatedLogoBackground from '@/components/AnimatedLogoBackground';
 
-type LoginRole = 'student' | 'teacher' | 'admin' | 'superadmin';
+type LoginRole = 'student' | 'teacher' | 'admin';
 
 interface RoleConfig {
   key: LoginRole;
@@ -19,7 +19,7 @@ interface RoleConfig {
   placeholder: string;
 }
 
-// Visible role tabs — superadmin is intentionally omitted
+// Visible role tabs
 const ROLE_CONFIGS: RoleConfig[] = [
   {
     key: 'student',
@@ -47,46 +47,16 @@ const ROLE_CONFIGS: RoleConfig[] = [
   }
 ];
 
-const SUPERADMIN_CONFIG: RoleConfig = {
-  key: 'superadmin',
-  label: 'System',
-  icon: Lock,
-  loginMethod: authService.superadminLogin,
-  inputType: 'email',
-  placeholder: 'system@platform.internal'
-};
-
 const LoginPage = () => {
   const [loginRole, setLoginRole] = useState<LoginRole>('student');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [superAdminMode, setSuperAdminMode] = useState(false);
-  const secretClickCount = useRef(0);
-  const secretClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
 
-  const currentRole = superAdminMode
-    ? SUPERADMIN_CONFIG
-    : ROLE_CONFIGS.find(role => role.key === loginRole)!;
-
-  // Secret trigger: click logo 5 times within 3 seconds to activate system access
-  const handleLogoSecretClick = () => {
-    secretClickCount.current += 1;
-    if (secretClickTimer.current) clearTimeout(secretClickTimer.current);
-    secretClickTimer.current = setTimeout(() => {
-      secretClickCount.current = 0;
-    }, 3000);
-    if (secretClickCount.current >= 5) {
-      secretClickCount.current = 0;
-      setSuperAdminMode(true);
-      setLoginRole('superadmin');
-      setIdentifier('');
-      setError('');
-    }
-  };
+  const currentRole = ROLE_CONFIGS.find(role => role.key === loginRole)!;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +89,6 @@ const LoginPage = () => {
   };
 
   const handleRoleChange = (role: LoginRole) => {
-    setSuperAdminMode(false);
     setLoginRole(role);
     setIdentifier('');
     setError('');
@@ -165,15 +134,12 @@ const LoginPage = () => {
         <div className="w-full max-w-md space-y-6 sm:space-y-8">
           <div className="flex flex-col items-center gap-3 mb-2">
             <div
-              className="p-3 rounded-xl bg-primary/10 cursor-pointer select-none relative z-10"
-              onClick={handleLogoSecretClick}
-              role="button"
-              tabIndex={-1}
+              className="p-3 rounded-xl bg-primary/10 select-none relative z-10"
             >
               <img 
                 src="/EliteTech logo with 3D cube design.png" 
                 alt="School Report SaaS" 
-                className="h-14 w-14 object-contain pointer-events-none"
+                className="h-14 w-14 object-contain"
               />
             </div>
             <span className="text-lg sm:text-xl font-bold text-foreground">School Report SaaS</span>
@@ -185,39 +151,24 @@ const LoginPage = () => {
           </div>
 
           <div className="space-y-3">
-            {superAdminMode ? (
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium text-muted-foreground">System Access</Label>
+            <Label className="text-sm font-medium">Login as:</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {ROLE_CONFIGS.map(({ key, label, icon: Icon }) => (
                 <button
+                  key={key}
                   type="button"
-                  onClick={() => handleRoleChange('admin')}
-                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                  onClick={() => handleRoleChange(key)}
+                  className={`py-2.5 px-3 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
+                    loginRole === key
+                      ? 'bg-primary text-primary-foreground shadow-md'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
                 >
-                  Cancel
+                  <Icon className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
+                  <span>{label}</span>
                 </button>
-              </div>
-            ) : (
-              <>
-                <Label className="text-sm font-medium">Login as:</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {ROLE_CONFIGS.map(({ key, label, icon: Icon }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => handleRoleChange(key)}
-                      className={`py-2.5 px-3 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
-                        loginRole === key
-                          ? 'bg-primary text-primary-foreground shadow-md'
-                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                      }`}
-                    >
-                      <Icon className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
-                      <span>{label}</span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+              ))}
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">

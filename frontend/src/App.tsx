@@ -4,8 +4,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { useAuthStore, getRoleDashboardPath } from "@/stores/authStore";
+import { useEffect } from "react";
 
 import LoginPage from "./pages/ProfessionalLoginPage";
+import SuperAdminLoginPage from "./pages/SuperAdminLoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AuthShowcase from "./pages/AuthShowcase";
@@ -24,6 +26,8 @@ import AdminSubscriptions from "./pages/superadmin/AdminSubscriptions";
 import AdminUsers from "./pages/superadmin/AdminUsers";
 import AdminAnalytics from "./pages/superadmin/AdminAnalytics";
 import AdminSettings from "./pages/superadmin/AdminSettings";
+import AuditLogs from "./pages/admin/AuditLogs";
+import SupportTickets from "./pages/admin/SupportTickets";
 import StudentDashboard from "./pages/dashboards/StudentDashboard";
 import ParentDashboard from "./pages/parent/ParentDashboard";
 import ParentAttendance from "./pages/parent/ParentAttendance";
@@ -80,6 +84,8 @@ import StudentAnnouncements from "./pages/student/StudentAnnouncements";
 import StudentProfile from "./pages/student/StudentProfile";
 import StudentReports from "./pages/student/StudentReports";
 import StudentBills from "./pages/student/StudentBills";
+import StudentEvents from "./pages/student/StudentEvents";
+import MySubmissions from "./pages/student/MySubmissions";
 
 const ParentBillsPage = () => {
   const { studentId } = useParams<{ studentId: string }>();
@@ -101,6 +107,24 @@ const HomeRedirect = () => {
 };
 
 const App = () => {
+  const { user, checkSessionValidity, logout } = useAuthStore();
+
+  // Proactively enforce session expiry every 60 seconds for high-privilege roles
+  useEffect(() => {
+    const highPrivilegeRoles = ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL'];
+    if (!user || !highPrivilegeRoles.includes(user.role)) return;
+
+    const interval = setInterval(() => {
+      const valid = checkSessionValidity();
+      if (!valid) {
+        logout();
+        window.location.href = '/login';
+      }
+    }, 60_000);
+
+    return () => clearInterval(interval);
+  }, [user, checkSessionValidity, logout]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -111,6 +135,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<HomeRedirect />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/system" element={<SuperAdminLoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/auth-demo" element={<AuthShowcase />} />
@@ -124,6 +149,8 @@ const App = () => {
             <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/analytics" element={<AdminAnalytics />} />
+            <Route path="/admin/audit-logs" element={<AuditLogs />} />
+            <Route path="/admin/support" element={<SupportTickets />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
           </Route>
 
@@ -139,7 +166,7 @@ const App = () => {
             <Route path="/school/settings" element={<SchoolSettings />} />
             <Route path="/school/announcements" element={<Announcements />} />
             <Route path="/school/events" element={<EventPlanner />} />
-            <Route path="/school/event-planner" element={<AdminAttendanceOverview />} />
+            <Route path="/school/attendance" element={<AdminAttendanceOverview />} />
             <Route path="/school/fees" element={<FeeManagement />} />
             <Route path="/school/parent-portal" element={<ParentPortalSettings />} />
             <Route path="/school/score-entry" element={<SchoolScoreEntry />} />
@@ -181,6 +208,8 @@ const App = () => {
             <Route path="/student/announcements" element={<StudentAnnouncements />} />
             <Route path="/student/reports" element={<StudentReports />} />
             <Route path="/student/bills" element={<StudentBills />} />
+            <Route path="/student/events" element={<StudentEvents />} />
+            <Route path="/student/submissions" element={<MySubmissions />} />
             <Route path="/student/profile" element={<StudentProfile />} />
           </Route>
 

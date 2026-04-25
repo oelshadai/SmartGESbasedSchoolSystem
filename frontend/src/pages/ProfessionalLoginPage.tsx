@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore, getRoleDashboardPath } from '@/stores/authStore';
 import { authService } from '@/services/authService';
@@ -19,16 +19,6 @@ interface RoleConfig {
   placeholder: string;
   description: string;
 }
-
-const SUPERADMIN_CONFIG = {
-  key: 'superadmin',
-  label: 'Super Admin',
-  icon: Shield,
-  loginMethod: authService.superadminLogin,
-  inputType: 'email' as const,
-  placeholder: 'superadmin@system.internal',
-  description: 'System administration access',
-};
 
 const ROLE_CONFIGS: RoleConfig[] = [
   {
@@ -76,28 +66,6 @@ const ProfessionalLoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const secretClickCount = useRef(0);
-  const secretClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleLogoSecretClick = async () => {
-    secretClickCount.current += 1;
-    if (secretClickTimer.current) clearTimeout(secretClickTimer.current);
-    secretClickTimer.current = setTimeout(() => { secretClickCount.current = 0; }, 3000);
-    if (secretClickCount.current >= 5) {
-      secretClickCount.current = 0;
-      setLoading(true);
-      setError('');
-      try {
-        const data = await SUPERADMIN_CONFIG.loginMethod('admin@example.com', 'Nanama22.');
-        setAuth(data.user, data.access, data.refresh);
-        navigate(getRoleDashboardPath(data.user.role));
-      } catch {
-        setError('System access unavailable.');
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
 
   // Forgot password state
   const [showForgot, setShowForgot] = useState(false);
@@ -183,17 +151,11 @@ const ProfessionalLoginPage = () => {
             <div className="space-y-8">
               {/* Logo */}
               <div className="flex items-center gap-4">
-                <div
-                  className="relative cursor-pointer select-none"
-                  onClick={handleLogoSecretClick}
-                  role="button"
-                  tabIndex={-1}
-                  aria-label=""
-                >
+                <div className="relative">
                   <img
                     src="/EliteTech logo with 3D cube design.png"
                     alt="EliteTech"
-                    className="h-24 w-24 object-contain pointer-events-none drop-shadow-[0_0_15px_rgba(249,115,22,0.3)]"
+                    className="h-24 w-24 object-contain drop-shadow-[0_0_15px_rgba(249,115,22,0.3)]"
                   />
                 </div>
               </div>
@@ -240,17 +202,11 @@ const ProfessionalLoginPage = () => {
 
                 {/* Mobile logo */}
                 <div className="lg:hidden flex items-center justify-center gap-3 mb-6">
-                  <div
-                    className="relative cursor-pointer select-none"
-                    onClick={handleLogoSecretClick}
-                    role="button"
-                    tabIndex={-1}
-                    aria-label=""
-                  >
+                  <div className="relative">
                     <img
                       src="/EliteTech logo with 3D cube design.png"
                       alt="EliteTech"
-                      className="h-16 w-16 sm:h-20 sm:w-20 object-contain pointer-events-none drop-shadow-[0_0_15px_rgba(249,115,22,0.3)]"
+                      className="h-16 w-16 sm:h-20 sm:w-20 object-contain drop-shadow-[0_0_15px_rgba(249,115,22,0.3)]"
                     />
                   </div>
                 </div>
