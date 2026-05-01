@@ -18,6 +18,7 @@ import {
   DollarSign, TrendingUp, AlertCircle, Search, Receipt, Users,
   Loader2, RefreshCw, CheckCircle, XCircle, Settings, Pencil,
   Trash2, Plus, Zap, BarChart3, Filter, Download, CalendarDays, Award,
+  BellRing,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
@@ -172,6 +173,7 @@ const FeeManagement = () => {
   const [lastBillResult, setLastBillResult] = useState<GenerateBillsResult | null>(null);
   const [termBills, setTermBills] = useState<TermBill[]>([]);
   const [termBillsLoading, setTermBillsLoading] = useState(false);
+  const [sendingReminders, setSendingReminders] = useState(false);
 
   useEffect(() => { fetchInitialData(); }, []);
   useEffect(() => { if (activeTab === 'setup') fetchSetupData(); }, [activeTab]);
@@ -2496,9 +2498,39 @@ const FeeManagement = () => {
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <h4 className="font-medium">Bills for selected term</h4>
-                    <Button size="sm" variant="outline" onClick={loadTermBills} disabled={termBillsLoading}>
-                      <RefreshCw className={`h-3 w-3 mr-1 ${termBillsLoading ? 'animate-spin' : ''}`} /> Refresh
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1 border-orange-300 text-orange-700 hover:bg-orange-50"
+                        disabled={sendingReminders || termBillsLoading}
+                        onClick={async () => {
+                          setSendingReminders(true);
+                          try {
+                            const result = await secureApiClient.post<{ sent: number; no_phone: number; skipped: number; dry_run: boolean }>(
+                              '/fees/term-bills/send-fee-reminders/',
+                              { term: billTermId }
+                            );
+                            toast.success(`Fee reminders sent to ${result.sent} student(s).${
+                              result.no_phone > 0 ? ` ${result.no_phone} skipped (no phone number on file).` : ''
+                            }`);
+                          } catch (e: any) {
+                            const msg = e?.response?.data?.error || e.message || 'Failed to send reminders';
+                            toast.error(msg);
+                          } finally {
+                            setSendingReminders(false);
+                          }
+                        }}
+                      >
+                        {sendingReminders
+                          ? <Loader2 className="h-3 w-3 animate-spin" />
+                          : <BellRing className="h-3 w-3" />}
+                        Send Reminders
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={loadTermBills} disabled={termBillsLoading}>
+                        <RefreshCw className={`h-3 w-3 mr-1 ${termBillsLoading ? 'animate-spin' : ''}`} /> Refresh
+                      </Button>
+                    </div>
                   </div>
                   {termBillsLoading ? (
                     <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>

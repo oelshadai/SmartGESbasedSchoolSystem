@@ -19,6 +19,18 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
     return <Navigate to="/unauthorized" replace />;
   }
 
+  // Subscription lock check – only for school-level users, not on the subscription page itself
+  if (
+    user.role === 'SCHOOL_ADMIN' &&
+    !location.pathname.startsWith('/school/subscription') &&
+    !location.pathname.startsWith('/subscription-locked')
+  ) {
+    const schoolData = (user as any).school_subscription;
+    if (schoolData?.is_locked) {
+      return <Navigate to="/subscription-locked" replace />;
+    }
+  }
+
   return <>{children}</>;
 };
 

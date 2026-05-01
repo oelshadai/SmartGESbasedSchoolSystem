@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Search, Loader2, CheckCircle, XCircle } from 'lucide-react';
+﻿import { useState, useEffect } from 'react';
+import { Search, Loader2, CheckCircle, XCircle, Mail, ShieldOff, ShieldCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -17,14 +18,17 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 const ROLES = ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'PARENT'];
+const ADMIN_ROLES = ['SCHOOL_ADMIN', 'PRINCIPAL'];
 
 export default function AdminUsers() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [users, setUsers] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [cascading, setCascading] = useState<number | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => fetchUsers(), 300);
@@ -56,6 +60,81 @@ export default function AdminUsers() {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
   };
+
+  const cascadeDisable = async (user: any) => {
+    const action = user.is_active ? 'disable' : 'enable';
+    const confirmed = window.confirm(
+      user.is_active
+        ? `Disable "${user.school_name || 'this school'}" â€” this will deactivate ALL users (teachers, students, parents) under this school. Continue?`
+        : `Re-enable all accounts under "${user.school_name || 'this school'}"?`
+    );
+    if (!confirmed) return;
+    setCascading(user.id);
+    try {
+      const endpoint = user.is_active
+        ? `/auth/superadmin/admins/${user.id}/disable/`
+        : `/auth/superadmin/admins/${user.id}/enable/`;
+      const res = await secureApiClient.post(endpoint, {});
+      toast({
+        title: user.is_active ? 'School Disabled' : 'School Enabled',
+        description: `${res.affected_users} accounts were ${action}d in ${res.school}.`,
+      });
+      fetchUsers();
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setCascading(null);
+    }
+  };
+
+  const goToMessage = (user: any) => {
+    navigate('/admin/messages', { state: { preselect: user.id } });
+  };
+
+  const ActionButtons = ({ u }: { u: any }) => (
+    <div className="flex items-center gap-1 flex-wrap">
+      <Button
+        size="sm"
+        variant="ghost"
+        className={`h-7 text-xs ${u.is_active ? 'text-red-500 hover:text-red-400' : 'text-green-500 hover:text-green-400'}`}
+        onClick={() => toggleActive(u)}
+        disabled={u.role === 'SUPER_ADMIN'}
+      >
+        {u.is_active ? 'Deactivate' : 'Activate'}
+      </Button>
+
+      {ADMIN_ROLES.includes(u.role) && (
+        <>
+          <Button
+            size="sm"
+            variant="ghost"
+            className={`h-7 text-xs ${u.is_active ? 'text-orange-500 hover:text-orange-400' : 'text-emerald-500 hover:text-emerald-400'}`}
+            onClick={() => cascadeDisable(u)}
+            disabled={cascading === u.id}
+            title={u.is_active ? 'Disable entire school' : 'Enable entire school'}
+          >
+            {cascading === u.id ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : u.is_active ? (
+              <><ShieldOff className="h-3.5 w-3.5 mr-1" />Disable School</>
+            ) : (
+              <><ShieldCheck className="h-3.5 w-3.5 mr-1" />Enable School</>
+            )}
+          </Button>
+
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs text-blue-400 hover:text-blue-300"
+            onClick={() => goToMessage(u)}
+            title="Send message to this admin"
+          >
+            <Mail className="h-3.5 w-3.5 mr-1" />Message
+          </Button>
+        </>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -97,7 +176,7 @@ export default function AdminUsers() {
                   <th className="text-left p-3 font-medium text-muted-foreground">School</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Last Login</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground">Action</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -108,7 +187,7 @@ export default function AdminUsers() {
                     <td className="p-3">
                       <Badge className={`text-xs border ${ROLE_COLORS[u.role] || 'bg-slate-500/20 text-slate-400'}`}>{u.role}</Badge>
                     </td>
-                    <td className="p-3 text-muted-foreground">{u.school_name || '—'}</td>
+                    <td className="p-3 text-muted-foreground">{u.school_name || 'â€”'}</td>
                     <td className="p-3 text-muted-foreground whitespace-nowrap">
                       {u.last_login ? new Date(u.last_login).toLocaleDateString() : 'Never'}
                     </td>
@@ -117,17 +196,7 @@ export default function AdminUsers() {
                         ? <span className="flex items-center gap-1 text-green-500 text-xs"><CheckCircle className="h-3.5 w-3.5" /> Active</span>
                         : <span className="flex items-center gap-1 text-red-500 text-xs"><XCircle className="h-3.5 w-3.5" /> Inactive</span>}
                     </td>
-                    <td className="p-3">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className={`h-7 text-xs ${u.is_active ? 'text-red-500 hover:text-red-400' : 'text-green-500 hover:text-green-400'}`}
-                        onClick={() => toggleActive(u)}
-                        disabled={u.role === 'SUPER_ADMIN'}
-                      >
-                        {u.is_active ? 'Deactivate' : 'Activate'}
-                      </Button>
-                    </td>
+                    <td className="p-3"><ActionButtons u={u} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -157,20 +226,10 @@ export default function AdminUsers() {
                     <Badge className={`text-xs border ${ROLE_COLORS[u.role] || 'bg-slate-500/20 text-slate-400'}`}>{u.role}</Badge>
                     {u.school_name && <span className="text-xs text-muted-foreground">{u.school_name}</span>}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      {u.last_login ? `Last login: ${new Date(u.last_login).toLocaleDateString()}` : 'Never logged in'}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className={`h-7 text-xs ${u.is_active ? 'text-red-500 hover:text-red-400' : 'text-green-500 hover:text-green-400'}`}
-                      onClick={() => toggleActive(u)}
-                      disabled={u.role === 'SUPER_ADMIN'}
-                    >
-                      {u.is_active ? 'Deactivate' : 'Activate'}
-                    </Button>
+                  <div className="text-xs text-muted-foreground">
+                    {u.last_login ? `Last login: ${new Date(u.last_login).toLocaleDateString()}` : 'Never logged in'}
                   </div>
+                  <ActionButtons u={u} />
                 </div>
               ))
             )}

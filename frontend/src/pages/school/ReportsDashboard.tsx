@@ -8,6 +8,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 
+const isPdfBlob = async (blob: Blob): Promise<boolean> => {
+  if (blob.type.toLowerCase().includes('application/pdf')) {
+    return true;
+  }
+  const signature = await blob.slice(0, 5).text();
+  return signature === '%PDF-';
+};
+
 const ReportsDashboard = () => {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [reportCards, setReportCards] = useState<any[]>([]);
@@ -204,7 +212,12 @@ const ReportsDashboard = () => {
         { student_id: report.student, term_id: report.term },
         { responseType: 'blob' as any }
       );
-      const url = URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob as any]));
+      const pdfBlob = blob instanceof Blob ? blob : new Blob([blob as any]);
+      const validPdf = await isPdfBlob(pdfBlob);
+      if (!validPdf) {
+        throw new Error('Server returned non-PDF content');
+      }
+      const url = URL.createObjectURL(pdfBlob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `${studentLabel}_${termLabel}_Report.pdf`;
@@ -264,17 +277,17 @@ const ReportsDashboard = () => {
   return (
     <>
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
           <p className="text-muted-foreground mt-1">Academic performance analysis and report generation</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setShowBulkGenerateDialog(true)}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => setShowBulkGenerateDialog(true)}>
             <FileText className="h-4 w-4 mr-2" />
             Bulk Generate
           </Button>
-          <Button onClick={() => setShowGenerateDialog(true)}>
+          <Button size="sm" onClick={() => setShowGenerateDialog(true)}>
             <FileText className="h-4 w-4 mr-2" />
             Generate Report
           </Button>
@@ -286,8 +299,8 @@ const ReportsDashboard = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
-        <div className="flex-1">
+      <div className="flex flex-col sm:flex-row sm:items-end gap-3 p-4 bg-muted/50 rounded-lg">
+        <div className="flex-1 min-w-0">
           <label className="block text-sm font-medium mb-1">Filter by Class</label>
           <Select value={selectedClass} onValueChange={setSelectedClass}>
             <SelectTrigger className="bg-background text-foreground">
@@ -305,7 +318,7 @@ const ReportsDashboard = () => {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <label className="block text-sm font-medium mb-1">Filter by Term</label>
           <Select value={selectedTerm} onValueChange={setSelectedTerm}>
             <SelectTrigger className="bg-background text-foreground">
@@ -489,10 +502,10 @@ const ReportsDashboard = () => {
 
     {/* Report Preview Dialog */}
     <Dialog open={previewOpen} onOpenChange={(open) => { if (!open) { setPreviewOpen(false); setPreviewHtml(''); } }}>
-      <DialogContent className="max-w-5xl w-full h-[90vh] flex flex-col p-0 gap-0">
-        <div className="px-6 py-3 border-b flex-shrink-0 flex flex-row items-center justify-between">
-          <h2 className="text-base font-semibold">Report Preview — {previewStudentName}</h2>
-          <div className="flex gap-2 items-center">
+      <DialogContent className="max-w-[98vw] sm:max-w-5xl w-full h-[95vh] sm:h-[90vh] flex flex-col p-0 gap-0">
+        <div className="px-4 sm:px-6 py-3 border-b flex-shrink-0 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm sm:text-base font-semibold truncate min-w-0 max-w-[55%] sm:max-w-none">Report Preview — {previewStudentName}</h2>
+          <div className="flex gap-2 items-center flex-shrink-0">
             {!previewLoading && previewHtml && (
               <Button
                 size="sm"

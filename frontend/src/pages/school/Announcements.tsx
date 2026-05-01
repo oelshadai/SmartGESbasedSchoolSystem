@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Pin, Plus, Edit, Trash2 } from 'lucide-react';
+import { Pin, Plus, Edit, Trash2, MessageSquare } from 'lucide-react';
 import secureApiClient from '@/lib/secureApiClient';
 
 interface Announcement {
@@ -34,8 +34,10 @@ const Announcements = () => {
     title: '',
     content: '',
     audience: 'select-audience',
-    is_pinned: false
+    is_pinned: false,
+    send_sms_to_parents: false,
   });
+  const [smsResult, setSmsResult] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
 
@@ -54,14 +56,22 @@ const Announcements = () => {
     if (!form.title || !form.content || form.audience === 'select-audience') return;
     
     setSubmitting(true);
+    setSmsResult(null);
     try {
       if (editingAnnouncement) {
         await secureApiClient.put(`/announcements/${editingAnnouncement.id}/`, form);
       } else {
-        await secureApiClient.post('/announcements/', form);
+        const res = await secureApiClient.post('/announcements/', form) as any;
+        if (form.send_sms_to_parents) {
+          if (res?.sms_note) {
+            setSmsResult(res.sms_note);
+          } else if (typeof res?.sms_sent === 'number') {
+            setSmsResult(res.sms_sent > 0 ? `SMS sent to ${res.sms_sent} parent(s).` : 'No parent phone numbers found.');
+          }
+        }
       }
       setShowDialog(false);
-      setForm({ title: '', content: '', audience: 'select-audience', is_pinned: false });
+      setForm({ title: '', content: '', audience: 'select-audience', is_pinned: false, send_sms_to_parents: false });
       setEditingAnnouncement(null);
       fetchAnnouncements();
     } catch (error) {
@@ -110,7 +120,7 @@ const Announcements = () => {
         </div>
         <Button onClick={() => {
           setEditingAnnouncement(null);
-          setForm({ title: '', content: '', audience: 'select-audience', is_pinned: false });
+          setForm({ title: '', content: '', audience: 'select-audience', is_pinned: false, send_sms_to_parents: false });
           setShowDialog(true);
         }}>
           <Plus className="h-4 w-4 mr-2" />
@@ -152,6 +162,13 @@ const Announcements = () => {
         )}
       </div>
 
+      {smsResult && (
+        <div className="rounded-lg border border-info/30 bg-info/10 text-info px-4 py-2 text-sm flex items-center gap-2">
+          <MessageSquare className="h-4 w-4 shrink-0" />
+          {smsResult}
+        </div>
+      )}
+
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
           <DialogHeader>
@@ -186,6 +203,22 @@ const Announcements = () => {
               <Checkbox id="pinned" checked={form.is_pinned} onCheckedChange={checked => setForm(prev => ({...prev, is_pinned: !!checked}))} />
               <label htmlFor="pinned" className="text-sm font-medium">Pin this announcement</label>
             </div>
+            {!editingAnnouncement && (form.audience === 'ALL' || form.audience === 'PARENTS') && (
+              <div className="flex items-center space-x-2 rounded-md border border-info/30 bg-info/5 px-3 py-2">
+                <Checkbox
+                  id="sms-parents"
+                  checked={form.send_sms_to_parents}
+                  onCheckedChange={checked => setForm(prev => ({...prev, send_sms_to_parents: !!checked}))}
+                />
+                <div>
+                  <label htmlFor="sms-parents" className="text-sm font-medium cursor-pointer flex items-center gap-1">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    Also send SMS to parents
+                  </label>
+                  <p className="text-xs text-muted-foreground">Requires SMS to be enabled in school settings</p>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button onClick={handleSubmit} disabled={submitting || !form.title || !form.content || form.audience === 'select-audience'}>

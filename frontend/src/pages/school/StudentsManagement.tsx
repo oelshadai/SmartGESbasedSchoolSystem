@@ -3,12 +3,13 @@ import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, Eye, KeyRound, Copy, Check, Bell, CheckCircle2, XCircle } from 'lucide-react';
+import { Edit, Trash2, Eye, KeyRound, Copy, Check, Bell, CheckCircle2, XCircle, UserCheck, UserX } from 'lucide-react';
 import secureApiClient from '@/lib/secureApiClient';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { feeService, FeeType } from '@/services/feeService';
+import { useToast } from '@/components/ui/use-toast';
 
 const StudentsManagement = () => {
   const [students, setStudents] = useState<any[]>([]);
@@ -41,6 +42,13 @@ const StudentsManagement = () => {
   const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
   const [credentials, setCredentials] = useState<{ student_name: string; username: string; password: string; class_name: string; parent_account_created?: boolean; parent_generated_password?: string | null; guardian_email?: string } | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Account creation confirmation dialog
+  const [showAccountConfirmDialog, setShowAccountConfirmDialog] = useState(false);
+  const [pendingStudentSnapshot, setPendingStudentSnapshot] = useState<typeof form | null>(null);
+  const [confirmSubmitting, setConfirmSubmitting] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // Fee tier assignments for view dialog
   const [feeTypesWithSubs, setFeeTypesWithSubs] = useState<FeeType[]>([]);
@@ -275,15 +283,25 @@ const StudentsManagement = () => {
   };
 
   const handleCreateStudent = async () => {
-    setCreating(true);
     setFormError(null);
-    
+
+    if (!form.student_id || !form.first_name || !form.last_name || !form.gender || !form.date_of_birth || !form.guardian_name || !form.guardian_phone || !form.guardian_address || !form.admission_date) {
+      setFormError('Please fill all required fields.');
+      return;
+    }
+
+    if (!editingStudent) {
+      // New student: close the form and ask whether to create a login account
+      setPendingStudentSnapshot({ ...form });
+      setConfirmError(null);
+      setShowDialog(false);
+      setShowAccountConfirmDialog(true);
+      return;
+    }
+
+    // Editing existing student
+    setCreating(true);
     try {
-      if (!form.student_id || !form.first_name || !form.last_name || !form.gender || !form.date_of_birth || !form.guardian_name || !form.guardian_phone || !form.guardian_address || !form.admission_date) {
-        setFormError('Please fill all required fields.');
-        return;
-      }
-      
       const formData = new FormData();
       Object.entries(form).forEach(([key, value]) => {
         if (value !== null && value !== '') {
@@ -294,39 +312,67 @@ const StudentsManagement = () => {
           }
         }
       });
-      
-      if (editingStudent) {
-        await secureApiClient.put(`/students/${editingStudent.id}/`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-        setShowDialog(false);
-        setEditingStudent(null);
-      } else {
-        const response = await secureApiClient.post('/students/', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-        setShowDialog(false);
-        setEditingStudent(null);
-        // Show credentials after successful creation
-        const newStudent = response?.data || response;
-        if (newStudent) {
-          setCredentials({
-            student_name: `${newStudent.first_name || form.first_name} ${newStudent.last_name || form.last_name}`,
-            username: newStudent.generated_username || newStudent.username || `std_${form.student_id}`,
-            password: newStudent.generated_password || newStudent.password || 'Contact admin',
-            class_name: newStudent.class_name || 'Assigned class',
-            parent_account_created: newStudent.parent_account_created || false,
-            parent_generated_password: newStudent.parent_generated_password || null,
-            guardian_email: form.guardian_email || '',
-          });
-          setShowCredentialsDialog(true);
+      await secureApiClient.put(`/students/${editingStudent.id}/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setShowDialog(false);
+      setEditingStudent(null);
+      await fetchStudents();
+    } catch (err: any) {
+      setFormError(err.message || 'Failed to update student');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleAccountConfirmed = async (createAccount: boolean) => {
+    if (!pendingStudentSnapshot) return;
+    setConfirmSubmitting(true);
+    setConfirmError(null);
+    try {
+      const snapshot = pendingStudentSnapshot;
+      const formData = new FormData();
+      Object.entries(snapshot).forEach(([key, value]) => {
+        if (value !== null && value !== '') {
+          if (key === 'photo' && value instanceof File) {
+            formData.append(key, value);
+          } else if (key !== 'photo') {
+            formData.append(key, value as string);
+          }
         }
+      });
+      formData.append('create_account', createAccount ? 'true' : 'false');
+
+      const response = await secureApiClient.post('/students/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      setShowAccountConfirmDialog(false);
+      setPendingStudentSnapshot(null);
+
+      const newStudent = response?.data || response;
+      if (createAccount && newStudent) {
+        setCredentials({
+          student_name: `${newStudent.first_name || snapshot.first_name} ${newStudent.last_name || snapshot.last_name}`,
+          username: newStudent.generated_username || newStudent.username || `std_${snapshot.student_id}`,
+          password: newStudent.generated_password || newStudent.password || 'Contact admin',
+          class_name: newStudent.class_name || 'Assigned class',
+          parent_account_created: newStudent.parent_account_created || false,
+          parent_generated_password: newStudent.parent_generated_password || null,
+          guardian_email: snapshot.guardian_email || '',
+        });
+        setShowCredentialsDialog(true);
+      } else {
+        toast({
+          title: 'Student Added',
+          description: `${snapshot.first_name} ${snapshot.last_name} was created without a login account.`,
+        });
       }
       await fetchStudents();
     } catch (err: any) {
-      setFormError(err.message || `Failed to ${editingStudent ? 'update' : 'create'} student`);
+      setConfirmError(err.message || 'Failed to create student');
     } finally {
-      setCreating(false);
+      setConfirmSubmitting(false);
     }
   };
 
@@ -668,6 +714,69 @@ const StudentsManagement = () => {
           )}
           <DialogFooter>
             <Button onClick={() => setShowCredentialsDialog(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Account Creation Confirmation Dialog */}
+      <Dialog
+        open={showAccountConfirmDialog}
+        onOpenChange={(open) => {
+          if (!open && !confirmSubmitting) {
+            setShowAccountConfirmDialog(false);
+            setPendingStudentSnapshot(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-blue-600" />
+              Create Login Account?
+            </DialogTitle>
+            <DialogDescription>
+              Do you want to create a student portal login account for{' '}
+              <strong>
+                {pendingStudentSnapshot
+                  ? `${pendingStudentSnapshot.first_name} ${pendingStudentSnapshot.last_name}`
+                  : 'this student'}
+              </strong>?
+              <br />
+              <span className="text-xs">
+                Not all students need portal access (e.g., kindergarteners).
+                You can always create an account later.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          {confirmError && (
+            <div className="text-destructive text-sm rounded-md bg-destructive/10 px-3 py-2">
+              {confirmError}
+            </div>
+          )}
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => handleAccountConfirmed(false)}
+              disabled={confirmSubmitting}
+              className="flex-1"
+            >
+              <UserX className="h-4 w-4 mr-2" />
+              No, Skip Account
+            </Button>
+            <Button
+              onClick={() => handleAccountConfirmed(true)}
+              disabled={confirmSubmitting}
+              className="flex-1"
+            >
+              {confirmSubmitting ? (
+                'Creating...'
+              ) : (
+                <>
+                  <UserCheck className="h-4 w-4 mr-2" />
+                  Yes, Create Account
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

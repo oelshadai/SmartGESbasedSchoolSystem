@@ -64,6 +64,14 @@ const ordinal = (n: number) => {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 };
 
+const isPdfBlob = async (blob: Blob): Promise<boolean> => {
+  if (blob.type.toLowerCase().includes('application/pdf')) {
+    return true;
+  }
+  const signature = await blob.slice(0, 5).text();
+  return signature === '%PDF-';
+};
+
 const StudentReports = () => {
   const [reports, setReports] = useState<TermReport[]>([]);
   const [publishedReports, setPublishedReports] = useState<PublishedReport[]>([]);
@@ -162,6 +170,7 @@ const StudentReports = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/pdf',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ student_id: studentId, term_id: termId })
@@ -179,6 +188,10 @@ const StudentReports = () => {
       }
 
       const blob = await response.blob();
+      const validPdf = await isPdfBlob(blob);
+      if (!validPdf) {
+        throw new Error('Server returned non-PDF content');
+      }
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -385,18 +398,19 @@ const StudentReports = () => {
 
       {/* Preview Modal */}
       {showPreview && previewUrl && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-4xl h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="font-semibold">Report View</h3>
-              <div className="flex gap-2">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg w-full max-w-4xl h-[95vh] sm:h-[90vh] flex flex-col">
+            <div className="flex flex-wrap items-center justify-between gap-2 p-3 sm:p-4 border-b">
+              <h3 className="font-semibold text-sm sm:text-base">Report View</h3>
+              <div className="flex gap-2 flex-shrink-0">
                 <Button
                   onClick={() => window.open(previewUrl, '_blank')}
                   variant="outline"
                   size="sm"
+                  className="px-2 sm:px-3"
                 >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Open in New Tab
+                  <ExternalLink className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Open in New Tab</span>
                 </Button>
                 <Button
                   onClick={() => {
@@ -413,7 +427,7 @@ const StudentReports = () => {
                 </Button>
               </div>
             </div>
-            <div className="flex-1 p-4">
+            <div className="flex-1 p-2 sm:p-4">
               <iframe
                 src={previewUrl}
                 className="w-full h-full border rounded"

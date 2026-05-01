@@ -15,6 +15,8 @@ import UnauthorizedPage from "./pages/UnauthorizedPage";
 import NotFound from "./pages/NotFound";
 import AppLayout from "./components/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import SubscriptionLockedPage from "./pages/SubscriptionLockedPage";
+import SubscriptionPage from "./pages/school/SubscriptionPage";
 
 // Dashboards
 import SchoolAdminDashboard from "./pages/dashboards/SchoolAdminDashboard";
@@ -26,6 +28,8 @@ import AdminSubscriptions from "./pages/superadmin/AdminSubscriptions";
 import AdminUsers from "./pages/superadmin/AdminUsers";
 import AdminAnalytics from "./pages/superadmin/AdminAnalytics";
 import AdminSettings from "./pages/superadmin/AdminSettings";
+import AdminMessages from "./pages/superadmin/AdminMessages";
+import SchoolAdminMessages from "./pages/school/SchoolAdminMessages";
 import AuditLogs from "./pages/admin/AuditLogs";
 import SupportTickets from "./pages/admin/SupportTickets";
 import StudentDashboard from "./pages/dashboards/StudentDashboard";
@@ -54,8 +58,7 @@ import ParentPortalSettings from "./pages/school/ParentPortalSettings";
 import SchoolScoreEntry from "./pages/school/ScoreEntry";
 import ScoreEntrySetup from "./pages/school/ScoreEntrySetup";
 import ScoreEntryForm from "./pages/school/ScoreEntryForm";
-import MultiSubjectScoreEntry from "./pages/school/MultiSubjectScoreEntry";
-
+import MultiSubjectScoreEntry from "./pages/school/MultiSubjectScoreEntry";import SmsPurchase from './pages/school/SmsPurchase';
 // Teacher
 import TeacherAssignments from "./pages/teacher/TeacherAssignments";
 import AssignmentSubmissions from "./pages/teacher/AssignmentSubmissions";
@@ -151,6 +154,7 @@ const App = () => {
             <Route path="/admin/analytics" element={<AdminAnalytics />} />
             <Route path="/admin/audit-logs" element={<AuditLogs />} />
             <Route path="/admin/support" element={<SupportTickets />} />
+            <Route path="/admin/messages" element={<AdminMessages />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
           </Route>
 
@@ -174,6 +178,8 @@ const App = () => {
             <Route path="/school/score-entry-form" element={<ScoreEntryForm />} />
             <Route path="/school/multi-subject-score-entry" element={<MultiSubjectScoreEntry />} />
             <Route path="/school/staff-permissions" element={<StaffPermissions />} />
+            <Route path="/school/messages" element={<SchoolAdminMessages />} />
+            <Route path="/school/sms-purchase" element={<SmsPurchase />} />
           </Route>
 
           {/* Teacher */}

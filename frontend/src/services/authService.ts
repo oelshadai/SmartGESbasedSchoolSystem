@@ -502,6 +502,7 @@ export const authService = {
     last_name: string;
     password: string;
     password_confirm: string;
+    plan?: 'FREE' | 'MONTHLY' | 'YEARLY';
   }): Promise<LoginResponse> => {
     // Input validation
     if (!registrationData.school_name || !registrationData.admin_email || !registrationData.password) {
@@ -529,7 +530,8 @@ export const authService = {
         first_name: registrationData.first_name.trim(),
         last_name: registrationData.last_name.trim(),
         password: registrationData.password,
-        password_confirm: registrationData.password_confirm
+        password_confirm: registrationData.password_confirm,
+        plan: registrationData.plan || 'FREE',
       });
       
       if (!data.access || !data.user || !data.user.role) {

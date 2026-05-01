@@ -117,7 +117,7 @@ const AdminAttendanceOverview = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Admin Attendance Overview</h1>
           <p className="text-muted-foreground mt-1">Monitor daily attendance across all classes</p>
@@ -263,7 +263,7 @@ const AdminAttendanceOverview = () => {
                     <p className="text-sm text-muted-foreground">Attendance Rate</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div className="text-center p-3 border rounded">
                     <p className="text-lg font-bold">{result.summary?.total_days}</p>
                     <p className="text-xs text-muted-foreground">Total Days</p>
@@ -288,9 +288,10 @@ const AdminAttendanceOverview = () => {
       )}
 
       {/* Filters */}
-      <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+      <div className="flex flex-col gap-3 p-4 bg-muted/50 rounded-lg">
+        {/* Search row */}
         <div className="flex items-center gap-2">
-          <Search className="h-4 w-4 text-muted-foreground" />
+          <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
           <Input
             placeholder="Search student name or ID..."
             value={searchQuery}
@@ -300,44 +301,48 @@ const AdminAttendanceOverview = () => {
                 searchStudentHistory(searchQuery.trim());
               }
             }}
-            className="w-64"
+            className="flex-1 min-w-0"
           />
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
+            className="flex-shrink-0"
             onClick={() => searchQuery.trim() && searchStudentHistory(searchQuery.trim())}
           >
-            Search History
+            Search
           </Button>
         </div>
-        
-        <Select value={selectedClass} onValueChange={setSelectedClass}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="All classes" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Classes</SelectItem>
-            {classSummaries.map((cls) => (
-              <SelectItem key={cls.class_id} value={cls.class_id.toString()}>
-                {cls.class_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="present">Present</SelectItem>
-            <SelectItem value="absent">Absent</SelectItem>
-            <SelectItem value="late">Late</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        <div className="text-sm text-muted-foreground">
-          {filteredRecords.length} record{filteredRecords.length !== 1 ? 's' : ''}
+
+        {/* Selects + count row */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={selectedClass} onValueChange={setSelectedClass}>
+            <SelectTrigger className="w-40 flex-shrink-0">
+              <SelectValue placeholder="All classes" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Classes</SelectItem>
+              {classSummaries.map((cls) => (
+                <SelectItem key={cls.class_id} value={cls.class_id.toString()}>
+                  {cls.class_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-32 flex-shrink-0">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="present">Present</SelectItem>
+              <SelectItem value="absent">Absent</SelectItem>
+              <SelectItem value="late">Late</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="text-sm text-muted-foreground">
+            {filteredRecords.length} record{filteredRecords.length !== 1 ? 's' : ''}
+          </div>
         </div>
       </div>
 

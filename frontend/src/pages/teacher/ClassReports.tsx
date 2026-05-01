@@ -11,6 +11,14 @@ import { useAuthStore } from '@/stores/authStore';
 import { secureApiClient } from '@/lib/secureApiClient';
 import { toast } from 'sonner';
 
+const isPdfBlob = async (blob: Blob): Promise<boolean> => {
+  if (blob.type.toLowerCase().includes('application/pdf')) {
+    return true;
+  }
+  const signature = await blob.slice(0, 5).text();
+  return signature === '%PDF-';
+};
+
 interface Student {
   id: number;
   first_name: string;
@@ -313,7 +321,12 @@ const ClassReports = () => {
         { student_id: report.studentDbId, term_id: report.termDbId },
         { responseType: 'blob' as any }
       );
-      const url = URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob as any]));
+      const pdfBlob = blob instanceof Blob ? blob : new Blob([blob as any]);
+      const validPdf = await isPdfBlob(pdfBlob);
+      if (!validPdf) {
+        throw new Error('Server returned non-PDF content');
+      }
+      const url = URL.createObjectURL(pdfBlob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `${report.studentId}_${report.term}_${report.year}_Report.pdf`;

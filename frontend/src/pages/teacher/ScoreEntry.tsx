@@ -17,6 +17,14 @@ import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
 
+const isPdfBlob = async (blob: Blob): Promise<boolean> => {
+  if (blob.type.toLowerCase().includes('application/pdf')) {
+    return true;
+  }
+  const signature = await blob.slice(0, 5).text();
+  return signature === '%PDF-';
+};
+
 interface Student {
   id: number;
   student_id: string;
@@ -193,7 +201,12 @@ const ScoreEntry = () => {
           { student_id: student.id, term_id: currentTerm.id },
           { responseType: 'blob' as any }
         );
-        const url = URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob as any]));
+        const pdfBlob = blob instanceof Blob ? blob : new Blob([blob as any]);
+        const validPdf = await isPdfBlob(pdfBlob);
+        if (!validPdf) {
+          throw new Error('Server returned non-PDF content');
+        }
+        const url = URL.createObjectURL(pdfBlob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `${student.student_id}_${currentTerm.name}_Report.pdf`;

@@ -13,6 +13,14 @@ interface ReportPreviewModalProps {
   currentScores?: Record<string, any>;
 }
 
+const isPdfBlob = async (blob: Blob): Promise<boolean> => {
+  if (blob.type.toLowerCase().includes('application/pdf')) {
+    return true;
+  }
+  const signature = await blob.slice(0, 5).text();
+  return signature === '%PDF-';
+};
+
 const ReportPreviewModal = ({ 
   isOpen, 
   onClose, 
@@ -83,6 +91,7 @@ const ReportPreviewModal = ({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/pdf',
             'Authorization': `Bearer ${accessToken}`
           },
           body: JSON.stringify({
@@ -93,6 +102,10 @@ const ReportPreviewModal = ({
         
         if (response.ok) {
           const blob = await response.blob();
+          const validPdf = await isPdfBlob(blob);
+          if (!validPdf) {
+            throw new Error('Server returned non-PDF content');
+          }
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
@@ -125,6 +138,10 @@ const ReportPreviewModal = ({
         }
 
         const blob = await pdfResponse.blob();
+        const validPdf = await isPdfBlob(blob);
+        if (!validPdf) {
+          throw new Error('Server returned non-PDF content');
+        }
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -150,8 +167,8 @@ const ReportPreviewModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg w-[90vw] h-[90vh] flex flex-col max-w-6xl">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-lg w-[98vw] sm:w-[90vw] h-[95vh] sm:h-[90vh] flex flex-col max-w-6xl">
         <div className="flex flex-wrap justify-between items-center gap-2 p-3 border-b">
           <h3 className="text-base font-semibold truncate max-w-[60%] sm:max-w-none">{getTitle()}</h3>
           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
@@ -183,7 +200,7 @@ const ReportPreviewModal = ({
             </Button>
           </div>
         </div>
-        <div className="flex-1 p-4">
+        <div className="flex-1 p-2 sm:p-4">
           <iframe 
             src={getIframeSrc()}
             className="w-full h-full border rounded" 

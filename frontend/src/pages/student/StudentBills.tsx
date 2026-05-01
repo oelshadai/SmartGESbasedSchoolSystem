@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { secureApiClient } from '@/lib/secureApiClient';
 import { useAuthStore } from '@/stores/authStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import {
   DollarSign, CalendarDays, TrendingDown, CheckCircle2,
   AlertCircle, Clock, Loader2, ChevronDown, ChevronUp, Receipt,
+  ExternalLink, XCircle,
 } from 'lucide-react';
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -48,6 +49,8 @@ interface BillsData {
     total_daily_paid: number;
     grand_total_paid: number;
   };
+  online_payments_enabled: boolean;
+  paystack_public_key: string | null;
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -73,21 +76,66 @@ const STATUS_ICON: Record<string, JSX.Element> = {
 
 const StudentBills = ({ studentIdOverride }: { studentIdOverride?: string }) => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, isAuthenticated } = useAuthStore();
   const [data, setData] = useState<BillsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedDaily, setExpandedDaily] = useState<string | null>(null);
+  const [payingBillId, setPayingBillId] = useState<number | null>(null);
+  const [paymentResult, setPaymentResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const fetchBills = () => {
+    const params = studentIdOverride ? `?student_id=${studentIdOverride}` : '';
+    return secureApiClient
+      .get<BillsData>(`/fees/term-bills/my-bills/${params}`)
+      .then(setData)
+      .catch((e) => setError(e.message || 'Failed to load bills'));
+  };
 
   useEffect(() => {
     if (!isAuthenticated) { navigate('/login'); return; }
-    const params = studentIdOverride ? `?student_id=${studentIdOverride}` : '';
-    secureApiClient
-      .get<BillsData>(`/fees/term-bills/my-bills/${params}`)
-      .then(setData)
-      .catch((e) => setError(e.message || 'Failed to load bills'))
-      .finally(() => setLoading(false));
+    fetchBills().finally(() => setLoading(false));
   }, [isAuthenticated, navigate, studentIdOverride]);
+
+  // Handle Paystack callback: verify payment when redirected back with ?paystack_ref=
+  useEffect(() => {
+    const ref = searchParams.get('paystack_ref');
+    if (!ref || !isAuthenticated) return;
+    // Remove param from URL immediately
+    setSearchParams((prev) => { prev.delete('paystack_ref'); return prev; }, { replace: true });
+    secureApiClient
+      .get<{ success?: boolean; already_recorded?: boolean; bill_status?: string; amount_paid?: number }>(
+        `/fees/term-bills/verify-paystack/?reference=${encodeURIComponent(ref)}`
+      )
+      .then((r) => {
+        if (r.success || r.already_recorded) {
+          setPaymentResult({ success: true, message: 'Payment successful! Your bill has been updated.' });
+          fetchBills();
+        } else {
+          setPaymentResult({ success: false, message: 'Payment could not be verified. Please contact your school.' });
+        }
+      })
+      .catch(() => {
+        setPaymentResult({ success: false, message: 'Payment verification failed. Please contact your school.' });
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handlePayOnline = async (billId: number) => {
+    setPayingBillId(billId);
+    try {
+      const body = studentIdOverride ? { student_id: studentIdOverride } : {};
+      const result = await secureApiClient.post<{ authorization_url: string; reference: string; amount: number }>(
+        `/fees/term-bills/${billId}/initiate-paystack/`,
+        body
+      );
+      window.location.href = result.authorization_url;
+    } catch (e: any) {
+      setPaymentResult({ success: false, message: e?.response?.data?.error || e.message || 'Payment initiation failed.' });
+      setPayingBillId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -117,6 +165,23 @@ const StudentBills = ({ studentIdOverride }: { studentIdOverride?: string }) => 
 
   return (
     <div className="space-y-6 p-4 sm:p-6 animate-fade-in">
+      {/* Payment result banner */}
+      {paymentResult && (
+        <div className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-sm ${
+          paymentResult.success
+            ? 'bg-green-50 border-green-200 text-green-800'
+            : 'bg-red-50 border-red-200 text-red-800'
+        }`}>
+          {paymentResult.success
+            ? <CheckCircle2 className="h-4 w-4 shrink-0" />
+            : <XCircle className="h-4 w-4 shrink-0" />}
+          <span className="flex-1">{paymentResult.message}</span>
+          <button onClick={() => setPaymentResult(null)} className="opacity-60 hover:opacity-100">
+            <XCircle className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Page heading */}
       <div>
         <h1 className="text-2xl font-bold">My Bills &amp; Fees</h1>
@@ -194,7 +259,7 @@ const StudentBills = ({ studentIdOverride }: { studentIdOverride?: string }) => 
                             {fmt(bill.amount_paid)} paid of {fmt(bill.amount_billed)}
                           </div>
                         </div>
-                        <div className="text-right shrink-0 space-y-1">
+                        <div className="text-right shrink-0 space-y-1.5">
                           <Badge className={`text-xs border ${STATUS_STYLE[bill.status]} flex items-center gap-1`}>
                             {STATUS_ICON[bill.status]} {bill.status}
                           </Badge>
@@ -203,6 +268,20 @@ const StudentBills = ({ studentIdOverride }: { studentIdOverride?: string }) => 
                           )}
                           {bill.balance <= 0 && bill.status !== 'WAIVED' && (
                             <div className="text-xs text-green-600 font-medium">Fully paid</div>
+                          )}
+                          {data.online_payments_enabled && (bill.status === 'UNPAID' || bill.status === 'PARTIAL') && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+                              disabled={payingBillId === bill.id}
+                              onClick={() => handlePayOnline(bill.id)}
+                            >
+                              {payingBillId === bill.id
+                                ? <Loader2 className="h-3 w-3 animate-spin" />
+                                : <ExternalLink className="h-3 w-3" />}
+                              Pay Online
+                            </Button>
                           )}
                         </div>
                       </div>

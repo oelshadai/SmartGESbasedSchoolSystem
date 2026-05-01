@@ -95,7 +95,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen relative">
+    <div className="flex h-screen relative overflow-hidden">
       {/* Animated background logos covering entire page */}
       <AnimatedLogoBackground />
       
@@ -107,13 +107,13 @@ const LoginPage = () => {
             <div className="p-3 rounded-xl bg-secondary/20 backdrop-blur-sm">
               <img 
                 src="/EliteTech logo with 3D cube design.png" 
-                alt="School Report SaaS" 
+                alt="GES School Management System" 
                 className="h-10 w-10 object-contain"
               />
             </div>
           </div>
           <h1 className="text-4xl font-bold leading-tight">
-            School Report <span className="text-secondary">SaaS</span>
+            GES School <span className="text-secondary">Management System</span>
           </h1>
           <p className="text-primary-foreground/70 text-lg leading-relaxed">
             A comprehensive school management platform for administrators, teachers, and students. Manage assignments, track performance, and generate reports effortlessly.
@@ -130,48 +130,46 @@ const LoginPage = () => {
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center px-4 py-6 sm:p-8 bg-background">
-        <div className="w-full max-w-md space-y-6 sm:space-y-8">
-          <div className="flex flex-col items-center gap-3 mb-2">
-            <div
-              className="p-3 rounded-xl bg-primary/10 select-none relative z-10"
-            >
+      <div className="flex-1 flex items-center justify-center px-4 py-2 sm:p-8 bg-background overflow-y-auto">
+        <div className="w-full max-w-md space-y-3 sm:space-y-6">
+          <div className="flex flex-col items-center gap-1.5 mb-0">
+            <div className="p-2 rounded-xl bg-primary/10 select-none relative z-10">
               <img 
                 src="/EliteTech logo with 3D cube design.png" 
-                alt="School Report SaaS" 
-                className="h-14 w-14 object-contain"
+                alt="GES School Management System" 
+                className="h-9 w-9 sm:h-14 sm:w-14 object-contain"
               />
             </div>
-            <span className="text-lg sm:text-xl font-bold text-foreground">School Report SaaS</span>
+            <span className="text-sm sm:text-xl font-bold text-foreground text-center leading-tight">GES School Management System</span>
           </div>
 
-          <div className="space-y-1 text-center">
-            <h2 className="text-xl sm:text-2xl font-bold text-foreground">Welcome back</h2>
-            <p className="text-sm text-muted-foreground">Sign in to your account to continue</p>
+          <div className="space-y-0.5 text-center">
+            <h2 className="text-lg sm:text-2xl font-bold text-foreground">Welcome back</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground">Sign in to your account to continue</p>
           </div>
 
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Login as:</Label>
+          <div className="space-y-2">
+            <Label className="text-xs sm:text-sm font-medium">Login as:</Label>
             <div className="grid grid-cols-3 gap-2">
               {ROLE_CONFIGS.map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
                   type="button"
                   onClick={() => handleRoleChange(key)}
-                  className={`py-2.5 px-3 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
+                  className={`py-2 px-2 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1 ${
                     loginRole === key
                       ? 'bg-primary text-primary-foreground shadow-md'
                       : 'bg-muted text-muted-foreground hover:bg-muted/80'
                   }`}
                 >
-                  <Icon className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
+                  <Icon className="h-3 w-3" />
                   <span>{label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-2.5 sm:space-y-4">
             {error && (
               <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm border border-destructive/20">
                 {error}
@@ -204,7 +202,7 @@ const LoginPage = () => {
               />
             </div>
 
-            <Button type="submit" className="w-full h-11 text-sm sm:text-base" disabled={loading}>
+            <Button type="submit" className="w-full h-9 sm:h-11 text-sm" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {loading ? 'Connecting...' : 'Sign In'}
             </Button>

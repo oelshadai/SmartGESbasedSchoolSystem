@@ -163,7 +163,7 @@ const ProfessionalLoginPage = () => {
               {/* Headline */}
               <div className="space-y-4">
                 <h2 className="text-4xl xl:text-5xl font-extrabold leading-[1.15]">
-                  <span className="text-white">Professional School</span>
+                  <span className="text-white">GES School</span>
                   <br />
                   <span className="login-gradient-text">
                     Management System
@@ -214,7 +214,7 @@ const ProfessionalLoginPage = () => {
                 {/* Header */}
                 <div className="text-center mb-6">
                   <h3 className="text-lg sm:text-xl font-extrabold mb-1.5">
-                    <span className="text-white">Professional School </span>
+                    <span className="text-white">GES School </span>
                     <span className="login-gradient-text">Management System</span>
                   </h3>
                   <p className="text-slate-400 text-xs sm:text-sm">Sign in to access your dashboard</p>

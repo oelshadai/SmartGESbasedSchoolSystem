@@ -246,7 +246,7 @@ const ParentPortalSettings = () => {
   };
 
   const unlinkChild = async (linkId: number) => {
-    if (!confirm('Remove this parentâ€“child link?')) return;
+    if (!confirm('Remove this parent–child link?')) return;
     try {
       await secureApiClient.delete('/schools/parent-accounts/unlink_child/', { data: { link_id: linkId } });
       toast.success('Link removed');
@@ -320,7 +320,7 @@ const ParentPortalSettings = () => {
       </div>
 
       {/* ================================================================
-          SECTION 1 â€” Portal Configuration
+          SECTION 1 — Portal Configuration
           ================================================================ */}
       {section === 'settings' && (
         <div className="space-y-5">
@@ -335,7 +335,7 @@ const ParentPortalSettings = () => {
                     <div>
                       <p className="font-semibold text-base">Enable Parent Portal</p>
                       <p className="text-sm text-muted-foreground">
-                        Master switch â€” when off, no parent login is possible
+                        Master switch — when off, no parent login is possible
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -416,14 +416,14 @@ const ParentPortalSettings = () => {
                             value={settings.paystack_public_key}
                             onChange={e => setSettings(s => ({ ...s, paystack_public_key: e.target.value }))}
                           />
-                          <p className="text-xs text-muted-foreground">Visible in the browser â€” safe to expose</p>
+                          <p className="text-xs text-muted-foreground">Visible in the browser — safe to expose</p>
                         </div>
                         <div className="space-y-2">
                           <Label>Paystack Secret Key</Label>
                           <div className="relative">
                             <Input
                               type={showSecret ? 'text' : 'password'}
-                              placeholder={settings.paystack_secret_key_saved ? 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢ (saved)' : 'sk_live_... or sk_test_...'}
+                              placeholder={settings.paystack_secret_key_saved ? '••••••••••••• (saved)' : 'sk_live_... or sk_test_...'}
                               value={newSecretKey}
                               onChange={e => setNewSecretKey(e.target.value)}
                               className="pr-10"
@@ -467,7 +467,7 @@ const ParentPortalSettings = () => {
               <div className="flex justify-end">
                 <Button onClick={saveSettings} disabled={settingsSaving}>
                   {settingsSaving
-                    ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Savingâ€¦</>
+                    ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</>
                     : <><Save className="h-4 w-4 mr-2" />Save Settings</>}
                 </Button>
               </div>
@@ -477,7 +477,7 @@ const ParentPortalSettings = () => {
       )}
 
       {/* ================================================================
-          SECTION 2 â€” Parent Accounts
+          SECTION 2 — Parent Accounts
           ================================================================ */}
       {section === 'accounts' && (
         <div className="space-y-6">
@@ -688,7 +688,7 @@ const ParentPortalSettings = () => {
                             )}
                           </div>
                           <p className="text-sm text-muted-foreground mt-0.5">
-                            {parent.email} {parent.phone_number && `Â· ${parent.phone_number}`}
+                            {parent.email} {parent.phone_number && `· ${parent.phone_number}`}
                           </p>
 
                           {/* Children */}
@@ -701,7 +701,7 @@ const ParentPortalSettings = () => {
                                 <GraduationCap className="h-3 w-3 text-muted-foreground shrink-0" />
                                 <span className="font-medium">{child.student_name}</span>
                                 <span className="text-muted-foreground text-xs">({child.student_id})</span>
-                                {child.class && <span className="text-muted-foreground text-xs">Â· {child.class}</span>}
+                                {child.class && <span className="text-muted-foreground text-xs">· {child.class}</span>}
                                 <span className="text-xs text-blue-600 ml-1">{child.relationship}</span>
                                 {child.is_primary_guardian && <Badge variant="outline" className="text-xs py-0">Primary</Badge>}
                                 <button
@@ -966,13 +966,13 @@ const ParentPortalSettings = () => {
                 ) : (
                   <Alert>
                     <AlertDescription className="text-xs">
-                      This guardian's email already had an account â€” they were just linked to the student. No new password was generated.
+                      This guardian's email already had an account — they were just linked to the student. No new password was generated.
                     </AlertDescription>
                   </Alert>
                 )}
               </div>
               <p className="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded p-2">
-                Save this password now â€” it will not be shown again. The parent should change it after first login.
+                Save this password now — it will not be shown again. The parent should change it after first login.
               </p>
               <Button className="w-full" onClick={() => setGeneratedCreds(null)}>Done</Button>
             </CardContent>
