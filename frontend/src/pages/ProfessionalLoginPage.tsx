@@ -131,19 +131,18 @@ const ProfessionalLoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center px-4 py-6 sm:p-4 relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col overflow-y-auto px-3 py-4 sm:px-4 sm:py-6 relative">
+      {/* Animated background elements — fixed so they don't affect scroll height */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-32 -right-32 w-64 sm:w-80 h-64 sm:h-80 bg-orange-500/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute -bottom-32 -left-32 w-64 sm:w-80 h-64 sm:h-80 bg-orange-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 sm:w-96 h-72 sm:h-96 bg-amber-500/5 rounded-full blur-3xl" />
-        <div className="absolute top-1/4 right-1/4 w-40 h-40 bg-blue-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
 
-      {/* Grid pattern overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px]" />
+      {/* Grid pattern overlay — fixed so it doesn't affect scroll height */}
+      <div className="fixed inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
 
-      <div className="relative w-full max-w-6xl mx-auto">
+      <div className="relative w-full max-w-6xl mx-auto my-auto">
         <div className="grid lg:grid-cols-2 gap-6 lg:gap-12 items-center">
 
           {/* Left side - Branding (desktop only) */}
@@ -198,32 +197,28 @@ const ProfessionalLoginPage = () => {
           {/* Right side - Login Form with animated glow */}
           <div className="relative flex justify-center">
             <div className="login-glow-card w-full max-w-md">
-              <div className="login-glow-card-inner p-5 sm:p-8">
+              <div className="login-glow-card-inner p-3 sm:p-8">
 
-                {/* Mobile logo */}
-                <div className="lg:hidden flex items-center justify-center gap-3 mb-6">
-                  <div className="relative">
-                    <img
-                      src="/EliteTech logo with 3D cube design.png"
-                      alt="EliteTech"
-                      className="h-16 w-16 sm:h-20 sm:w-20 object-contain drop-shadow-[0_0_15px_rgba(249,115,22,0.3)]"
-                    />
+                {/* Mobile: logo + title in one compact row */}
+                <div className="lg:hidden flex items-center gap-2 mb-2 sm:mb-5">
+                  <img
+                    src="/EliteTech logo with 3D cube design.png"
+                    alt="EliteTech"
+                    className="h-8 w-8 sm:h-14 sm:w-14 flex-shrink-0 object-contain drop-shadow-[0_0_12px_rgba(249,115,22,0.35)]"
+                  />
+                  <div>
+                    <h3 className="text-[13px] sm:text-xl font-extrabold leading-tight">
+                      <span className="text-white">GES School </span>
+                      <span className="login-gradient-text">Management</span>
+                    </h3>
+                    <p className="text-slate-400 text-[9px] sm:text-sm">Sign in to access your dashboard</p>
                   </div>
                 </div>
 
-                {/* Header */}
-                <div className="text-center mb-6">
-                  <h3 className="text-lg sm:text-xl font-extrabold mb-1.5">
-                    <span className="text-white">GES School </span>
-                    <span className="login-gradient-text">Management System</span>
-                  </h3>
-                  <p className="text-slate-400 text-xs sm:text-sm">Sign in to access your dashboard</p>
-                </div>
-
                 {/* Role Selection */}
-                <div className="mb-5">
-                  <Label className="text-slate-400 text-xs font-medium mb-2.5 block tracking-wide uppercase">Select Your Role</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="mb-2 sm:mb-5">
+                  <Label className="text-slate-400 text-[9px] sm:text-xs font-medium mb-1 sm:mb-2.5 block tracking-wide uppercase">Select Your Role</Label>
+                  <div className="grid grid-cols-4 gap-1 sm:gap-2">
                     {ROLE_CONFIGS.map((role) => {
                       const RoleIcon = role.icon;
                       const isActive = loginRole === role.key;
@@ -232,15 +227,15 @@ const ProfessionalLoginPage = () => {
                           key={role.key}
                           type="button"
                           onClick={() => handleRoleChange(role.key)}
-                          className={`relative group px-2 py-2.5 sm:py-3 rounded-xl transition-all duration-200 ${
+                          className={`relative group px-1 py-1 sm:py-3 rounded-xl transition-all duration-200 ${
                             isActive
                               ? 'bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg shadow-orange-500/25 scale-[1.02]'
                               : 'bg-slate-800/60 hover:bg-slate-800 border border-slate-700/40 hover:border-slate-600/60'
                           }`}
                         >
-                          <div className="flex flex-col items-center gap-1.5">
-                            <RoleIcon className={`h-4 w-4 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-300'}`} />
-                            <span className={`text-[11px] sm:text-xs font-medium ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-300'}`}>
+                          <div className="flex flex-col items-center gap-0.5 sm:gap-1">
+                            <RoleIcon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-300'}`} />
+                            <span className={`text-[9px] sm:text-[11px] font-medium ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-300'}`}>
                               {role.label}
                             </span>
                           </div>
@@ -248,26 +243,26 @@ const ProfessionalLoginPage = () => {
                       );
                     })}
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-2 text-center">{currentRole.description}</p>
+                  <p className="hidden sm:block text-[10px] sm:text-[11px] text-slate-500 mt-1.5 text-center">{currentRole.description}</p>
                 </div>
 
                 {/* Login Form */}
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-1.5 sm:space-y-4">
                   {error && (
-                    <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-start gap-2.5">
-                      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center mt-0.5">
-                        <span className="text-[10px] font-bold">!</span>
+                    <div className="p-2 sm:p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-start gap-2">
+                      <div className="flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-red-500/20 flex items-center justify-center mt-0.5">
+                        <span className="text-[9px] sm:text-[10px] font-bold">!</span>
                       </div>
-                      <span className="text-xs sm:text-sm leading-relaxed">{error}</span>
+                      <span className="text-[10px] sm:text-sm leading-snug">{error}</span>
                     </div>
                   )}
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="identifier" className="text-slate-300 text-xs sm:text-sm font-medium">
+                  <div>
+                    <Label htmlFor="identifier" className="text-slate-300 text-[10px] sm:text-sm font-medium block mb-0.5">
                       {currentRole.inputType === 'studentId' ? 'Student ID' : 'Email Address'}
                     </Label>
                     <div className="relative">
-                      <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                      <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-500" />
                       <Input
                         id="identifier"
                         type={currentRole.inputType === 'email' ? 'email' : 'text'}
@@ -275,15 +270,28 @@ const ProfessionalLoginPage = () => {
                         value={identifier}
                         onChange={(e) => setIdentifier(e.target.value)}
                         required
-                        className="pl-10 h-11 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl text-sm"
+                        className="pl-9 h-8 sm:h-11 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl text-xs sm:text-sm"
                       />
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="password" className="text-slate-300 text-xs sm:text-sm font-medium">Password</Label>
+                  <div>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <Label htmlFor="password" className="text-slate-300 text-[10px] sm:text-sm font-medium">Password</Label>
+                      {loginRole === 'student' || loginRole === 'parent' ? (
+                        <span className="text-[9px] sm:text-[11px] text-slate-500">Contact admin to reset</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => { setShowForgot(true); setForgotMessage(''); setForgotError(''); }}
+                          className="text-[9px] sm:text-[11px] text-orange-400 hover:text-orange-300 transition-colors"
+                        >
+                          Forgot Password?
+                        </button>
+                      )}
+                    </div>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-500" />
                       <Input
                         id="password"
                         type={showPassword ? 'text' : 'password'}
@@ -291,14 +299,14 @@ const ProfessionalLoginPage = () => {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
-                        className="pl-10 pr-10 h-11 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl text-sm"
+                        className="pl-9 pr-9 h-8 sm:h-11 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl text-xs sm:text-sm"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
                       >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                       </button>
                     </div>
                   </div>
@@ -306,7 +314,7 @@ const ProfessionalLoginPage = () => {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="w-full h-11 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/20 transition-all duration-200 hover:shadow-orange-500/30 text-sm"
+                    className="w-full h-9 sm:h-11 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/20 transition-all duration-200 hover:shadow-orange-500/30 text-xs sm:text-sm"
                   >
                     {loading ? (
                       <>
@@ -320,34 +328,14 @@ const ProfessionalLoginPage = () => {
                       </>
                     )}
                   </Button>
-
-                  <div className="text-right -mt-1">
-                    {loginRole === 'student' || loginRole === 'parent' ? (
-                      <span className="text-[11px] text-slate-500">Forgot password? Contact your school admin.</span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => { setShowForgot(true); setForgotMessage(''); setForgotError(''); }}
-                        className="text-[11px] text-orange-400 hover:text-orange-300 transition-colors"
-                      >
-                        Forgot Password?
-                      </button>
-                    )}
-                  </div>
-
-                  {loading && (
-                    <p className="text-[11px] text-slate-500 text-center animate-pulse">
-                      Establishing secure connection...
-                    </p>
-                  )}
                 </form>
 
                 {/* Divider */}
-                <div className="relative my-5">
+                <div className="relative my-1.5 sm:my-5">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-slate-800/80" />
                   </div>
-                  <div className="relative flex justify-center text-[11px]">
+                  <div className="relative flex justify-center text-[10px]">
                     <span className="bg-[hsl(222_47%_8%)] px-3 text-slate-500">New to the platform?</span>
                   </div>
                 </div>
@@ -357,13 +345,13 @@ const ProfessionalLoginPage = () => {
                   type="button"
                   variant="outline"
                   onClick={() => navigate('/register')}
-                  className="w-full h-11 bg-transparent border-slate-700/40 text-slate-300 hover:bg-slate-800/50 hover:text-white hover:border-slate-600 rounded-xl transition-all duration-200 text-sm"
+                  className="w-full h-7 sm:h-11 bg-transparent border-slate-700/40 text-slate-300 hover:bg-slate-800/50 hover:text-white hover:border-slate-600 rounded-xl transition-all duration-200 text-[10px] sm:text-sm"
                 >
                   Register Your School
                 </Button>
 
                 {/* Footer */}
-                <div className="mt-5 text-center">
+                <div className="mt-1.5 sm:mt-5 text-center hidden sm:block">
                   <p className="text-[10px] text-slate-600">
                     By signing in, you agree to our{' '}
                     <a href="#" className="text-slate-400 hover:text-slate-300 transition-colors">Terms</a>

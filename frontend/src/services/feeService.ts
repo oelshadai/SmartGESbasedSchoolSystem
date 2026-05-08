@@ -114,6 +114,7 @@ export interface FeeCollectionSummary {
   total_outstanding: number;
   total_collected: number;
   total_payment_count: number;
+  non_daily_payment_count: number;
   daily_collected: number;
   daily_expected: number;
   non_daily_collected: number;
@@ -386,6 +387,7 @@ class FeeService {
           total_outstanding: data.total_outstanding ?? 0,
           total_collected: data.total_collected ?? 0,
           total_payment_count: data.total_payment_count ?? 0,
+          non_daily_payment_count: data.non_daily_payment_count ?? 0,
           daily_collected: data.daily_collected ?? 0,
           daily_expected: data.daily_expected ?? 0,
           non_daily_collected: data.non_daily_collected ?? 0,

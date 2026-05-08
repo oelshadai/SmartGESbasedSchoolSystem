@@ -27,6 +27,16 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_PUBLIC_KEY
+        sync: false
+      - key: ARKESEL_API_KEY
+        sync: false
+      - key: ARKESEL_SENDER_NAME
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
 
   # Frontend - React/Vite Static Site
   - type: web

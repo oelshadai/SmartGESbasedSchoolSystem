@@ -78,6 +78,7 @@ const getNavItems = (role: UserRole): NavItem[] => {
       { label: 'Attendance Report', path: '/school/attendance', icon: <Calendar className="h-5 w-5" /> },
       { label: 'Fees', path: '/school/fees', icon: <DollarSign className="h-5 w-5" /> },
       { label: 'Purchase SMS', path: '/school/sms-purchase', icon: <MessageSquare className="h-5 w-5" /> },
+      { label: 'SMS Settings', path: '/school/sms-settings', icon: <MessageSquare className="h-5 w-5" /> },
       { label: 'Staff Permissions', path: '/school/staff-permissions', icon: <ShieldCheck className="h-5 w-5" /> },
       { label: 'Parent Portal', path: '/school/parent-portal', icon: <Globe className="h-5 w-5" /> },
       { label: 'Settings', path: '/school/settings', icon: <Settings className="h-5 w-5" /> },

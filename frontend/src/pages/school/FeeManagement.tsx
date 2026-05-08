@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
 import StatCard from '@/components/shared/StatCard';
@@ -18,7 +19,7 @@ import {
   DollarSign, TrendingUp, AlertCircle, Search, Receipt, Users,
   Loader2, RefreshCw, CheckCircle, XCircle, Settings, Pencil,
   Trash2, Plus, Zap, BarChart3, Filter, Download, CalendarDays, Award,
-  BellRing,
+  BellRing, MessageSquare, ChevronDown, ChevronUp, Send,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
@@ -71,6 +72,7 @@ const PIE_STATUS_COLORS: Record<string, string> = {
 
 const FeeManagement = () => {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('collect');
 
   // ------ Collect tab state ------
@@ -101,6 +103,7 @@ const FeeManagement = () => {
     outstanding: 0,
     collectionRate: 0,
     totalPaymentCount: 0,
+    nonDailyPaymentCount: 0,
     dailyCollected: 0,
     dailyExpected: 0,
     nonDailyCollected: 0,
@@ -126,6 +129,14 @@ const FeeManagement = () => {
   const [recClassFilter, setRecClassFilter] = useState('all');
   const [recFeeTypeFilter, setRecFeeTypeFilter] = useState('all');
   const [recStatusFilter, setRecStatusFilter] = useState('all');
+
+  // ------ SMS Reminders panel state (Records tab) ------
+  const [showSmsPanel, setShowSmsPanel] = useState(false);
+  const [smsMessage, setSmsMessage] = useState('');
+  const [smsSending, setSmsSending] = useState(false);
+  const [smsPreview, setSmsPreview] = useState<{ sent: number; no_phone: number; details: Array<{ student: string; guardian_phone: string | null; total_balance: number; result: string; message_preview?: string }> } | null>(null);
+  const [smsBalance, setSmsBalance] = useState<number | null>(null);
+  const [smsBalanceLoading, setSmsBalanceLoading] = useState(false);
 
   // ------ Payment History filter state ------
   const [pfDateFrom, setPfDateFrom] = useState('');
@@ -292,12 +303,15 @@ const FeeManagement = () => {
       const billed = data.total_billed ?? 0;
       const collected = data.total_collected ?? 0;
       const outstanding = Math.max(0, data.total_outstanding ?? 0);
+      // Use non-daily collected vs term-billed so daily fee payments don't inflate the rate
+      const nonDailyCollected = data.non_daily_collected ?? collected;
       setSummary({
         totalExpected: billed,
         totalCollected: collected,
         outstanding: outstanding,
-        collectionRate: billed > 0 ? (collected / billed) * 100 : 0,
+        collectionRate: billed > 0 ? (nonDailyCollected / billed) * 100 : 0,
         totalPaymentCount: data.total_payment_count ?? 0,
+        nonDailyPaymentCount: data.non_daily_payment_count ?? 0,
         dailyCollected: data.daily_collected ?? 0,
         dailyExpected: data.daily_expected ?? 0,
         nonDailyCollected: data.non_daily_collected ?? 0,
@@ -464,6 +478,87 @@ const FeeManagement = () => {
     }
   };
 
+  const fetchSmsBalance = useCallback(async () => {
+    setSmsBalanceLoading(true);
+    try {
+      const data = await secureApiClient.get<{ sms_balance: number }>('/schools/sms-settings/');
+      setSmsBalance(data?.sms_balance ?? 0);
+    } catch {
+      setSmsBalance(null);
+    } finally {
+      setSmsBalanceLoading(false);
+    }
+  }, []);
+
+  const sendSmsReminders = async (dryRun: boolean) => {
+    setSmsSending(true);
+    if (!dryRun) setSmsPreview(null);
+    try {
+      const statuses = recStatusFilter === 'all'
+        ? ['UNPAID', 'PARTIAL']
+        : [recStatusFilter];
+
+      const payload: Record<string, unknown> = {
+        statuses,
+        dry_run: dryRun,
+      };
+      if (recClassFilter !== 'all') {
+        const cls = classes.find(c => c.level === recClassFilter);
+        if (cls) payload.class_id = cls.id;
+      }
+      if (recFeeTypeFilter !== 'all') payload.fee_type = parseInt(recFeeTypeFilter);
+      if (smsMessage.trim()) payload.message = smsMessage.trim();
+
+      const result = await secureApiClient.post<{
+        dry_run: boolean;
+        sent: number;
+        skipped: number;
+        no_phone: number;
+        failure_reason?: string | null;
+        sms_balance_remaining?: number;
+        details: Array<{ student: string; guardian_phone: string | null; total_balance: number; result: string; message_preview?: string }>;
+      }>('/fees/term-bills/send-fee-reminders/', payload);
+
+      // Always sync displayed balance from what the server reports
+      if (!dryRun && result.sms_balance_remaining !== undefined) {
+        setSmsBalance(result.sms_balance_remaining);
+      }
+
+      if (dryRun) {
+        setSmsPreview(result);
+      } else {
+        if (result.sent > 0) {
+          const parts = [`SMS sent to ${result.sent} parent(s). Credits remaining: ${result.sms_balance_remaining ?? '?'}`];
+          if (result.no_phone > 0) parts.push(`${result.no_phone} skipped (no phone).`);
+          if (result.skipped > 0) parts.push(`${result.skipped} failed to send.`);
+          toast.success(parts.join(' '));
+          setSmsPreview(null);
+          setShowSmsPanel(false);
+        } else if (result.skipped > 0) {
+          const reason = result.failure_reason || 'Check SMS balance and configuration in SMS Settings.';
+          toast.error(`SMS could not be sent — ${reason}`);
+        } else if (result.no_phone > 0) {
+          toast.warning(`No phone numbers found for ${result.no_phone} student(s). Update guardian contact info.`);
+        } else {
+          toast.info('No eligible recipients matched the current filters.');
+        }
+      }
+    } catch (e: any) {
+      const msg = e?.response?.data?.error || e?.message || 'Failed to send SMS reminders';
+      if (msg.toLowerCase().includes('insufficient') || msg.toLowerCase().includes('balance')) {
+        toast.error('Insufficient SMS credits. Purchase more credits to send messages.', {
+          action: { label: 'Buy Credits', onClick: () => navigate('/school/sms-purchase') },
+          duration: 8000,
+        });
+        setSmsBalance(0);
+      } else {
+        toast.error(msg);
+      }
+    } finally {
+      setSmsSending(false);
+    }
+  };
+
   const fetchAnalytics = async () => {
     try {
       setAnalyticsLoading(true);
@@ -499,7 +594,7 @@ const FeeManagement = () => {
       ['Student', 'Student ID', 'Fee Type', 'Amount (GH₵)', 'Method', 'Reference', 'Date', 'Collected By', 'Verified'],
       ...filteredPayments.map(p => [
         p.student_name, p.student_id, p.fee_type_name,
-        p.amount_paid.toFixed(2), p.payment_method,
+        toAmount(p.amount_paid).toFixed(2), p.payment_method,
         p.reference_number || '',
         new Date(p.payment_date).toLocaleDateString(),
         p.collected_by_name, p.is_verified ? 'Yes' : 'No',
@@ -706,12 +801,17 @@ const FeeManagement = () => {
 
   // ----------------------------------------------------------------
 
+  const toAmount = (value: unknown): number => {
+    const n = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(n) ? n : 0;
+  };
+
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('en-GH', {
       style: 'currency',
       currency: 'GHS',
       minimumFractionDigits: 2
-    }).format(amount).replace('GHS', 'GH₵');
+    }).format(toAmount(amount)).replace('GHS', 'GH₵');
   };
 
   const statusColors: Record<string, string> = {
@@ -786,7 +886,7 @@ const FeeManagement = () => {
     { 
       key: 'amount_paid', 
       label: 'Amount', 
-      render: (payment: FeePayment) => <span className="font-medium">{formatCurrency(payment.amount_paid)}</span>
+      render: (payment: FeePayment) => <span className="font-medium">{formatCurrency(toAmount(payment.amount_paid))}</span>
     },
     { 
       key: 'payment_method', 
@@ -840,7 +940,7 @@ const FeeManagement = () => {
     if (pfDateTo && p.payment_date.slice(0, 10) > pfDateTo) return false;
     return true;
   }), [payments, pfFeeType, pfMethod, pfVerified, pfDateFrom, pfDateTo]);
-  const filteredTotal = filteredPayments.reduce((s, p) => s + p.amount_paid, 0);
+  const filteredTotal = filteredPayments.reduce((s, p) => s + toAmount(p.amount_paid), 0);
 
   // --- Records tab filtered & totals ---
   const filteredRecords = useMemo(() => recordsBills.filter(b => {
@@ -859,6 +959,24 @@ const FeeManagement = () => {
     paid: filteredRecords.reduce((s, b) => s + Number(b.amount_paid), 0),
     arrears: filteredRecords.reduce((s, b) => s + Number(b.balance), 0),
   }), [filteredRecords]);
+
+  // --- Group records by fee type ---
+  const groupedRecords = useMemo(() => {
+    const map = new Map<string, { feeTypeId: number; bills: typeof filteredRecords }>();
+    for (const b of filteredRecords) {
+      const key = b.fee_type_name;
+      if (!map.has(key)) map.set(key, { feeTypeId: b.fee_type, bills: [] });
+      map.get(key)!.bills.push(b);
+    }
+    return Array.from(map.entries()).map(([name, { feeTypeId, bills }]) => ({
+      name,
+      feeTypeId,
+      bills,
+      totalBilled: bills.reduce((s, b) => s + Number(b.amount_billed), 0),
+      totalPaid:   bills.reduce((s, b) => s + Number(b.amount_paid), 0),
+      totalArrears: bills.reduce((s, b) => s + Number(b.balance), 0),
+    }));
+  }, [filteredRecords]);
 
   // --- Unique class levels from recordsBills for filter ---
   const recClassLevels = useMemo(() =>
@@ -933,7 +1051,7 @@ const FeeManagement = () => {
               value={formatCurrency(summary.nonDailyCollected)}
               icon={<TrendingUp className="h-5 w-5" />}
               color="text-green-600"
-              trend={`${summary.totalPaymentCount} total transactions`}
+              trend={`${summary.nonDailyPaymentCount} term/other transactions`}
             />
             <StatCard
               label="Term/Other Outstanding"
@@ -1334,6 +1452,163 @@ const FeeManagement = () => {
             </CardContent>
           </Card>
 
+          {/* SMS Reminders Panel */}
+          <Card className={`border-orange-200 ${showSmsPanel ? 'bg-orange-50/50 dark:bg-orange-950/10' : ''}`}>
+            <CardHeader className="py-3 px-4">
+              <button
+                className="flex items-center justify-between w-full"
+                onClick={() => {
+                  const opening = !showSmsPanel;
+                  setShowSmsPanel(v => !v);
+                  setSmsPreview(null);
+                  if (opening) fetchSmsBalance();
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-orange-600" />
+                  <span className="text-sm font-semibold text-orange-700 dark:text-orange-400">Send SMS to Parents</span>
+                  <Badge variant="outline" className="text-xs border-orange-300 text-orange-700">
+                    {filteredRecords.filter(b => b.status !== 'WAIVED').length} parent{filteredRecords.filter(b => b.status !== 'WAIVED').length !== 1 ? 's' : ''} in current filter
+                  </Badge>
+                </div>
+                {showSmsPanel ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </button>
+            </CardHeader>
+
+            {showSmsPanel && (
+              <CardContent className="px-4 pb-4 space-y-4">
+                {/* Credit balance indicator */}
+                {smsBalanceLoading ? (
+                  <div className="h-9 animate-pulse rounded-lg bg-muted" />
+                ) : smsBalance === 0 ? (
+                  <div className="flex items-center justify-between rounded-lg border border-red-300 bg-red-50 dark:bg-red-950/20 px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold text-red-700">0 SMS credits remaining</p>
+                        <p className="text-xs text-red-600">You must purchase credits before sending SMS.</p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="bg-red-600 hover:bg-red-700 text-white shrink-0"
+                      onClick={() => navigate('/school/sms-purchase')}
+                    >
+                      Buy Credits
+                    </Button>
+                  </div>
+                ) : smsBalance !== null ? (
+                  <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 px-3 py-2">
+                    <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <p className="text-sm text-emerald-700">
+                      <span className="font-semibold">{smsBalance} SMS credits</span> available
+                      {filteredRecords.filter(b => b.status !== 'WAIVED').length > 0 && smsBalance < filteredRecords.filter(b => b.status !== 'WAIVED').length && (
+                        <span className="text-orange-600 ml-2">
+                          ⚠ Only enough for {smsBalance} of {filteredRecords.filter(b => b.status !== 'WAIVED').length} recipients —{' '}
+                          <button className="underline" onClick={() => navigate('/school/sms-purchase')}>top up</button>
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                ) : null}
+
+                <p className="text-xs text-muted-foreground">
+                  SMS will be sent to parents matching the <strong>current filters</strong> above (class, fee type, status).
+                  Use <code className="bg-muted px-1 rounded">{'{student}'}</code> and <code className="bg-muted px-1 rounded">{'{balance}'}</code> as placeholders in your message.
+                  Leave the message blank to use the default reminder text.
+                </p>
+
+                {/* Status summary */}
+                <div className="flex flex-wrap gap-2">
+                  {(['UNPAID', 'PARTIAL', 'PAID'] as const).map(s => {
+                    const count = filteredRecords.filter(b => b.status === s).length;
+                    const colors: Record<string, string> = {
+                      UNPAID: 'border-red-300 bg-red-50 text-red-700',
+                      PARTIAL: 'border-yellow-300 bg-yellow-50 text-yellow-700',
+                      PAID: 'border-green-300 bg-green-50 text-green-700',
+                    };
+                    const labels: Record<string, string> = { UNPAID: 'Arrears', PARTIAL: 'Partial', PAID: 'Paid' };
+                    return (
+                      <div key={s} className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${colors[s]}`}>
+                        {labels[s]}: <strong>{count}</strong> student{count !== 1 ? 's' : ''}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Custom message */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Custom Message <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                  <textarea
+                    className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                    rows={3}
+                    value={smsMessage}
+                    onChange={e => setSmsMessage(e.target.value)}
+                    placeholder={`Dear {student}'s guardian, you have an outstanding fee balance of GH₵{balance}. Please settle at the school. Thank you.`}
+                  />
+                  <p className="text-xs text-muted-foreground">{smsMessage.length}/160 chars recommended per SMS segment</p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    size="sm" variant="outline"
+                    onClick={() => sendSmsReminders(true)}
+                    disabled={smsSending || filteredRecords.length === 0}
+                  >
+                    {smsSending && smsPreview === null ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Filter className="h-3.5 w-3.5 mr-1.5" />}
+                    Preview (dry run)
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                    onClick={() => sendSmsReminders(false)}
+                    disabled={smsSending || filteredRecords.filter(b => b.status !== 'WAIVED').length === 0 || smsBalance === 0}
+                    title={smsBalance === 0 ? 'No SMS credits — purchase credits first' : undefined}
+                  >
+                    {smsSending && smsPreview !== null ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
+                    Send SMS
+                  </Button>
+                </div>
+
+                {/* Preview results */}
+                {smsPreview && (
+                  <div className="rounded-lg border bg-background p-3 space-y-3">
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="font-semibold">Preview results:</span>
+                      <span className="text-green-700 font-medium">{smsPreview.sent} would send</span>
+                      <span className="text-muted-foreground">{smsPreview.no_phone} no phone</span>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto space-y-2">
+                      {smsPreview.details.map((d, i) => (
+                        <div key={i} className={`rounded border p-2 text-xs ${d.result === 'would_send' ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                          <div className="flex justify-between mb-1">
+                            <span className="font-medium">{d.student}</span>
+                            <span className={d.guardian_phone ? 'text-green-600' : 'text-red-500'}>
+                              {d.guardian_phone ?? 'No phone'}
+                            </span>
+                          </div>
+                          {d.message_preview && (
+                            <p className="text-muted-foreground italic">"{d.message_preview}"</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <Button
+                      size="sm"
+                      className="bg-orange-600 hover:bg-orange-700 text-white w-full"
+                      onClick={() => sendSmsReminders(false)}
+                      disabled={smsSending || smsPreview.sent === 0 || smsBalance === 0}
+                    >
+                      {smsSending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
+                      Confirm &amp; Send to {smsPreview.sent} parent{smsPreview.sent !== 1 ? 's' : ''}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            )}
+          </Card>
+
           {/* Summary totals row */}
           {filteredRecords.length > 0 && (
             <div className="grid grid-cols-3 gap-3">
@@ -1373,26 +1648,21 @@ const FeeManagement = () => {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  {/* Desktop Table */}
+                  {/* Desktop Table — grouped by fee type */}
                   <div className="hidden sm:block">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-muted/40">
                         <th className="text-left p-3 font-medium text-muted-foreground">Student</th>
                         <th className="text-left p-3 font-medium text-muted-foreground">Class</th>
-                        <th className="text-left p-3 font-medium text-muted-foreground">Fee Type</th>
                         <th className="text-right p-3 font-medium text-muted-foreground">Billed</th>
                         <th className="text-right p-3 font-medium text-muted-foreground">Paid</th>
-                        <th className="text-right p-3 font-medium text-muted-foreground">Arrears</th>
+                        <th className="text-right p-3 font-medium text-muted-foreground">Balance</th>
                         <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {filteredRecords.map(b => {
-                        const arrearsAmount = Number(b.balance);
-                        const paidPct = Number(b.amount_billed) > 0
-                          ? Math.min(100, (Number(b.amount_paid) / Number(b.amount_billed)) * 100)
-                          : 0;
+                      {groupedRecords.map(group => {
                         const statusStyle: Record<string, string> = {
                           PAID: 'bg-green-100 text-green-800 border-green-200',
                           PARTIAL: 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -1400,68 +1670,82 @@ const FeeManagement = () => {
                           WAIVED: 'bg-gray-100 text-gray-700 border-gray-200',
                         };
                         const statusLabel: Record<string, string> = {
-                          PAID: 'Paid',
-                          PARTIAL: 'Partial',
-                          UNPAID: 'Arrears',
-                          WAIVED: 'Waived',
+                          PAID: 'Paid', PARTIAL: 'Partial', UNPAID: 'Arrears', WAIVED: 'Waived',
                         };
                         return (
-                          <tr key={b.id} className="hover:bg-muted/30 transition-colors">
-                            <td className="p-3">
-                              <div className="font-medium">{b.student_name}</div>
-                              <div className="text-xs text-muted-foreground">{b.student_id}</div>
-                            </td>
-                            <td className="p-3">
-                              <Badge variant="outline" className="text-xs">
-                                {b.class_level.replace('_', ' ')}{b.class_section ? ` ${b.class_section}` : ''}
-                              </Badge>
-                            </td>
-                            <td className="p-3">
-                              <span className="font-medium">{b.fee_type_name}</span>
-                              {b.term_name && (
-                                <div className="text-xs text-muted-foreground">{b.term_name}</div>
-                              )}
-                            </td>
-                            <td className="p-3 text-right font-mono font-medium">
-                              {formatCurrency(Number(b.amount_billed))}
-                            </td>
-                            <td className="p-3 text-right">
-                              <div className="font-mono font-medium text-green-600">{formatCurrency(Number(b.amount_paid))}</div>
-                              {Number(b.amount_billed) > 0 && (
-                                <div className="w-full bg-muted rounded-full h-1 mt-1">
-                                  <div
-                                    className={`h-1 rounded-full ${b.status === 'PAID' ? 'bg-green-500' : 'bg-amber-400'}`}
-                                    style={{ width: `${paidPct}%` }}
-                                  />
-                                </div>
-                              )}
-                            </td>
-                            <td className="p-3 text-right font-mono font-medium">
-                              {arrearsAmount > 0 ? (
-                                <span className="text-red-600">{formatCurrency(arrearsAmount)}</span>
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
-                              )}
-                            </td>
-                            <td className="p-3 text-center">
-                              <Badge variant="outline" className={`text-xs ${statusStyle[b.status] ?? ''}`}>
-                                {statusLabel[b.status] ?? b.status}
-                              </Badge>
-                            </td>
-                          </tr>
+                          <>
+                            {/* Fee type group header */}
+                            <tr key={`group-${group.feeTypeId}`} className="bg-muted/60 border-b">
+                              <td colSpan={2} className="px-3 py-2">
+                                <span className="font-semibold text-foreground">{group.name}</span>
+                                <span className="ml-2 text-xs text-muted-foreground">({group.bills.length} student{group.bills.length !== 1 ? 's' : ''})</span>
+                              </td>
+                              <td className="px-3 py-2 text-right font-mono text-xs font-semibold text-foreground">
+                                {formatCurrency(group.totalBilled)}
+                              </td>
+                              <td className="px-3 py-2 text-right font-mono text-xs font-semibold text-green-700">
+                                {formatCurrency(group.totalPaid)}
+                              </td>
+                              <td className="px-3 py-2 text-right font-mono text-xs font-semibold text-red-600">
+                                {group.totalArrears > 0 ? formatCurrency(group.totalArrears) : '—'}
+                              </td>
+                              <td />
+                            </tr>
+                            {/* Student rows */}
+                            {group.bills.map(b => {
+                              const paidPct = Number(b.amount_billed) > 0
+                                ? Math.min(100, (Number(b.amount_paid) / Number(b.amount_billed)) * 100)
+                                : 0;
+                              return (
+                                <tr key={b.id} className="hover:bg-muted/30 transition-colors">
+                                  <td className="p-3 pl-6">
+                                    <div className="font-medium">{b.student_name}</div>
+                                    <div className="text-xs text-muted-foreground">{b.student_id}</div>
+                                  </td>
+                                  <td className="p-3">
+                                    <Badge variant="outline" className="text-xs">
+                                      {b.class_level.replace('_', ' ')}{b.class_section ? ` ${b.class_section}` : ''}
+                                    </Badge>
+                                  </td>
+                                  <td className="p-3 text-right font-mono font-medium">
+                                    {formatCurrency(Number(b.amount_billed))}
+                                  </td>
+                                  <td className="p-3 text-right">
+                                    <div className="font-mono font-medium text-green-600">{formatCurrency(Number(b.amount_paid))}</div>
+                                    {Number(b.amount_billed) > 0 && (
+                                      <div className="w-full bg-muted rounded-full h-1 mt-1">
+                                        <div
+                                          className={`h-1 rounded-full ${b.status === 'PAID' ? 'bg-green-500' : 'bg-amber-400'}`}
+                                          style={{ width: `${paidPct}%` }}
+                                        />
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="p-3 text-right font-mono font-medium">
+                                    {Number(b.balance) > 0 ? (
+                                      <span className="text-red-600">{formatCurrency(Number(b.balance))}</span>
+                                    ) : (
+                                      <span className="text-muted-foreground">—</span>
+                                    )}
+                                  </td>
+                                  <td className="p-3 text-center">
+                                    <Badge variant="outline" className={`text-xs ${statusStyle[b.status] ?? ''}`}>
+                                      {statusLabel[b.status] ?? b.status}
+                                    </Badge>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </>
                         );
                       })}
                     </tbody>
                   </table>
                   </div>
 
-                  {/* Mobile Cards */}
-                  <div className="sm:hidden p-3 space-y-3">
-                    {filteredRecords.map(b => {
-                      const arrearsAmount = Number(b.balance);
-                      const paidPct = Number(b.amount_billed) > 0
-                        ? Math.min(100, (Number(b.amount_paid) / Number(b.amount_billed)) * 100)
-                        : 0;
+                  {/* Mobile Cards — grouped by fee type */}
+                  <div className="sm:hidden p-3 space-y-4">
+                    {groupedRecords.map(group => {
                       const statusStyle: Record<string, string> = {
                         PAID: 'bg-green-100 text-green-800 border-green-200',
                         PARTIAL: 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -1469,52 +1753,65 @@ const FeeManagement = () => {
                         WAIVED: 'bg-gray-100 text-gray-700 border-gray-200',
                       };
                       const statusLabel: Record<string, string> = {
-                        PAID: 'Paid',
-                        PARTIAL: 'Partial',
-                        UNPAID: 'Arrears',
-                        WAIVED: 'Waived',
+                        PAID: 'Paid', PARTIAL: 'Partial', UNPAID: 'Arrears', WAIVED: 'Waived',
                       };
                       return (
-                        <div key={b.id} className="border rounded-xl p-3 space-y-2 bg-card">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="font-medium text-sm truncate">{b.student_name}</p>
-                              <p className="text-xs text-muted-foreground">{b.student_id}</p>
-                            </div>
-                            <Badge variant="outline" className={`text-xs flex-shrink-0 ${statusStyle[b.status] ?? ''}`}>
-                              {statusLabel[b.status] ?? b.status}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs">
-                            <Badge variant="outline" className="text-xs">
-                              {b.class_level.replace('_', ' ')}{b.class_section ? ` ${b.class_section}` : ''}
-                            </Badge>
-                            <span className="font-medium">{b.fee_type_name}</span>
-                          </div>
-                          <div className="grid grid-cols-3 gap-2 text-xs">
-                            <div>
-                              <p className="text-muted-foreground">Billed</p>
-                              <p className="font-mono font-medium">{formatCurrency(Number(b.amount_billed))}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Paid</p>
-                              <p className="font-mono font-medium text-green-600">{formatCurrency(Number(b.amount_paid))}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Arrears</p>
-                              <p className={`font-mono font-medium ${arrearsAmount > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
-                                {arrearsAmount > 0 ? formatCurrency(arrearsAmount) : '—'}
-                              </p>
+                        <div key={`mg-${group.feeTypeId}`} className="space-y-2">
+                          {/* Group header */}
+                          <div className="rounded-lg bg-muted/60 border px-3 py-2 flex items-center justify-between">
+                            <span className="font-semibold text-sm">{group.name}</span>
+                            <div className="text-xs text-muted-foreground text-right">
+                              <span className="text-green-600 font-medium">{formatCurrency(group.totalPaid)}</span>
+                              {group.totalArrears > 0 && (
+                                <span className="ml-2 text-red-600 font-medium">-{formatCurrency(group.totalArrears)}</span>
+                              )}
                             </div>
                           </div>
-                          {Number(b.amount_billed) > 0 && (
-                            <div className="w-full bg-muted rounded-full h-1.5">
-                              <div
-                                className={`h-1.5 rounded-full ${b.status === 'PAID' ? 'bg-green-500' : 'bg-amber-400'}`}
-                                style={{ width: `${paidPct}%` }}
-                              />
-                            </div>
-                          )}
+                          {/* Student cards */}
+                          {group.bills.map(b => {
+                            const paidPct = Number(b.amount_billed) > 0
+                              ? Math.min(100, (Number(b.amount_paid) / Number(b.amount_billed)) * 100)
+                              : 0;
+                            return (
+                              <div key={b.id} className="border rounded-xl p-3 space-y-2 bg-card ml-2">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <p className="font-medium text-sm truncate">{b.student_name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {b.student_id} · {b.class_level.replace('_', ' ')}{b.class_section ? ` ${b.class_section}` : ''}
+                                    </p>
+                                  </div>
+                                  <Badge variant="outline" className={`text-xs flex-shrink-0 ${statusStyle[b.status] ?? ''}`}>
+                                    {statusLabel[b.status] ?? b.status}
+                                  </Badge>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 text-xs">
+                                  <div>
+                                    <p className="text-muted-foreground">Billed</p>
+                                    <p className="font-mono font-medium">{formatCurrency(Number(b.amount_billed))}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground">Paid</p>
+                                    <p className="font-mono font-medium text-green-600">{formatCurrency(Number(b.amount_paid))}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground">Balance</p>
+                                    <p className={`font-mono font-medium ${Number(b.balance) > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+                                      {Number(b.balance) > 0 ? formatCurrency(Number(b.balance)) : '—'}
+                                    </p>
+                                  </div>
+                                </div>
+                                {Number(b.amount_billed) > 0 && (
+                                  <div className="w-full bg-muted rounded-full h-1.5">
+                                    <div
+                                      className={`h-1.5 rounded-full ${b.status === 'PAID' ? 'bg-green-500' : 'bg-amber-400'}`}
+                                      style={{ width: `${paidPct}%` }}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       );
                     })}
@@ -2507,15 +2804,19 @@ const FeeManagement = () => {
                         onClick={async () => {
                           setSendingReminders(true);
                           try {
-                            const result = await secureApiClient.post<{ sent: number; no_phone: number; skipped: number; dry_run: boolean }>(
+                            const result = await secureApiClient.post<{ sent: number; no_phone: number; skipped: number; dry_run: boolean; sms_balance_remaining?: number }>(
                               '/fees/term-bills/send-fee-reminders/',
                               { term: billTermId }
                             );
+                            if (result.sms_balance_remaining !== undefined) setSmsBalance(result.sms_balance_remaining);
                             toast.success(`Fee reminders sent to ${result.sent} student(s).${
                               result.no_phone > 0 ? ` ${result.no_phone} skipped (no phone number on file).` : ''
-                            }`);
+                            }${result.sms_balance_remaining !== undefined ? ` Credits remaining: ${result.sms_balance_remaining}.` : ''}`);
                           } catch (e: any) {
                             const msg = e?.response?.data?.error || e.message || 'Failed to send reminders';
+                            if (msg.toLowerCase().includes('insufficient') || msg.toLowerCase().includes('balance')) {
+                              setSmsBalance(0);
+                            }
                             toast.error(msg);
                           } finally {
                             setSendingReminders(false);

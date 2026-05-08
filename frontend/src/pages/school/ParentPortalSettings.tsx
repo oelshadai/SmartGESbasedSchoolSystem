@@ -7,10 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
-  Save, Users, Shield, Loader2, Trash2, Eye, EyeOff,
-  AlertCircle, RefreshCw, GraduationCap, Link2, UserPlus, Copy, CheckCircle2,
+  Save, Users, Shield, Loader2, Trash2,
+  RefreshCw, GraduationCap, Link2, UserPlus, Copy, CheckCircle2,
   Phone, Mail, X, UserCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -28,8 +27,7 @@ interface PortalSettings {
   parent_can_pay_fees_online: boolean;
   parent_can_message_teachers: boolean;
   parent_support_email: string;
-  paystack_public_key: string;
-  paystack_secret_key_saved: boolean;
+
 }
 
 interface ChildLink {
@@ -80,8 +78,7 @@ const DEFAULT_SETTINGS: PortalSettings = {
   parent_can_pay_fees_online: false,
   parent_can_message_teachers: false,
   parent_support_email: '',
-  paystack_public_key: '',
-  paystack_secret_key_saved: false,
+
 };
 
 // -------------------------------------------------------------------------
@@ -94,8 +91,7 @@ const ParentPortalSettings = () => {
   const [settings, setSettings] = useState<PortalSettings>(DEFAULT_SETTINGS);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [settingsSaving, setSettingsSaving] = useState(false);
-  const [newSecretKey, setNewSecretKey] = useState('');
-  const [showSecret, setShowSecret] = useState(false);
+
 
   // ---- Accounts: students without parent ----
   const [studentsWithout, setStudentsWithout] = useState<StudentWithoutParent[]>([]);
@@ -151,12 +147,8 @@ const ParentPortalSettings = () => {
     setSettingsSaving(true);
     try {
       const payload: Record<string, unknown> = { ...settings };
-      delete payload.paystack_secret_key_saved;
-      if (newSecretKey.trim()) payload.paystack_secret_key = newSecretKey.trim();
       const resp: any = await secureApiClient.patch('/schools/parent-portal-settings/', payload);
-      // Backend returns { message, data: {...settings} }
       setSettings(resp?.data ?? resp);
-      setNewSecretKey('');
       toast.success('Parent portal settings saved');
     } catch (e: any) {
       toast.error(e?.response?.data?.error || e.message || 'Save failed');
@@ -406,49 +398,7 @@ const ParentPortalSettings = () => {
                       />
                     </div>
 
-                    {settings.parent_can_pay_fees_online && (
-                      <>
-                        <Separator />
-                        <div className="space-y-2">
-                          <Label>Paystack Public Key</Label>
-                          <Input
-                            placeholder="pk_live_... or pk_test_..."
-                            value={settings.paystack_public_key}
-                            onChange={e => setSettings(s => ({ ...s, paystack_public_key: e.target.value }))}
-                          />
-                          <p className="text-xs text-muted-foreground">Visible in the browser — safe to expose</p>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Paystack Secret Key</Label>
-                          <div className="relative">
-                            <Input
-                              type={showSecret ? 'text' : 'password'}
-                              placeholder={settings.paystack_secret_key_saved ? '••••••••••••• (saved)' : 'sk_live_... or sk_test_...'}
-                              value={newSecretKey}
-                              onChange={e => setNewSecretKey(e.target.value)}
-                              className="pr-10"
-                            />
-                            <button
-                              type="button"
-                              className="absolute right-3 top-2.5 text-muted-foreground"
-                              onClick={() => setShowSecret(s => !s)}
-                            >
-                              {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </button>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Stored server-side only, never sent to the browser.
-                            {settings.paystack_secret_key_saved && ' Leave blank to keep existing key.'}
-                          </p>
-                          {settings.parent_can_pay_fees_online && !settings.paystack_secret_key_saved && !newSecretKey && (
-                            <Alert variant="destructive" className="py-2">
-                              <AlertCircle className="h-4 w-4" />
-                              <AlertDescription className="text-xs">Secret key required for online payments.</AlertDescription>
-                            </Alert>
-                          )}
-                        </div>
-                      </>
-                    )}
+
 
                     <Separator />
                     <div className="space-y-2">

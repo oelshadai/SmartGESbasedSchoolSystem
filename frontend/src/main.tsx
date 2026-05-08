@@ -9,7 +9,7 @@ requestAnimationFrame(() => {
   const splash = document.getElementById("splash");
   if (splash) {
     splash.classList.add("hidden");
-    setTimeout(() => splash.remove(), 600);
+    setTimeout(() => splash.remove(), 280);
   }
 });
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StatCard from '@/components/shared/StatCard';
-import { Users, GraduationCap, BookOpen, FileText, Loader2, UserCheck, UserX, AlertTriangle, TrendingUp, Bell, X } from 'lucide-react';
+import { Users, GraduationCap, BookOpen, FileText, Loader2, UserCheck, UserX, AlertTriangle, TrendingUp, Bell, X, MessageSquare } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -75,6 +75,7 @@ const SchoolAdminDashboard = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [smsCredits, setSmsCredits] = useState<{ balance: number; enabled: boolean } | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -83,13 +84,18 @@ const SchoolAdminDashboard = () => {
         setLoading(true);
         
         // Fetch profile and dashboard data from API
-        const [profileRes, studentsRes, teachersRes, classesRes, assignmentsRes] = await Promise.all([
+        const [profileRes, studentsRes, teachersRes, classesRes, assignmentsRes, smsRes] = await Promise.all([
           secureApiClient.get('/auth/profile/').catch(() => null),
           secureApiClient.get('/students/').catch(() => ({ results: [], count: 0 })),
           secureApiClient.get('/teachers/').catch(() => ({ results: [], count: 0 })),
           secureApiClient.get('/schools/classes/').catch(() => ({ results: [], count: 0 })),
-          secureApiClient.get('/assignments/').catch(() => ({ results: [], count: 0 }))
+          secureApiClient.get('/assignments/').catch(() => ({ results: [], count: 0 })),
+          secureApiClient.get('/schools/sms-settings/').catch(() => null)
         ]);
+
+        if (smsRes) {
+          setSmsCredits({ balance: smsRes.sms_balance ?? 0, enabled: smsRes.sms_enabled ?? false });
+        }
         
         const students = Array.isArray(studentsRes) ? studentsRes : studentsRes.results || [];
         const teachers = Array.isArray(teachersRes) ? teachersRes : teachersRes.results || [];
@@ -399,6 +405,17 @@ const SchoolAdminDashboard = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((s) => <StatCard key={s.label} {...s} />)}
       </div>
+
+      {smsCredits !== null && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            label="SMS Credits"
+            value={smsCredits.balance.toString()}
+            icon={<MessageSquare className="h-5 w-5" />}
+            color={smsCredits.balance < 20 ? 'text-red-600' : 'text-emerald-600'}
+          />
+        </div>
+      )}
 
       <div>
         <h2 className="text-lg font-semibold text-foreground mb-4">Attendance Overview</h2>
