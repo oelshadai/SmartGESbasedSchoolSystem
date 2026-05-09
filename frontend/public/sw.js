@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'school-report-v3';
+﻿const CACHE_NAME = 'school-report-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -24,7 +24,11 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: network-first for API, cache-first for static assets
+// Fetch strategy:
+// - API: bypass SW
+// - Navigations/documents: network-first with offline fallback
+// - Scripts/styles/workers: always network (avoid stale deploy chunk mismatches)
+// - Images/fonts: network-first with cache fallback
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -36,26 +40,41 @@ self.addEventListener('fetch', (event) => {
   // Skip chrome-extension and other non-http requests
   if (!url.protocol.startsWith('http')) return;
 
+  const isSameOrigin = url.origin === self.location.origin;
+  const destination = request.destination;
+
+  if (request.mode === 'navigate' || destination === 'document') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok && isSameOrigin) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request).then((cached) => cached || caches.match('/')))
+    );
+    return;
+  }
+
+  if (destination === 'script' || destination === 'style' || destination === 'worker') {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   event.respondWith(
     fetch(request)
       .then((response) => {
-        // Cache successful responses for static assets
-        if (response.ok && url.origin === self.location.origin) {
+        // Cache successful responses for non-code static assets
+        if (response.ok && isSameOrigin && (destination === 'image' || destination === 'font')) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         }
         return response;
       })
       .catch(() => {
-        // Only return cached HTML fallback for navigation requests (not JS/CSS modules)
-        return caches.match(request).then((cached) => {
-          if (cached) return cached;
-          // Only fallback to index.html for navigation requests
-          if (request.mode === 'navigate') {
-            return caches.match('/');
-          }
-          return new Response('', { status: 408, statusText: 'Offline' });
-        });
+        return caches.match(request).then((cached) => cached || new Response('', { status: 408, statusText: 'Offline' }));
       })
   );
 });

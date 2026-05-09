@@ -13,13 +13,19 @@ requestAnimationFrame(() => {
   }
 });
 
-// Register service worker for PWA support (production only)
-if ('serviceWorker' in navigator && window.location.hostname !== 'localhost') {
+// Service worker is opt-in to avoid stale cached bundles after deployments.
+// Set VITE_ENABLE_SW=true to enable registration in production.
+const enableServiceWorker =
+  import.meta.env.PROD &&
+  window.location.hostname !== 'localhost' &&
+  import.meta.env.VITE_ENABLE_SW === 'true';
+
+if ('serviceWorker' in navigator && enableServiceWorker) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   });
 } else if ('serviceWorker' in navigator) {
-  // Unregister any existing SW in development to avoid MIME type issues
+  // Always unregister stale SW when disabled to prevent old cached chunks from breaking startup.
   navigator.serviceWorker.getRegistrations().then((registrations) => {
     registrations.forEach((reg) => reg.unregister());
   });

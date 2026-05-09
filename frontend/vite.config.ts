@@ -43,28 +43,6 @@ export default defineConfig(({ mode }) => ({
   build: {
     target: 'esnext',
     chunkSizeWarningLimit: 1000,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          // React core — cached separately, never changes
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          // Large UI library
-          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-select', '@radix-ui/react-tabs',
-                        '@radix-ui/react-switch', '@radix-ui/react-dropdown-menu',
-                        '@radix-ui/react-popover', '@radix-ui/react-tooltip',
-                        '@radix-ui/react-accordion', '@radix-ui/react-alert-dialog',
-                        '@radix-ui/react-checkbox', '@radix-ui/react-collapsible',
-                        '@radix-ui/react-separator', '@radix-ui/react-slot',
-                        '@radix-ui/react-label', '@radix-ui/react-progress',
-                        '@radix-ui/react-scroll-area', '@radix-ui/react-avatar'],
-          // Charts — only loaded on pages that use them
-          'vendor-charts': ['recharts'],
-          // Utility libs (no radix deps to avoid circular)
-          'vendor-utils': ['axios', 'date-fns', 'zustand'],
-          // Sonner uses its own portal — keep separate
-          'vendor-sonner': ['sonner'],
-        },
-      },
-    },
+    // Use Vite/Rollup default chunking to avoid brittle inter-chunk dependency issues.
   },
 }));
