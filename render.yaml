@@ -37,6 +37,14 @@ services:
         sync: false
       - key: FRONTEND_URL
         sync: false
+      - key: SUPERADMIN_EMAIL
+        sync: false
+      - key: SUPERADMIN_PASSWORD
+        sync: false
+      - key: SUPERADMIN_FIRST_NAME
+        sync: false
+      - key: SUPERADMIN_LAST_NAME
+        sync: false
 
   # Frontend - React/Vite Static Site
   - type: web
