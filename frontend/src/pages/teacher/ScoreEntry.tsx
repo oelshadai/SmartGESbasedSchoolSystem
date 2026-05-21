@@ -1005,7 +1005,7 @@ const ScoreEntry = () => {
       {currentTerm && (
         <div className="animated-border-subtle">
           <div className="animated-border-subtle-content">
-            <Card>
+            <Card variant="elevated">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-medium">Published Reports Management</CardTitle>

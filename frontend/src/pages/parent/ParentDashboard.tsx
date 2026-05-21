@@ -167,7 +167,7 @@ const ParentDashboard = () => {
       {/* Aggregate Stats */}
       {!loading && children.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Card className="border-blue-500/20 bg-blue-500/5">
+          <Card variant="elevated" className="border-blue-500/20 bg-blue-500/5">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                 <Users className="h-3.5 w-3.5 text-blue-500" /> Children
@@ -176,7 +176,7 @@ const ParentDashboard = () => {
               <div className="text-xs text-muted-foreground mt-0.5">enrolled</div>
             </CardContent>
           </Card>
-          <Card className="border-emerald-500/20 bg-emerald-500/5">
+          <Card variant="elevated" className="border-emerald-500/20 bg-emerald-500/5">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                 <CalendarCheck className="h-3.5 w-3.5 text-emerald-500" /> Avg Attendance
@@ -185,7 +185,7 @@ const ParentDashboard = () => {
               <div className="text-xs text-muted-foreground mt-0.5">across all children</div>
             </CardContent>
           </Card>
-          <Card className="border-green-500/20 bg-green-500/5">
+          <Card variant="elevated" className="border-green-500/20 bg-green-500/5">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                 <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> Total Fees Paid
@@ -194,7 +194,7 @@ const ParentDashboard = () => {
               <div className="text-xs text-muted-foreground mt-0.5">all children</div>
             </CardContent>
           </Card>
-          <Card className={totalBalance > 0 ? 'border-red-500/20 bg-red-500/5' : 'border-green-500/20 bg-green-500/5'}>
+          <Card variant="elevated" className={totalBalance > 0 ? 'border-red-500/20 bg-red-500/5' : 'border-green-500/20 bg-green-500/5'}>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                 <TrendingDown className={`h-3.5 w-3.5 ${totalBalance > 0 ? 'text-red-500' : 'text-green-500'}`} /> Total Balance
@@ -211,7 +211,7 @@ const ParentDashboard = () => {
           <Loader2 className="h-5 w-5 animate-spin" /> Loading your children's information…
         </div>
       ) : children.length === 0 ? (
-        <Card>
+        <Card variant="elevated">
           <CardContent className="flex flex-col items-center justify-center py-16 gap-3 text-center">
             <GraduationCap className="h-12 w-12 text-muted-foreground/40" />
             <p className="text-muted-foreground">No children linked to your account yet.</p>
@@ -230,7 +230,7 @@ const ParentDashboard = () => {
             const hasBalance = fees && fees.total_balance > 0;
 
             return (
-              <Card key={child.student_id} className="border shadow-sm overflow-hidden">
+              <Card variant="elevated" key={child.student_id} className="border shadow-sm overflow-hidden">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
@@ -387,7 +387,7 @@ const ParentDashboard = () => {
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading announcements…
           </div>
         ) : announcements.length === 0 ? (
-          <Card>
+          <Card variant="elevated">
             <CardContent className="py-8 flex flex-col items-center gap-2 text-center text-muted-foreground">
               <Bell className="h-8 w-8 opacity-20" />
               <p className="text-sm">No announcements yet</p>

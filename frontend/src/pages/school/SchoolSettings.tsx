@@ -175,13 +175,9 @@ const SchoolSettings = () => {
     }
   };
 
-  const getCurrentTermDisplay = () => {
-    if (!settings.current_term || !terms.length) return '';
-    const currentTerm = terms.find(term => term.id === settings.current_term);
-    if (!currentTerm) return '';
-    return currentTerm.name === 'FIRST' ? '1' : 
-           currentTerm.name === 'SECOND' ? '2' : 
-           currentTerm.name === 'THIRD' ? '3' : '';
+  const getCurrentTerm = () => {
+    if (!settings?.current_term || !terms.length) return undefined;
+    return terms.find(term => term.id === settings.current_term);
   };
 
   if (loading) {
@@ -209,7 +205,7 @@ const SchoolSettings = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* School Profile */}
-        <Card>
+        <Card variant="elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <School className="h-5 w-5" />
@@ -351,7 +347,7 @@ const SchoolSettings = () => {
         </Card>
 
         {/* Academic Settings */}
-        <Card>
+        <Card variant="elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BookOpen className="h-5 w-5" />
@@ -370,25 +366,18 @@ const SchoolSettings = () => {
             <div>
               <Label>Current Term</Label>
               <Select 
-                value={getCurrentTermDisplay()} 
-                onValueChange={(value) => {
-                  // Find the term ID based on the selected term name
-                  const selectedTerm = terms.find(term => {
-                    const termNumber = term.name === 'FIRST' ? '1' : 
-                                     term.name === 'SECOND' ? '2' : 
-                                     term.name === 'THIRD' ? '3' : '';
-                    return termNumber === value;
-                  });
-                  updateSetting('current_term', selectedTerm ? selectedTerm.id : null);
-                }}
+                value={settings.current_term?.toString() || ''} 
+                onValueChange={(value) => updateSetting('current_term', value ? parseInt(value, 10) : null)}
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Select current term" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">1st Term</SelectItem>
-                  <SelectItem value="2">2nd Term</SelectItem>
-                  <SelectItem value="3">3rd Term</SelectItem>
+                  {terms.map((term) => (
+                    <SelectItem key={term.id} value={term.id.toString()}>
+                      {term.display_name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -439,7 +428,7 @@ const SchoolSettings = () => {
         </Card>
 
         {/* Report Settings */}
-        <Card>
+        <Card variant="elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
@@ -508,7 +497,7 @@ const SchoolSettings = () => {
         </Card>
 
         {/* Grade Scale */}
-        <Card>
+        <Card variant="elevated">
           <CardHeader>
             <CardTitle>Grade Scale Settings</CardTitle>
           </CardHeader>
@@ -565,7 +554,7 @@ const SchoolSettings = () => {
 
       {/* Term School Days */}
       {terms.length > 0 && (
-        <Card>
+        <Card variant="elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BookOpen className="h-5 w-5" />

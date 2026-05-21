@@ -76,8 +76,9 @@ const SystemSettings = () => {
 
   const fetchTerms = async () => {
     try {
-      const data: Term[] = await secureApiClient.get('/schools/terms/');
-      setTerms(data);
+      const response = await secureApiClient.get('/schools/terms/');
+      const termList: Term[] = Array.isArray(response) ? response : response.results ?? [];
+      setTerms(termList);
     } catch {
       // non-critical
     }

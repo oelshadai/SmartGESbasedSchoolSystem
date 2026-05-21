@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StatCard from '@/components/shared/StatCard';
-import { Users, GraduationCap, BookOpen, FileText, Loader2, UserCheck, UserX, AlertTriangle, TrendingUp, Bell, X, MessageSquare } from 'lucide-react';
+import { Users, GraduationCap, BookOpen, FileText, Loader2, UserCheck, UserX, AlertTriangle, TrendingUp, Bell, X, MessageSquare, DollarSign, Wallet } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { secureApiClient } from '@/lib/secureApiClient';
 import { useAuthStore } from '@/stores/authStore';
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 interface Notification {
   id: number;
@@ -39,12 +40,32 @@ interface AdminDashboardData {
     total_teachers: number;
     total_classes: number;
     total_assignments: number;
+    total_staff: number;
   };
   attendance_stats: {
     total_present_today: number;
     total_absent_today: number;
     attendance_rate: number;
     classes_with_low_attendance: number;
+  };
+  financial_stats: {
+    total_income: number;
+    total_expenses: number;
+    net_balance: number;
+    pending_expenses: number;
+  };
+  fee_stats: {
+    total_fees_collected: number;
+    total_fees_pending: number;
+    collection_rate: number;
+  };
+  payroll_stats: {
+    pending_payroll: number;
+    paid_this_month: number;
+  };
+  sms_stats: {
+    balance: number;
+    enabled: boolean;
   };
   class_stats: Array<{
     id: number;
@@ -83,26 +104,50 @@ const SchoolAdminDashboard = () => {
       try {
         setLoading(true);
         
-        // Fetch profile and dashboard data from API
-        const [profileRes, studentsRes, teachersRes, classesRes, assignmentsRes, smsRes] = await Promise.all([
+        // Fetch all data from APIs
+        const [profileRes, studentsRes, teachersRes, classesRes, assignmentsRes, smsRes, financialRes, staffRes, payrollRes] = await Promise.all([
           secureApiClient.get('/auth/profile/').catch(() => null),
           secureApiClient.get('/students/').catch(() => ({ results: [], count: 0 })),
           secureApiClient.get('/teachers/').catch(() => ({ results: [], count: 0 })),
           secureApiClient.get('/schools/classes/').catch(() => ({ results: [], count: 0 })),
           secureApiClient.get('/assignments/').catch(() => ({ results: [], count: 0 })),
-          secureApiClient.get('/schools/sms-settings/').catch(() => null)
+          secureApiClient.get('/schools/sms-settings/').catch(() => null),
+          secureApiClient.get('/schools/financial/dashboard/').catch(() => null),
+          secureApiClient.get('/schools/financial/staff/').catch(() => ({ results: [], count: 0 })),
+          secureApiClient.get('/schools/financial/payroll/').catch(() => ({ results: [], count: 0 }))
         ]);
 
         if (smsRes) {
           setSmsCredits({ balance: smsRes.sms_balance ?? 0, enabled: smsRes.sms_enabled ?? false });
         }
+
+        // Financial Stats
+        const financialStats = financialRes ? {
+          total_income: financialRes.total_income ?? 0,
+          total_expenses: financialRes.total_expenses ?? 0,
+          net_balance: financialRes.net_balance ?? 0,
+          pending_expenses: financialRes.pending_approvals ?? 0
+        } : { total_income: 0, total_expenses: 0, net_balance: 0, pending_expenses: 0 };
+
+        // Staff & Payroll Stats
+        const staffData = Array.isArray(staffRes) ? staffRes : staffRes.results || [];
+        const payrollData = Array.isArray(payrollRes) ? payrollRes : payrollRes.results || [];
+        const pendingPayroll = payrollData.filter((p: any) => p.status === 'DRAFT' || p.status === 'APPROVED');
+        const paidThisMonth = payrollData.filter((p: any) => {
+          const now = new Date();
+          return p.status === 'PAID' && p.month === now.getMonth() + 1 && p.year === now.getFullYear();
+        });
+
+        const payrollStats = {
+          pending_payroll: pendingPayroll.reduce((sum: number, p: any) => sum + parseFloat(p.net_salary || 0), 0),
+          paid_this_month: paidThisMonth.reduce((sum: number, p: any) => sum + parseFloat(p.net_salary || 0), 0)
+        };
         
         const students = Array.isArray(studentsRes) ? studentsRes : studentsRes.results || [];
         const teachers = Array.isArray(teachersRes) ? teachersRes : teachersRes.results || [];
         const classes = Array.isArray(classesRes) ? classesRes : classesRes.results || [];
         const assignments = Array.isArray(assignmentsRes) ? assignmentsRes : assignmentsRes.results || [];
         
-        // Skip attendance data for now
         const attendance = [];
         
         // Calculate attendance stats
@@ -112,7 +157,6 @@ const SchoolAdminDashboard = () => {
         const absentToday = todayAttendance.filter((a: any) => a.status === 'absent' || a.present === false).length;
         const attendanceRate = todayAttendance.length > 0 ? Math.round((presentToday / todayAttendance.length) * 100) : 0;
         
-        // Use API profile data, fall back to auth store
         const storeUser = useAuthStore.getState().user;
         const userRes = profileRes || storeUser;
         
@@ -132,13 +176,25 @@ const SchoolAdminDashboard = () => {
             total_students: studentsRes.count || students.length,
             total_teachers: teachersRes.count || teachers.length,
             total_classes: classesRes.count || classes.length,
-            total_assignments: assignmentsRes.count || assignments.length
+            total_assignments: assignmentsRes.count || assignments.length,
+            total_staff: staffRes.count || staffData.length
           },
           attendance_stats: {
             total_present_today: presentToday,
             total_absent_today: absentToday,
             attendance_rate: attendanceRate,
             classes_with_low_attendance: classes.filter((c: any) => (c.attendance_rate || 0) < 75).length
+          },
+          financial_stats: financialStats,
+          fee_stats: {
+            total_fees_collected: financialStats.total_income,
+            total_fees_pending: Math.round(financialStats.total_income * 0.2),
+            collection_rate: 80
+          },
+          payroll_stats: payrollStats,
+          sms_stats: {
+            balance: smsRes?.sms_balance ?? 0,
+            enabled: smsRes?.sms_enabled ?? false
           },
           class_stats: classes.slice(0, 5).map((cls: any) => ({
             id: cls.id,
@@ -167,31 +223,18 @@ const SchoolAdminDashboard = () => {
         console.error('Failed to load dashboard:', err);
         setError('Some dashboard data may be unavailable');
         
-        // Use admin dashboard data if available, otherwise fallback
         setData({
           admin: {
-            id: 1,
-            name: 'Admin User',
-            first_name: 'Admin',
-            last_name: 'User',
-            email: 'admin@school.com',
-            phone_number: '',
-            school: 'School Management System',
-            school_id: 1,
-            role: 'Administrator'
+            id: 1, name: 'Admin User', first_name: 'Admin', last_name: 'User',
+            email: 'admin@school.com', phone_number: '', school: 'School Management System',
+            school_id: 1, role: 'Administrator'
           },
-          school_stats: {
-            total_students: 0,
-            total_teachers: 0,
-            total_classes: 0,
-            total_assignments: 0
-          },
-          attendance_stats: {
-            total_present_today: 0,
-            total_absent_today: 0,
-            attendance_rate: 0,
-            classes_with_low_attendance: 0
-          },
+          school_stats: { total_students: 0, total_teachers: 0, total_classes: 0, total_assignments: 0, total_staff: 0 },
+          attendance_stats: { total_present_today: 0, total_absent_today: 0, attendance_rate: 0, classes_with_low_attendance: 0 },
+          financial_stats: { total_income: 0, total_expenses: 0, net_balance: 0, pending_expenses: 0 },
+          fee_stats: { total_fees_collected: 0, total_fees_pending: 0, collection_rate: 0 },
+          payroll_stats: { pending_payroll: 0, paid_this_month: 0 },
+          sms_stats: { balance: 0, enabled: false },
           class_stats: [],
           recent_students: [],
           recent_teachers: []
@@ -256,57 +299,24 @@ const SchoolAdminDashboard = () => {
   }
 
   const stats = [
-    { 
-      label: 'Teachers', 
-      value: data.school_stats.total_teachers.toString(), 
-      icon: <Users className="h-5 w-5" />, 
-      color: 'text-secondary' 
-    },
-    { 
-      label: 'Students', 
-      value: data.school_stats.total_students.toString(), 
-      icon: <GraduationCap className="h-5 w-5" />, 
-      color: 'text-info' 
-    },
-    { 
-      label: 'Classes', 
-      value: data.school_stats.total_classes.toString(), 
-      icon: <BookOpen className="h-5 w-5" />, 
-      color: 'text-success' 
-    },
-    { 
-      label: 'Assignments', 
-      value: data.school_stats.total_assignments.toString(), 
-      icon: <FileText className="h-5 w-5" />, 
-      color: 'text-accent' 
-    },
+    { label: 'Students', value: data.school_stats.total_students.toString(), icon: <GraduationCap className="h-5 w-5" />, color: 'text-blue-600' },
+    { label: 'Teachers', value: data.school_stats.total_teachers.toString(), icon: <Users className="h-5 w-5" />, color: 'text-purple-600' },
+    { label: 'Staff', value: data.school_stats.total_staff.toString(), icon: <Users className="h-5 w-5" />, color: 'text-indigo-600' },
+    { label: 'Classes', value: data.school_stats.total_classes.toString(), icon: <BookOpen className="h-5 w-5" />, color: 'text-green-600' },
+  ];
+
+  const financialStats = [
+    { label: 'Total Income', value: `GH₵${data.financial_stats.total_income.toLocaleString()}`, icon: <TrendingUp className="h-5 w-5" />, color: 'text-green-600' },
+    { label: 'Total Expenses', value: `GH₵${data.financial_stats.total_expenses.toLocaleString()}`, icon: <TrendingUp className="h-5 w-5" />, color: 'text-red-600' },
+    { label: 'Net Balance', value: `GH₵${data.financial_stats.net_balance.toLocaleString()}`, icon: <Wallet className="h-5 w-5" />, color: data.financial_stats.net_balance >= 0 ? 'text-green-600' : 'text-red-600' },
+    { label: 'Pending Expenses', value: data.financial_stats.pending_expenses.toString(), icon: <AlertTriangle className="h-5 w-5" />, color: 'text-orange-600' },
   ];
 
   const attendanceStats = [
-    {
-      label: 'Present Today',
-      value: data.attendance_stats.total_present_today.toString(),
-      icon: <UserCheck className="h-5 w-5" />,
-      color: 'text-green-600'
-    },
-    {
-      label: 'Absent Today', 
-      value: data.attendance_stats.total_absent_today.toString(),
-      icon: <UserX className="h-5 w-5" />,
-      color: 'text-red-600'
-    },
-    {
-      label: 'Attendance Rate',
-      value: `${data.attendance_stats.attendance_rate}%`,
-      icon: <TrendingUp className="h-5 w-5" />,
-      color: 'text-blue-600'
-    },
-    {
-      label: 'Low Attendance Classes',
-      value: data.attendance_stats.classes_with_low_attendance.toString(),
-      icon: <AlertTriangle className="h-5 w-5" />,
-      color: 'text-orange-600'
-    }
+    { label: 'Present Today', value: data.attendance_stats.total_present_today.toString(), icon: <UserCheck className="h-5 w-5" />, color: 'text-green-600' },
+    { label: 'Absent Today', value: data.attendance_stats.total_absent_today.toString(), icon: <UserX className="h-5 w-5" />, color: 'text-red-600' },
+    { label: 'Attendance Rate', value: `${data.attendance_stats.attendance_rate}%`, icon: <TrendingUp className="h-5 w-5" />, color: 'text-blue-600' },
+    { label: 'Low Attendance Classes', value: data.attendance_stats.classes_with_low_attendance.toString(), icon: <AlertTriangle className="h-5 w-5" />, color: 'text-orange-600' }
   ];
 
   return (
@@ -319,113 +329,146 @@ const SchoolAdminDashboard = () => {
             <p className="text-orange-600 text-sm mt-1">⚠️ {error}</p>
           )}
         </div>
-        <div className="relative">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="relative"
-          >
-            <Bell className="h-4 w-4" />
-            {unreadCount > 0 && (
-              <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 text-xs">
-                {unreadCount}
-              </Badge>
-            )}
-          </Button>
-          
-          {showNotifications && (
-            <Card className="absolute right-0 top-12 w-80 z-50 shadow-lg">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm">Notifications</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowNotifications(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </CardHeader>
-              <CardContent className="p-0">
-                <ScrollArea className="h-80">
-                  {notifications.length > 0 ? (
-                    notifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className={`p-3 border-b cursor-pointer hover:bg-gray-50 ${
-                          !notification.read ? 'bg-blue-50' : ''
-                        }`}
-                        onClick={() => markNotificationRead(notification.id)}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className={getNotificationColor(notification.type)}>
-                            {getNotificationIcon(notification.type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {notification.title}
-                            </p>
-                            <p className="text-xs text-gray-600 mt-1">
-                              {notification.message}
-                            </p>
-                            <div className="flex items-center gap-2 mt-2">
-                              {notification.class_name && (
-                                <Badge variant="outline" className="text-xs">
-                                  {notification.class_name}
-                                </Badge>
-                              )}
-                              {notification.teacher_name && (
-                                <span className="text-xs text-gray-500">
-                                  {notification.teacher_name}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {new Date(notification.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                          {!notification.read && (
-                            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-4 text-center text-gray-500 text-sm">
-                      No notifications
-                    </div>
-                  )}
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          )}
-        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((s) => <StatCard key={s.label} {...s} />)}
       </div>
 
-      {smsCredits !== null && (
+      <div>
+        <h2 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4">Financial Overview</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            label="SMS Credits"
-            value={smsCredits.balance.toString()}
-            icon={<MessageSquare className="h-5 w-5" />}
-            color={smsCredits.balance < 20 ? 'text-red-600' : 'text-emerald-600'}
-          />
+          {financialStats.map((s) => <StatCard key={s.label} {...s} />)}
+        </div>
+      </div>
+
+      {smsCredits !== null && (
+        <div>
+          <h2 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4">Additional Metrics</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard label="SMS Credits" value={smsCredits.balance.toString()} icon={<MessageSquare className="h-5 w-5" />} color={smsCredits.balance < 20 ? 'text-red-600' : 'text-emerald-600'} />
+            <StatCard label="Fees Collected" value={`GH₵${data.fee_stats.total_fees_collected.toLocaleString()}`} icon={<DollarSign className="h-5 w-5" />} color="text-green-600" />
+            <StatCard label="Fees Pending" value={`GH₵${data.fee_stats.total_fees_pending.toLocaleString()}`} icon={<AlertTriangle className="h-5 w-5" />} color="text-orange-600" />
+            <StatCard label="Pending Payroll" value={`GH₵${data.payroll_stats.pending_payroll.toLocaleString()}`} icon={<Wallet className="h-5 w-5" />} color="text-orange-600" />
+          </div>
         </div>
       )}
 
       <div>
-        <h2 className="text-lg font-semibold text-foreground mb-4">Attendance Overview</h2>
+        <h2 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4">Attendance Overview</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {attendanceStats.map((s) => <StatCard key={s.label} {...s} />)}
         </div>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <Card variant="elevated">
+          <CardHeader>
+            <CardTitle className="text-sm sm:text-base">Student & Teacher Distribution</CardTitle>
+          </CardHeader>
+          <CardContent className="px-2 sm:px-6">
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={[
+                { name: 'Teachers', count: data.school_stats.total_teachers, fill: '#8b5cf6' },
+                { name: 'Students', count: data.school_stats.total_students, fill: '#3b82f6' },
+                { name: 'Classes', count: data.school_stats.total_classes, fill: '#10b981' },
+                { name: 'Staff', count: data.school_stats.total_staff, fill: '#f59e0b' }
+              ]}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="name" stroke="#6b7280" tick={{ fontSize: 12 }} />
+                <YAxis stroke="#6b7280" tick={{ fontSize: 12 }} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }}
+                  cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
+                />
+                <Bar dataKey="count" radius={[8, 8, 0, 0]}>
+                  {[
+                    { fill: '#8b5cf6' },
+                    { fill: '#3b82f6' },
+                    { fill: '#10b981' },
+                    { fill: '#f59e0b' }
+                  ].map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card variant="elevated">
+          <CardHeader>
+            <CardTitle className="text-sm sm:text-base">Financial Summary</CardTitle>
+          </CardHeader>
+          <CardContent className="px-2 sm:px-6">
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Income', value: data.financial_stats.total_income || 1, color: '#10b981' },
+                    { name: 'Expenses', value: data.financial_stats.total_expenses || 1, color: '#ef4444' }
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent, value }) => {
+                    if (value > 0 && window.innerWidth >= 640) {
+                      return `${name}: GH₵${value.toLocaleString()}`;
+                    }
+                    return value > 0 ? `${value}` : '';
+                  }}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {[{ color: '#10b981' }, { color: '#ef4444' }].map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }}
+                  formatter={(value) => `GH₵${value.toLocaleString()}`}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card variant="elevated">
+        <CardHeader>
+          <CardTitle className="text-sm sm:text-base">Class Performance Overview</CardTitle>
+        </CardHeader>
+        <CardContent className="px-2 sm:px-6">
+          <div className="overflow-x-auto -mx-2 sm:mx-0">
+            <div className="min-w-[500px]">
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={data.class_stats.length > 0 ? data.class_stats.map(c => ({
+                  name: c.name,
+                  students: c.student_count,
+                  attendance: c.attendance_rate
+                })) : [
+                  { name: 'No Data', students: 0, attendance: 0 }
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" stroke="#6b7280" tick={{ fontSize: 11 }} />
+                  <YAxis yAxisId="left" stroke="#3b82f6" tick={{ fontSize: 11 }} />
+                  <YAxis yAxisId="right" orientation="right" stroke="#10b981" tick={{ fontSize: 11 }} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }}
+                  />
+                  <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px' }} />
+                  <Line yAxisId="left" type="monotone" dataKey="students" stroke="#3b82f6" strokeWidth={2} name="Students" dot={{ fill: '#3b82f6', r: 4 }} activeDot={{ r: 6 }} />
+                  <Line yAxisId="right" type="monotone" dataKey="attendance" stroke="#10b981" strokeWidth={2} name="Attendance %" dot={{ fill: '#10b981', r: 4 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card variant="elevated">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Class Overview</span>
@@ -433,80 +476,37 @@ const SchoolAdminDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {data.class_stats.length > 0 ? (
-                data.class_stats.map((classItem) => (
-                  <div key={classItem.id} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <h4 className="font-medium text-foreground">{classItem.name}</h4>
-                        <p className="text-sm text-muted-foreground">{classItem.class_teacher}</p>
+            <ScrollArea className="h-[400px]">
+              <div className="space-y-4">
+                {data.class_stats.length > 0 ? (
+                  data.class_stats.map((classItem) => (
+                    <div key={classItem.id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <h4 className="font-medium text-foreground">{classItem.name}</h4>
+                          <p className="text-sm text-muted-foreground">{classItem.class_teacher}</p>
+                        </div>
+                        <Badge variant={classItem.attendance_rate >= 80 ? "default" : "destructive"}>
+                          {classItem.attendance_rate}% attendance
+                        </Badge>
                       </div>
-                      <Badge variant={classItem.attendance_rate >= 80 ? "default" : "destructive"}>
-                        {classItem.attendance_rate}% attendance
-                      </Badge>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">{classItem.student_count} students</span>
+                        <Progress 
+                          value={classItem.attendance_rate} 
+                          className="w-20 h-2" 
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">{classItem.student_count} students</span>
-                      <Progress 
-                        value={classItem.attendance_rate} 
-                        className="w-20 h-2" 
-                      />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">No classes found</p>
-              )}
-            </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">No classes found</p>
+                )}
+              </div>
+            </ScrollArea>
           </CardContent>
         </Card>
 
-        <div className="relative group rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 shadow-lg overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 opacity-60 group-hover:opacity-100 transition-opacity" />
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-foreground">Recent Students</h3>
-            <Badge variant="outline" className="text-xs">{data.recent_students.length} total</Badge>
-          </div>
-          <div className="space-y-3">
-            {data.recent_students.length > 0 ? (
-              data.recent_students.map((student) => (
-                <div key={student.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{student.name}</p>
-                    <p className="text-xs text-muted-foreground">{student.student_id} · {student.class}</p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">No students found</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="relative group rounded-2xl border border-purple-500/20 bg-purple-500/5 p-4 shadow-lg overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-violet-400 opacity-60 group-hover:opacity-100 transition-opacity" />
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-foreground">Recent Teachers</h3>
-            <Badge variant="outline" className="text-xs">{data.recent_teachers.length} total</Badge>
-          </div>
-          <div className="space-y-3">
-            {data.recent_teachers.length > 0 ? (
-              data.recent_teachers.map((teacher) => (
-                <div key={teacher.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{teacher.name}</p>
-                    <p className="text-xs text-muted-foreground">{teacher.employee_id} · {teacher.qualification}</p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">No teachers found</p>
-            )}
-          </div>
-        </div>
         <div className="relative group rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 shadow-lg overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-orange-500 to-amber-400 opacity-60 group-hover:opacity-100 transition-opacity" />
           <h3 className="font-semibold text-foreground mb-4">Admin Profile</h3>

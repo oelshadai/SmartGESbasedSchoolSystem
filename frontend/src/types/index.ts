@@ -19,6 +19,7 @@ export interface User {
     name: string;
   };
   children?: ChildInfo[];
+  can_manage_finances?: boolean;
 }
 
 export interface School {

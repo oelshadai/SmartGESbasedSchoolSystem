@@ -10,6 +10,7 @@ export interface StaffPermission {
   collect_fee_type_ids: number[];
   can_cover_attendance: boolean;
   cover_class_ids: number[];
+  can_manage_finances: boolean;
   created_at: string;
   updated_at: string;
 }

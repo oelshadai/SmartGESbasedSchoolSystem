@@ -1018,7 +1018,7 @@ const FeeManagement = () => {
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i}>
+            <Card variant="elevated" key={i}>
               <CardContent className="p-6">
                 <Skeleton className="h-4 w-20 mb-2" />
                 <Skeleton className="h-8 w-24 mb-1" />
@@ -1067,16 +1067,22 @@ const FeeManagement = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="collect">Collect Fees</TabsTrigger>
-          <TabsTrigger value="records">Fee Records</TabsTrigger>
-          <TabsTrigger value="payments">Payment History</TabsTrigger>
-          <TabsTrigger value="analytics"><BarChart3 className="h-3.5 w-3.5 mr-1 inline" />Analytics</TabsTrigger>
-          <TabsTrigger value="setup"><Settings className="h-4 w-4 mr-1 inline" />Setup</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 gap-1">
+          <TabsTrigger value="collect" className="text-xs sm:text-sm">Collect</TabsTrigger>
+          <TabsTrigger value="records" className="text-xs sm:text-sm">Records</TabsTrigger>
+          <TabsTrigger value="payments" className="text-xs sm:text-sm">Payments</TabsTrigger>
+          <TabsTrigger value="analytics" className="text-xs sm:text-sm">
+            <BarChart3 className="h-3 w-3 sm:h-3.5 sm:w-3.5 sm:mr-1" />
+            <span className="hidden sm:inline">Analytics</span>
+          </TabsTrigger>
+          <TabsTrigger value="setup" className="text-xs sm:text-sm">
+            <Settings className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Setup</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="collect" className="space-y-4">
-          <Card>
+          <Card variant="elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
@@ -1380,7 +1386,7 @@ const FeeManagement = () => {
 
         <TabsContent value="records" className="space-y-4">
           {/* Filter / search bar */}
-          <Card>
+          <Card variant="elevated">
             <CardContent className="p-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                 <div className="space-y-1 md:col-span-2">
@@ -1453,7 +1459,7 @@ const FeeManagement = () => {
           </Card>
 
           {/* SMS Reminders Panel */}
-          <Card className={`border-orange-200 ${showSmsPanel ? 'bg-orange-50/50 dark:bg-orange-950/10' : ''}`}>
+          <Card variant="elevated" className={`border-orange-200 ${showSmsPanel ? 'bg-orange-50/50 dark:bg-orange-950/10' : ''}`}>
             <CardHeader className="py-3 px-4">
               <button
                 className="flex items-center justify-between w-full"
@@ -1628,7 +1634,7 @@ const FeeManagement = () => {
           )}
 
           {/* Main table */}
-          <Card>
+          <Card variant="elevated">
             <CardContent className="p-0">
               {recordsBillsLoading ? (
                 <div className="p-6 space-y-3">
@@ -1828,7 +1834,7 @@ const FeeManagement = () => {
 
         <TabsContent value="payments" className="space-y-4">
           {/* Filter bar */}
-          <Card>
+          <Card variant="elevated">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Filter className="h-4 w-4 text-muted-foreground" />
@@ -1902,7 +1908,7 @@ const FeeManagement = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card variant="elevated">
             <CardContent className="pt-4">
               {loading ? (
                 <div className="space-y-4">
@@ -1931,19 +1937,23 @@ const FeeManagement = () => {
             <Button
               variant={analyticsSubTab === 'overview' ? 'default' : 'outline'}
               size="sm"
+              className="flex-1 sm:flex-none text-xs sm:text-sm"
               onClick={() => setAnalyticsSubTab('overview')}
             >
-              <BarChart3 className="h-4 w-4 mr-1.5" /> Overview
+              <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Overview</span>
             </Button>
             <Button
               variant={analyticsSubTab === 'by_class' ? 'default' : 'outline'}
               size="sm"
+              className="flex-1 sm:flex-none text-xs sm:text-sm"
               onClick={() => {
                 setAnalyticsSubTab('by_class');
                 if (byClassData.length === 0) fetchByClassData();
               }}
             >
-              <Users className="h-4 w-4 mr-1.5" /> By Class
+              <Users className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">By Class</span>
             </Button>
           </div>
 
@@ -1968,7 +1978,7 @@ const FeeManagement = () => {
                   ))}
                 </div>
               ) : byClassData.length === 0 ? (
-                <Card>
+                <Card variant="elevated">
                   <CardContent className="p-8 text-center text-muted-foreground">
                     No fee collection data yet. Payments will appear here once fees are collected.
                   </CardContent>
@@ -1982,7 +1992,7 @@ const FeeManagement = () => {
                       { label: 'Total Term/Other Collected', value: byClassData.reduce((s, c) => s + c.term_collected, 0), color: 'text-green-600' },
                       { label: 'Grand Total', value: byClassData.reduce((s, c) => s + c.total_collected, 0), color: 'text-purple-600' },
                     ].map(item => (
-                      <Card key={item.label}>
+                      <Card variant="elevated" key={item.label}>
                         <CardContent className="p-3">
                           <div className="text-xs text-muted-foreground mb-1">{item.label}</div>
                           <div className={`text-lg font-bold ${item.color}`}>{formatCurrency(item.value)}</div>
@@ -1992,7 +2002,7 @@ const FeeManagement = () => {
                   </div>
 
                   {/* Stacked bar chart */}
-                  <Card>
+                  <Card variant="elevated">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base">Collection by Class</CardTitle>
                     </CardHeader>
@@ -2023,7 +2033,7 @@ const FeeManagement = () => {
                   </Card>
 
                   {/* Detail table */}
-                  <Card>
+                  <Card variant="elevated">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base">Breakdown Table</CardTitle>
                     </CardHeader>
@@ -2097,7 +2107,7 @@ const FeeManagement = () => {
           {analyticsSubTab === 'overview' && (<>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card>
+            <Card variant="elevated">
               <CardContent className="p-4">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                   <CalendarDays className="h-3.5 w-3.5" /> Today
@@ -2110,7 +2120,7 @@ const FeeManagement = () => {
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card variant="elevated">
               <CardContent className="p-4">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                   <TrendingUp className="h-3.5 w-3.5" /> This Week
@@ -2123,7 +2133,7 @@ const FeeManagement = () => {
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card variant="elevated">
               <CardContent className="p-4">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                   <Receipt className="h-3.5 w-3.5" /> Avg per Payment
@@ -2134,7 +2144,7 @@ const FeeManagement = () => {
                 <div className="text-xs text-muted-foreground mt-0.5">{payments.length} total payments</div>
               </CardContent>
             </Card>
-            <Card>
+            <Card variant="elevated">
               <CardContent className="p-4">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                   <BarChart3 className="h-3.5 w-3.5" /> Collection Rate
@@ -2150,7 +2160,7 @@ const FeeManagement = () => {
           {/* Charts row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Collection by Fee Type */}
-            <Card>
+            <Card variant="elevated">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <DollarSign className="h-4 w-4 text-blue-500" /> Collection by Fee Type
@@ -2178,7 +2188,7 @@ const FeeManagement = () => {
             </Card>
 
             {/* Collection by Collector */}
-            <Card>
+            <Card variant="elevated">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Users className="h-4 w-4 text-emerald-500" /> Collection by Staff
@@ -2216,7 +2226,7 @@ const FeeManagement = () => {
           {/* Status pie + Top collectors leaderboard */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Payment Status Distribution */}
-            <Card>
+            <Card variant="elevated">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 text-amber-500" /> Student Payment Status
@@ -2261,7 +2271,7 @@ const FeeManagement = () => {
             </Card>
 
             {/* Top Collectors Leaderboard */}
-            <Card>
+            <Card variant="elevated">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Award className="h-4 w-4 text-yellow-500" /> Top Collectors
@@ -2319,11 +2329,12 @@ const FeeManagement = () => {
                 key={sec}
                 variant={setupSection === sec ? 'default' : 'outline'}
                 size="sm"
+                className="text-xs sm:text-sm flex-1 sm:flex-none"
                 onClick={() => setSetupSection(sec)}
               >
-                {sec === 'types' && 'Fee Types'}
-                {sec === 'structures' && 'Fee Structures (Amounts)'}
-                {sec === 'bills' && 'Generate Term Bills'}
+                {sec === 'types' && <><span className="hidden sm:inline">Fee Types</span><span className="sm:hidden">Types</span></>}
+                {sec === 'structures' && <><span className="hidden sm:inline">Fee Structures</span><span className="sm:hidden">Amounts</span></>}
+                {sec === 'bills' && <><span className="hidden sm:inline">Generate Bills</span><span className="sm:hidden">Bills</span></>}
               </Button>
             ))}
           </div>
@@ -2345,7 +2356,7 @@ const FeeManagement = () => {
 
               {/* Add / Edit form */}
               {ftShowForm && (
-                <Card className="border-primary/40">
+                <Card variant="elevated" className="border-primary/40">
                   <CardHeader>
                     <CardTitle className="text-base">
                       {editingFeeType ? `Edit: ${editingFeeType.name}` : 'New Fee Type'}
@@ -2466,14 +2477,14 @@ const FeeManagement = () => {
               {/* List */}
               <div className="space-y-2">
                 {feeTypes.length === 0 && (
-                  <Card>
+                  <Card variant="elevated">
                     <CardContent className="p-6 text-center text-muted-foreground">
                       No fee types yet. Click "Add Fee Type" to get started.
                     </CardContent>
                   </Card>
                 )}
                 {feeTypes.filter(ft => !ft.parent_fee_type).map(ft => (
-                  <Card key={ft.id} className={!ft.is_active ? 'opacity-50' : ''}>
+                  <Card variant="elevated" key={ft.id} className={!ft.is_active ? 'opacity-50' : ''}>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
@@ -2575,7 +2586,7 @@ const FeeManagement = () => {
               </div>
 
               {!structureFeeTypeId && (
-                <Card>
+                <Card variant="elevated">
                   <CardContent className="p-6 text-center text-muted-foreground">
                     Select a fee type to manage its class-level amounts.
                   </CardContent>
@@ -2583,7 +2594,7 @@ const FeeManagement = () => {
               )}
 
               {structureFeeTypeId && stShowForm && (
-                <Card className="border-primary/40">
+                <Card variant="elevated" className="border-primary/40">
                   <CardHeader>
                     <CardTitle className="text-base">
                       {editingStructure ? `Edit: ${editingStructure.level}` : 'New Class Level Amount'}
@@ -2644,7 +2655,7 @@ const FeeManagement = () => {
               {structuresLoading ? (
                 <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
               ) : structures.length === 0 && structureFeeTypeId ? (
-                <Card>
+                <Card variant="elevated">
                   <CardContent className="p-6 text-center text-muted-foreground">
                     No amounts set for this fee type yet. Add class level amounts above.
                   </CardContent>
@@ -2659,7 +2670,7 @@ const FeeManagement = () => {
                       return acc;
                     }, {} as Record<string, FeeStructure[]>)
                   ).map(([level, tiers]) => (
-                    <Card key={level} className="border-border">
+                    <Card variant="elevated" key={level} className="border-border">
                       <CardContent className="p-0">
                         {/* Level header */}
                         <div className="flex items-center justify-between px-4 py-3 bg-muted/30 border-b border-border rounded-t-lg">
@@ -2733,7 +2744,7 @@ const FeeManagement = () => {
                 </p>
               </div>
 
-              <Card className="border-primary/30">
+              <Card variant="elevated" className="border-primary/30">
                 <CardContent className="p-5 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
@@ -2836,7 +2847,7 @@ const FeeManagement = () => {
                   {termBillsLoading ? (
                     <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
                   ) : termBills.length === 0 ? (
-                    <Card>
+                    <Card variant="elevated">
                       <CardContent className="p-6 text-center text-muted-foreground">
                         No bills generated yet for this term. Click "Generate Fee Bills" above.
                       </CardContent>

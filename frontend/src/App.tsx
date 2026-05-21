@@ -59,6 +59,12 @@ const ScoreEntryForm             = lazy(() => import("./pages/school/ScoreEntryF
 const MultiSubjectScoreEntry     = lazy(() => import("./pages/school/MultiSubjectScoreEntry"));
 const SmsPurchase                = lazy(() => import("./pages/school/SmsPurchase"));
 const SmsSettings                = lazy(() => import("./pages/school/SmsSettings"));
+const FinancialDashboard         = lazy(() => import("./pages/school/FinancialDashboard"));
+const StaffManagement            = lazy(() => import("./pages/school/StaffManagement"));
+const PayrollManagement          = lazy(() => import("./pages/school/PayrollManagement"));
+const ExpenseManagement          = lazy(() => import("./pages/school/ExpenseManagement"));
+const IncomeTracking             = lazy(() => import("./pages/school/IncomeTracking"));
+const BudgetPlanning             = lazy(() => import("./pages/school/BudgetPlanning"));
 
 // Teacher
 const TeacherAssignments         = lazy(() => import("./pages/teacher/TeacherAssignments"));
@@ -207,6 +213,12 @@ const App = () => {
             <Route path="/school/messages" element={<SchoolAdminMessages />} />
             <Route path="/school/sms-purchase" element={<SmsPurchase />} />
             <Route path="/school/sms-settings" element={<SmsSettings />} />
+            <Route path="/school/financial" element={<FinancialDashboard />} />
+            <Route path="/school/financial/staff" element={<StaffManagement />} />
+            <Route path="/school/financial/payroll" element={<PayrollManagement />} />
+            <Route path="/school/financial/expenses" element={<ExpenseManagement />} />
+            <Route path="/school/financial/income" element={<IncomeTracking />} />
+            <Route path="/school/financial/budget" element={<BudgetPlanning />} />
           </Route>
 
           {/* Teacher */}

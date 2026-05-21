@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore, getRoleDashboardPath } from '@/stores/authStore';
 import { authService } from '@/services/authService';
@@ -53,8 +53,14 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
+
+  // Prevent flash of unstyled content
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const currentRole = ROLE_CONFIGS.find(role => role.key === loginRole)!;
 
@@ -93,6 +99,14 @@ const LoginPage = () => {
     setIdentifier('');
     setError('');
   };
+
+  if (!mounted) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen relative overflow-hidden">

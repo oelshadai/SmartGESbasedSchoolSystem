@@ -22,7 +22,7 @@ interface ClassItem {
   level: string;
 }
 
-type Tab = 'fee' | 'cover';
+type Tab = 'fee' | 'cover' | 'finance';
 
 const StaffPermissions = () => {
   const { user } = useAuthStore();
@@ -42,10 +42,12 @@ const StaffPermissions = () => {
   // Add form state
   const [addingFee, setAddingFee] = useState(false);
   const [addingCover, setAddingCover] = useState(false);
+  const [addingFinance, setAddingFinance] = useState(false);
   const [newFeeTeacherId, setNewFeeTeacherId] = useState('');
   const [newFeeTypeIds, setNewFeeTypeIds] = useState<number[]>([]);
   const [newCoverTeacherId, setNewCoverTeacherId] = useState('');
   const [newCoverClassIds, setNewCoverClassIds] = useState<number[]>([]);
+  const [newFinanceTeacherId, setNewFinanceTeacherId] = useState('');
   const [saving, setSaving] = useState(false);
 
   // Expanded rows
@@ -107,6 +109,50 @@ const StaffPermissions = () => {
 
   const toggleClassSelection = (id: number, arr: number[], setter: (v: number[]) => void) => {
     setter(arr.includes(id) ? arr.filter(x => x !== id) : [...arr, id]);
+  };
+
+  const toggleFinancialManagement = async (perm: StaffPermission, enabled: boolean) => {
+    setSaving(true);
+    try {
+      await staffPermissionService.update(perm.id, { can_manage_finances: enabled });
+      setPermissions(prev => prev.map(p => p.id === perm.id ? { ...p, can_manage_finances: enabled } : p));
+      toast.success(`Financial manager access ${enabled ? 'enabled' : 'disabled'} for ${perm.teacher_name}`);
+    } catch {
+      toast.error('Failed to update financial permission');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const assignFinancialManager = async () => {
+    if (!newFinanceTeacherId) { toast.error('Select a teacher'); return; }
+    setSaving(true);
+    try {
+      const existing = permissions.find(p => String(p.teacher) === newFinanceTeacherId);
+      if (existing) {
+        await staffPermissionService.update(existing.id, {
+          can_manage_finances: true,
+        });
+      } else {
+        await staffPermissionService.create({
+          teacher: parseInt(newFinanceTeacherId),
+          can_collect_fees: false,
+          fee_collection_enabled: false,
+          collect_fee_type_ids: [],
+          can_cover_attendance: false,
+          cover_class_ids: [],
+          can_manage_finances: true,
+        });
+      }
+      toast.success('Financial manager assigned');
+      setAddingFinance(false);
+      setNewFinanceTeacherId('');
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to assign financial manager');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const assignFeeCollector = async () => {
@@ -188,6 +234,7 @@ const StaffPermissions = () => {
 
   const feePerms = permissions.filter(p => p.can_collect_fees);
   const coverPerms = permissions.filter(p => p.can_cover_attendance);
+  const financePerms = permissions.filter(p => p.can_manage_finances);
 
   if (loading) {
     return (
@@ -212,7 +259,7 @@ const StaffPermissions = () => {
 
       {/* Tab nav */}
       <div className="flex gap-2">
-        {([['fee', 'Fee Collectors', <DollarSign className="h-4 w-4" />], ['cover', 'Attendance Cover', <CalendarDays className="h-4 w-4" />]] as const).map(([key, label, icon]) => (
+        {([['fee', 'Fee Collectors', <DollarSign className="h-4 w-4" />], ['cover', 'Attendance Cover', <CalendarDays className="h-4 w-4" />], ['finance', 'Financial Manager', <DollarSign className="h-4 w-4" />]] as const).map(([key, label, icon]) => (
           <button
             key={key}
             type="button"
@@ -364,6 +411,86 @@ const StaffPermissions = () => {
       )}
 
       {/* ── ATTENDANCE COVER TAB ── */}
+      {activeTab === 'finance' && (
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                Financial Managers ({financePerms.length})
+              </CardTitle>
+              <Button size="sm" onClick={() => setAddingFinance(v => !v)}>
+                <Plus className="h-4 w-4 mr-1" /> Assign Bursar
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 flex gap-2">
+              <DollarSign className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>Grant a teacher bursar access so they can manage school financial operations. School admins retain full control.</span>
+            </div>
+
+            {addingFinance && (
+              <div className="rounded-lg border border-primary/30 bg-muted/20 p-4 space-y-3">
+                <p className="text-sm font-medium">Assign Financial Manager</p>
+                <div className="space-y-1">
+                  <Label>Teacher</Label>
+                  <Select value={newFinanceTeacherId} onValueChange={setNewFinanceTeacherId}>
+                    <SelectTrigger><SelectValue placeholder="Select teacher" /></SelectTrigger>
+                    <SelectContent>
+                      {teachers.map(t => (
+                        <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={assignFinancialManager} disabled={saving}>
+                    {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                    Assign
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setAddingFinance(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+
+            {financePerms.length === 0 && !addingFinance && (
+              <p className="text-sm text-muted-foreground text-center py-4">No bursar / financial manager assigned yet.</p>
+            )}
+
+            {financePerms.map(perm => (
+              <div key={perm.id} className="rounded-lg border p-3 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-sm">{perm.teacher_name}</p>
+                    <p className="text-xs text-muted-foreground">{perm.teacher_email}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Switch
+                      checked={perm.can_manage_finances}
+                      onCheckedChange={(v) => toggleFinancialManagement(perm, v)}
+                      disabled={saving}
+                    />
+                    <Badge variant={perm.can_manage_finances ? 'default' : 'secondary'} className="text-xs">
+                      {perm.can_manage_finances ? 'Active' : 'Off'}
+                    </Badge>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                      onClick={() => removePermission(perm)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">This teacher can manage school financial flows as bursar.</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {activeTab === 'cover' && (
         <Card>
           <CardHeader className="pb-2">

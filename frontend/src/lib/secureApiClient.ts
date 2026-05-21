@@ -282,9 +282,9 @@ class SecureApiClient {
   }
 
   async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    // Login endpoints get automatic retry for cold-start resilience
-    const isLoginEndpoint = url.includes('/auth/') && url.includes('login');
-    if (isLoginEndpoint) {
+    // Login and registration endpoints get automatic retry for cold-start resilience
+    const isAuthEndpoint = url.includes('/auth/') && (url.includes('login') || url.includes('register'));
+    if (isAuthEndpoint) {
       const response = await this.withRetry(() => this.client.post<T>(url, data, config));
       return response.data;
     }

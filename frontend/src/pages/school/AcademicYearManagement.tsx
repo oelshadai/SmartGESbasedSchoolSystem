@@ -63,8 +63,10 @@ const AcademicYearManagement = () => {
         secureApiClient.get('/schools/academic-years/'),
         secureApiClient.get('/schools/terms/'),
       ]);
-      setYears(yRes.data?.results ?? yRes.data ?? []);
-      setTerms(tRes.data?.results ?? tRes.data ?? []);
+      const yearList: AcademicYear[] = Array.isArray(yRes) ? yRes : yRes.results ?? [];
+      const termList: Term[] = Array.isArray(tRes) ? tRes : tRes.results ?? [];
+      setYears(yearList);
+      setTerms(termList);
     } catch {
       toast.error('Failed to load academic data');
     } finally {
@@ -204,7 +206,7 @@ const AcademicYearManagement = () => {
       ) : (
         <>
           {/* Academic Years */}
-          <Card>
+          <Card variant="elevated">
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Calendar className="h-4 w-4" /> Academic Years
@@ -255,7 +257,7 @@ const AcademicYearManagement = () => {
           </Card>
 
           {/* Terms */}
-          <Card>
+          <Card variant="elevated">
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <BookOpen className="h-4 w-4" /> Terms / Semesters

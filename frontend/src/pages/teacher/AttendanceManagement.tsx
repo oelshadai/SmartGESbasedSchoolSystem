@@ -315,7 +315,7 @@ const AttendanceManagement = () => {
 
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
-      <Card>
+      <Card variant="elevated">
         <CardHeader className="p-4 sm:p-6">
           <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
             <Users className="h-5 w-5" />
@@ -703,7 +703,7 @@ const AttendanceManagement = () => {
 
       {/* ── Cover Classes Section ── */}
       {coverClasses.length > 0 && (
-        <Card className="border-amber-200">
+        <Card variant="elevated" className="border-amber-200">
           <CardHeader className="p-4 sm:p-6">
             <CardTitle className="flex items-center gap-2 text-amber-800 text-lg sm:text-xl">
               <UserCheck className="h-5 w-5" />

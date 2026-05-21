@@ -16,6 +16,7 @@ interface NavItem {
   label: string;
   path: string;
   icon: React.ReactNode;
+  requiresPermission?: string;
 }
 
 interface AppNotification {
@@ -77,6 +78,7 @@ const getNavItems = (role: UserRole): NavItem[] => {
       { label: 'Events', path: '/school/events', icon: <CalendarDays className="h-5 w-5" /> },
       { label: 'Attendance Report', path: '/school/attendance', icon: <Calendar className="h-5 w-5" /> },
       { label: 'Fees', path: '/school/fees', icon: <DollarSign className="h-5 w-5" /> },
+      { label: 'Financial', path: '/school/financial', icon: <DollarSign className="h-5 w-5" />, requiresPermission: 'financial' },
       { label: 'Purchase SMS', path: '/school/sms-purchase', icon: <MessageSquare className="h-5 w-5" /> },
       { label: 'SMS Settings', path: '/school/sms-settings', icon: <MessageSquare className="h-5 w-5" /> },
       { label: 'Staff Permissions', path: '/school/staff-permissions', icon: <ShieldCheck className="h-5 w-5" /> },
@@ -209,6 +211,21 @@ const AppLayout = () => {
 
   const navItems = getNavItems(user.role);
 
+  // Filter nav items based on user permissions
+  const filteredNavItems = navItems.filter(item => {
+    if (!item.requiresPermission) return true;
+    
+    // School admins always have access
+    if (user.role === 'SCHOOL_ADMIN') return true;
+    
+    // Check if user has financial permission
+    if (item.requiresPermission === 'financial') {
+      return user.can_manage_finances === true;
+    }
+    
+    return true;
+  });
+
   const handleLogout = async () => {
     await authService.logout();
     logout();
@@ -225,7 +242,7 @@ const AppLayout = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-background professional-3d page-shell">
       {mobileOpen && (
         <div className="fixed inset-0 z-40 bg-foreground/30 backdrop-blur-sm lg:hidden transition-opacity" onClick={() => setMobileOpen(false)} />
       )}
@@ -247,7 +264,7 @@ const AppLayout = () => {
         </div>
 
         <nav className="flex-1 overflow-y-auto py-3 sm:py-4 px-2 sm:px-3 space-y-0.5 sm:space-y-1">
-          {navItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const active = location.pathname === item.path;
             return (
               <Link
@@ -297,7 +314,7 @@ const AppLayout = () => {
             <Menu className="h-5 w-5" />
           </button>
           <div className="lg:hidden text-sm font-semibold text-foreground truncate mx-2 flex-1">
-            {navItems.find(item => item.path === location.pathname)?.label || 'Dashboard'}
+            {filteredNavItems.find(item => item.path === location.pathname)?.label || 'Dashboard'}
           </div>
           <div className="hidden lg:block" />
           <div className="flex items-center gap-3">

@@ -101,18 +101,18 @@ const ParentGrades = () => {
       )}
 
       {children.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground text-sm">No children linked.</CardContent></Card>
+        <Card variant="elevated"><CardContent className="py-12 text-center text-muted-foreground text-sm">No children linked.</CardContent></Card>
       ) : loading ? (
         <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
       ) : error ? (
-        <Card><CardContent className="py-10 text-center space-y-3">
+        <Card variant="elevated"><CardContent className="py-10 text-center space-y-3">
           <p className="text-red-500 text-sm">{error}</p>
           <Button size="sm" variant="outline" onClick={() => fetchData(selectedId)}>
             <RefreshCw className="h-4 w-4 mr-1" /> Retry
           </Button>
         </CardContent></Card>
       ) : subjects.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground text-sm">No grade records found.</CardContent></Card>
+        <Card variant="elevated"><CardContent className="py-12 text-center text-muted-foreground text-sm">No grade records found.</CardContent></Card>
       ) : (
         <>
           {/* Term tabs */}
@@ -127,7 +127,7 @@ const ParentGrades = () => {
 
           {/* Term summary */}
           {activeTermResult && (
-            <Card className="border-primary/20 bg-primary/5">
+            <Card variant="elevated" className="border-primary/20 bg-primary/5">
               <CardContent className="p-4">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                   <div>
@@ -162,7 +162,7 @@ const ParentGrades = () => {
           )}
 
           {/* Subject results */}
-          <Card>
+          <Card variant="elevated">
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <BookOpen className="h-4 w-4" /> Subject Results
