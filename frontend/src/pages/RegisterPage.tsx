@@ -48,20 +48,19 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative flex">
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative flex">
       {/* Animated background glows */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-32 -right-32 w-64 sm:w-80 h-64 sm:h-80 bg-orange-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-32 -left-32 w-64 sm:w-80 h-64 sm:h-80 bg-orange-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 sm:w-96 h-72 sm:h-96 bg-amber-500/5 rounded-full blur-3xl" />
-        <div className="absolute top-1/4 right-1/4 w-40 h-40 bg-blue-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute -top-32 -right-32 w-48 sm:w-80 h-48 sm:h-80 bg-orange-500/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute -bottom-32 -left-32 w-48 sm:w-80 h-48 sm:h-80 bg-orange-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 sm:w-96 h-56 sm:h-96 bg-amber-500/5 rounded-full blur-3xl" />
       </div>
 
       {/* Grid pattern overlay */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px]" />
 
       {/* Scrollable inner */}
-      <div className="relative w-full h-full overflow-y-auto flex items-center justify-center px-4 py-4">
+      <div className="relative w-full overflow-y-auto flex items-center justify-center px-3 py-6 sm:px-4 sm:py-8">
         <div className="w-full max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-6 lg:gap-12 items-center">
 
@@ -76,10 +75,10 @@ const RegisterPage = () => {
                 />
               </div>
               <div className="space-y-4">
-                <h2 className="text-4xl xl:text-5xl font-extrabold leading-[1.15]">
-                  <span className="text-white">GES School</span>
+                <h2 className="text-3xl xl:text-4xl font-extrabold leading-[1.15]">
+                  <span className="text-white">Elitech Smart</span>
                   <br />
-                  <span className="login-gradient-text">Management System</span>
+                  <span className="login-gradient-text">School Management</span>
                 </h2>
                 <p className="text-base text-slate-400 leading-relaxed max-w-md">
                   Register your school and unlock a comprehensive platform for assignments, grading, attendance, and reporting.
@@ -105,37 +104,38 @@ const RegisterPage = () => {
 
           {/* Right side - Register form */}
           <div className="relative flex justify-center">
-            <div className="login-glow-card w-full max-w-md">
-              <div className="login-glow-card-inner p-4 sm:p-6">
+            <div className="login-glow-card w-full max-w-md mx-auto">
+              <div className="login-glow-card-inner p-4 sm:p-6 md:p-8">
 
                 {/* Mobile logo */}
-                <div className="lg:hidden flex items-center justify-center gap-3 mb-3">
+                <div className="lg:hidden flex items-center justify-center gap-2 mb-4">
                   <img
                     src="/EliteTech logo with 3D cube design.png"
-                    alt="EliteTech"
-                    className="h-10 w-10 object-contain drop-shadow-[0_0_15px_rgba(249,115,22,0.3)]"
+                    alt="Elitech"
+                    className="h-8 w-8 sm:h-10 sm:w-10 object-contain drop-shadow-[0_0_15px_rgba(249,115,22,0.3)]"
                   />
+                  <span className="text-sm sm:text-base font-bold text-white">Elitech</span>
                 </div>
 
                 {/* Header */}
-                <div className="mb-3">
+                <div className="mb-4">
                   <button
                     type="button"
                     onClick={() => navigate('/login')}
-                    className="flex items-center gap-1.5 text-slate-400 hover:text-slate-200 text-xs mb-2 transition-colors"
+                    className="flex items-center gap-1.5 text-slate-400 hover:text-slate-200 text-xs mb-3 transition-colors"
                   >
                     <ArrowLeft className="h-3.5 w-3.5" />
                     Back to Login
                   </button>
-                  <h3 className="text-base sm:text-lg font-extrabold mb-1">
+                  <h3 className="text-lg sm:text-xl font-extrabold mb-1">
                     <span className="text-white">Register </span>
                     <span className="login-gradient-text">Your School</span>
                   </h3>
-                  <p className="text-slate-400 text-xs">Create your school account to get started</p>
+                  <p className="text-slate-400 text-xs sm:text-sm">Create your school account to get started</p>
                 </div>
 
                 {/* Form */}
-                <form onSubmit={handleSubmit} className="space-y-3">
+                <form onSubmit={handleSubmit} className="space-y-2.5 sm:space-y-3">
                   {error && (
                     <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-start gap-2.5">
                       <div className="flex-shrink-0 w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center mt-0.5">
