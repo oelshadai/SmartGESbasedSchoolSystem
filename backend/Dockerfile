@@ -8,26 +8,9 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
     gcc \
+    postgresql-client \
     libpq-dev \
-    libffi-dev \
-    libssl-dev \
-    libxml2-dev \
-    libxslt1-dev \
-    libjpeg-dev \
-    zlib1g-dev \
-    libpq5 \
-    libpangocairo-1.0-0 \
-    libgdk-pixbuf2.0-0 \
-    libpango1.0-0 \
-    shared-mime-info \
-    wkhtmltopdf \
-    git \
-    curl \
-    ca-certificates \
-    fonts-liberation \
-    fonts-dejavu-core \
  && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
