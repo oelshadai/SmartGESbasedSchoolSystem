@@ -127,7 +127,7 @@ const LoginPage = () => {
             </div>
           </div>
           <h1 className="text-4xl font-bold leading-tight">
-            GES School <span className="text-secondary">Management System</span>
+            Elitech Smart <span className="text-secondary">School Management System</span>
           </h1>
           <p className="text-primary-foreground/70 text-lg leading-relaxed">
             A comprehensive school management platform for administrators, teachers, and students. Manage assignments, track performance, and generate reports effortlessly.
@@ -144,55 +144,56 @@ const LoginPage = () => {
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center px-4 py-2 sm:p-8 bg-background overflow-y-auto">
-        <div className="w-full max-w-md space-y-3 sm:space-y-6">
-          <div className="flex flex-col items-center gap-1.5 mb-0">
+      <div className="flex-1 flex items-center justify-center px-4 py-4 sm:p-8 bg-background">
+        <div className="w-full max-w-md space-y-2 sm:space-y-4">
+          <div className="flex flex-col items-center gap-1 mb-2">
             <div className="p-2 rounded-xl bg-primary/10 select-none relative z-10">
               <img 
                 src="/EliteTech logo with 3D cube design.png" 
                 alt="GES School Management System" 
-                className="h-9 w-9 sm:h-14 sm:w-14 object-contain"
+                className="h-8 w-8 sm:h-12 sm:w-12 object-contain"
               />
             </div>
-            <span className="text-sm sm:text-xl font-bold text-foreground text-center leading-tight">GES School Management System</span>
+            <span className="text-xs sm:text-lg font-bold text-foreground text-center leading-tight">Elitech Smart School Management</span>
           </div>
 
           <div className="space-y-0.5 text-center">
-            <h2 className="text-lg sm:text-2xl font-bold text-foreground">Welcome back</h2>
-            <p className="text-xs sm:text-sm text-muted-foreground">Sign in to your account to continue</p>
+            <h2 className="text-base sm:text-2xl font-bold text-foreground">Welcome back</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground">Sign in to continue</p>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label className="text-xs sm:text-sm font-medium">Login as:</Label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               {ROLE_CONFIGS.map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
                   type="button"
                   onClick={() => handleRoleChange(key)}
-                  className={`py-2 px-2 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1 ${
+                  className={`py-1.5 px-2 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1 ${
                     loginRole === key
                       ? 'bg-primary text-primary-foreground shadow-md'
                       : 'bg-muted text-muted-foreground hover:bg-muted/80'
                   }`}
                 >
                   <Icon className="h-3 w-3" />
-                  <span>{label}</span>
+                  <span className="hidden sm:inline">{label}</span>
+                  <span className="sm:hidden">{label.slice(0,3)}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-2.5 sm:space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-2 sm:space-y-3">
             {error && (
-              <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm border border-destructive/20">
+              <div className="p-2 sm:p-3 rounded-lg bg-destructive/10 text-destructive text-xs sm:text-sm border border-destructive/20">
                 {error}
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="identifier">
-                {currentRole.inputType === 'studentId' ? 'Student ID' : 'Email Address'}
+            <div className="space-y-1.5">
+              <Label htmlFor="identifier" className="text-xs sm:text-sm">
+                {currentRole.inputType === 'studentId' ? 'Student ID' : 'Email'}
               </Label>
               <Input
                 id="identifier"
@@ -201,11 +202,12 @@ const LoginPage = () => {
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 required
+                className="h-9 sm:h-10 text-sm"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-xs sm:text-sm">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -213,21 +215,22 @@ const LoginPage = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="h-9 sm:h-10 text-sm"
               />
             </div>
 
-            <Button type="submit" className="w-full h-9 sm:h-11 text-sm" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" className="w-full h-9 sm:h-10 text-sm" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />}
               {loading ? 'Connecting...' : 'Sign In'}
             </Button>
 
             {loading && (
               <p className="text-xs text-muted-foreground text-center animate-pulse">
-                Server may take a moment to wake up on first request
+                Server may take a moment to wake up
               </p>
             )}
 
-            <div className="relative">
+            <div className="relative py-1">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
               </div>
@@ -239,7 +242,7 @@ const LoginPage = () => {
             <Button 
               type="button" 
               variant="outline" 
-              className="w-full"
+              className="w-full h-9 sm:h-10 text-xs sm:text-sm"
               onClick={() => navigate('/register')}
             >
               Register Your School
