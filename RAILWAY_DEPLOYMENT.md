@@ -26,7 +26,7 @@ railway new
 ### 3. Deploy Backend
 - Connect your GitHub repository
 - Select the `backend` folder as root directory
-- Railway will automatically detect Django and use nixpacks.toml
+- Select Docker as the build method and use `backend/Dockerfile`
 
 ### 4. Set Environment Variables
 Copy variables from `railway.env.template` and set them in Railway dashboard:
@@ -47,8 +47,10 @@ After deployment, update these variables with your actual Railway URLs:
 - In same Railway project, click "New Service"
 - Connect same GitHub repository
 - Select the `frontend` folder as root directory
+### 2. Set Frontend Build Method
+- Select Docker as the build method and use `frontend/Dockerfile`
 
-### 2. Set Frontend Environment Variables
+### 3. Set Frontend Environment Variables
 ```
 VITE_API_URL=https://your-backend.railway.app/api
 VITE_APP_ENV=production
