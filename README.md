@@ -1,243 +1,232 @@
-# Malaria Epidemiology PDF Report Generator
+# Smart GES-based School Management System
 
-A Flask-based web application that generates professional PDF reports from Jupyter notebook analysis of malaria epidemiology data in Ghana and Nigeria.
-
-## Overview
-
-This project converts malaria epidemiology analysis results into professionally formatted PDF reports using ReportLab. The system processes Jupyter notebook outputs and creates structured reports with charts, tables, and statistical summaries.
+A comprehensive school management system with features for student management, attendance tracking, financial management, assignments, and more.
 
 ## Features
 
-- **Automated PDF Generation**: Convert analysis results to professional PDF reports
-- **Chart Integration**: Embed matplotlib visualizations directly in PDFs
-- **Statistical Tables**: Format data tables with proper styling
-- **Professional Layout**: Multi-page reports with headers, footers, and consistent formatting
-- **REST API**: Simple endpoint for programmatic PDF generation
-- **Error Handling**: Robust error handling with detailed logging
+- **Student Management**: Complete student records, enrollment, and profiles
+- **Teacher Management**: Teacher profiles, assignments, and class management
+- **Attendance Tracking**: Daily attendance with SMS notifications to parents
+- **Financial Management**: Income, expenses, payroll, budgets, and fee collection
+- **Assignments & Grading**: Create, submit, and grade assignments
+- **Report Cards**: Generate and publish student report cards
+- **Announcements**: School-wide announcements with SMS capability
+- **SMS Integration**: Arkesel SMS service for parent notifications
+- **Parent Portal**: Parents can view student progress and reports
+- **Dashboard Analytics**: Comprehensive charts and metrics
 
-## Installation
+## Tech Stack
+
+### Backend
+- Django 4.2+
+- Django REST Framework
+- SQLite (development) / PostgreSQL (production)
+- Python 3.11+
+
+### Frontend
+- React 18
+- TypeScript
+- Vite
+- TailwindCSS
+- Recharts for data visualization
+- Shadcn/ui components
+
+## Local Development
 
 ### Prerequisites
+- Python 3.11+
+- Node.js 18+
+- Git
 
-- Python 3.7+
-- pip package manager
+### Backend Setup
 
-### Setup
-
-1. **Clone or download the project files**
-
-2. **Install dependencies**:
 ```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
 ```
 
-3. **Verify installation**:
-```bash
-python -c "import reportlab; print('ReportLab installed successfully')"
-```
-
-## Usage
-
-### Starting the Server
+### Frontend Setup
 
 ```bash
-python app.py
+cd frontend
+npm install
+npm run dev
 ```
 
-The server will start on `http://localhost:5000`
+## Docker Deployment
 
-### Generating PDF Reports
+### Using Docker Compose (Local)
 
-#### Via Web Interface
-Navigate to `http://localhost:5000/generate-pdf` in your browser
-
-#### Via API
 ```bash
-curl -X POST http://localhost:5000/generate-pdf \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Custom Report Title"}'
+docker-compose up --build
 ```
 
-#### Via Python Script
-```python
-import requests
+### Backend: http://localhost:8000
+### Frontend: http://localhost:5173
 
-response = requests.post('http://localhost:5000/generate-pdf', 
-                        json={'title': 'Malaria Analysis Report'})
+## Railway Deployment
 
-if response.status_code == 200:
-    with open('report.pdf', 'wb') as f:
-        f.write(response.content)
+### 1. Push to GitHub
+
+```bash
+git add .
+git commit -m "Initial commit"
+git push origin main
+```
+
+### 2. Deploy on Railway
+
+1. Go to [Railway](https://railway.app)
+2. Click "New Project"
+3. Select "Deploy from GitHub repo"
+4. Choose your repository
+5. Add environment variables:
+   - `DEBUG=False`
+   - `SECRET_KEY=your-secret-key`
+   - `ALLOWED_HOSTS=your-domain.railway.app`
+   - `DATABASE_URL=postgresql://...` (Railway provides this)
+   - `CORS_ALLOWED_ORIGINS=https://your-frontend-domain.com`
+
+### 3. Deploy Frontend
+
+1. Create a new service in Railway
+2. Select the same repository
+3. Set root directory to `frontend`
+4. Add environment variables:
+   - `VITE_API_URL=https://your-backend.railway.app`
+
+## Environment Variables
+
+### Backend (.env)
+
+```env
+DEBUG=False
+SECRET_KEY=your-secret-key-here
+DATABASE_URL=postgresql://user:password@host:port/dbname
+ALLOWED_HOSTS=localhost,127.0.0.1,your-domain.railway.app
+CORS_ALLOWED_ORIGINS=http://localhost:5173,https://your-frontend.com
+
+# SMS Configuration (Arkesel)
+ARKESEL_API_KEY=your-arkesel-api-key
+ARKESEL_SMS_SENDER=YourSchool
+
+# Email Configuration
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=your-email@gmail.com
+EMAIL_HOST_PASSWORD=your-app-password
+```
+
+### Frontend (.env)
+
+```env
+VITE_API_URL=http://localhost:8000
 ```
 
 ## Project Structure
 
 ```
-school sasa report/
-├── app.py                 # Flask application
-├── requirements.txt       # Python dependencies
-├── test_pdf_api.py       # API testing script
-├── README.md             # This file
-└── generated_reports/    # Output directory (created automatically)
-    └── *.pdf            # Generated PDF reports
+.
+├── backend/                 # Django backend
+│   ├── accounts/           # User authentication
+│   ├── students/           # Student management
+│   ├── teachers/           # Teacher management
+│   ├── schools/            # School settings
+│   ├── financial/          # Financial management
+│   ├── assignments/        # Assignment system
+│   ├── reports/            # Report card generation
+│   ├── notifications/      # Notifications & SMS
+│   ├── announcements/      # Announcements
+│   └── manage.py
+├── frontend/               # React frontend
+│   ├── src/
+│   │   ├── components/    # Reusable components
+│   │   ├── pages/         # Page components
+│   │   ├── lib/           # Utilities
+│   │   └── stores/        # State management
+│   └── package.json
+├── Dockerfile             # Backend Docker config
+├── docker-compose.yml     # Local development
+└── README.md
 ```
 
-## API Reference
+## API Documentation
 
-### POST /generate-pdf
+API endpoints are available at `/api/` when the server is running.
 
-Generates a PDF report with malaria epidemiology analysis.
+### Main Endpoints
 
-**Request Body** (JSON, optional):
-```json
-{
-  "title": "Custom Report Title"
-}
-```
+- `/api/auth/` - Authentication
+- `/api/students/` - Student management
+- `/api/teachers/` - Teacher management
+- `/api/schools/` - School settings
+- `/api/schools/financial/` - Financial management
+- `/api/assignments/` - Assignments
+- `/api/reports/` - Report cards
+- `/api/notifications/` - Notifications
+- `/api/announcements/` - Announcements
 
-**Response**:
-- **Success (200)**: PDF file download
-- **Error (500)**: JSON error message
+## Default Credentials
 
-**Example Response Headers**:
-```
-Content-Type: application/pdf
-Content-Disposition: attachment; filename=malaria_report_YYYYMMDD_HHMMSS.pdf
-```
+After running migrations, create a superuser:
 
-## Report Contents
-
-The generated PDF includes:
-
-1. **Title Page**
-   - Report title and subtitle
-   - Generation timestamp
-   - Author information
-
-2. **Executive Summary**
-   - Key findings overview
-   - Statistical highlights
-
-3. **Data Analysis Sections**
-   - Country-specific analysis (Ghana & Nigeria)
-   - Comparative statistics
-   - Trend analysis
-
-4. **Visualizations**
-   - Embedded charts and graphs
-   - Data distribution plots
-   - Correlation matrices
-
-5. **Statistical Tables**
-   - Formatted data summaries
-   - Key metrics and indicators
-
-## Configuration
-
-### Customizing Report Content
-
-Edit the `generate_pdf_report()` function in `app.py` to modify:
-- Report sections
-- Data sources
-- Chart types
-- Styling preferences
-
-### PDF Styling
-
-Key styling parameters in `app.py`:
-```python
-# Page settings
-PAGE_WIDTH = letter[0]
-PAGE_HEIGHT = letter[1]
-MARGIN = 72
-
-# Colors
-PRIMARY_COLOR = colors.HexColor('#2E86AB')
-SECONDARY_COLOR = colors.HexColor('#A23B72')
-
-# Fonts
-TITLE_FONT = 'Helvetica-Bold'
-BODY_FONT = 'Helvetica'
-```
-
-## Testing
-
-### Run API Tests
 ```bash
-python test_pdf_api.py
+python manage.py createsuperuser
 ```
 
-### Manual Testing
-1. Start the server: `python app.py`
-2. Open browser to `http://localhost:5000/generate-pdf`
-3. Verify PDF downloads correctly
+## Features in Detail
 
-## Troubleshooting
+### Financial Management
+- Income tracking by category
+- Expense management with approval workflow
+- Staff payroll management
+- Budget planning and tracking
+- Fee collection monitoring
+- Comprehensive financial dashboard
 
-### Common Issues
+### Attendance System
+- Daily attendance tracking
+- SMS notifications to parents
+- Attendance reports and analytics
+- Class-wise attendance rates
 
-**Import Error: No module named 'reportlab'**
-```bash
-pip install reportlab
-```
+### Assignment System
+- Create and assign homework
+- Student submission portal
+- Grading and feedback
+- Deadline management
 
-**Permission Error: Cannot create directory**
-- Ensure write permissions in project directory
-- Run with administrator privileges if needed
+### Report Cards
+- Automated report card generation
+- Multiple template options
+- PDF export
+- Bulk publishing
 
-**PDF Generation Fails**
-- Check server logs for detailed error messages
-- Verify all dependencies are installed
-- Ensure sufficient disk space
-
-### Debug Mode
-
-Enable debug logging by setting:
-```python
-app.debug = True
-```
-
-## Dependencies
-
-- **Flask**: Web framework
-- **ReportLab**: PDF generation library
-- **Matplotlib**: Chart generation
-- **NumPy**: Numerical computations
-- **Requests**: HTTP client (for testing)
-
-## Performance Notes
-
-- PDF generation typically takes 2-5 seconds
-- Memory usage scales with chart complexity
-- Concurrent requests are handled sequentially
-
-## Security Considerations
-
-- Input validation on API endpoints
-- File path sanitization
-- No sensitive data in generated PDFs
-- Local development server only (not production-ready)
-
-## Future Enhancements
-
-- [ ] Template-based report customization
-- [ ] Multiple output formats (HTML, Word)
-- [ ] Database integration
-- [ ] User authentication
-- [ ] Batch report generation
-- [ ] Email delivery integration
-
-## License
-
-This project is for educational purposes. Please ensure compliance with data usage policies when working with epidemiological data.
+### SMS Integration
+- Fee reminders
+- Attendance alerts
+- General announcements
+- SMS credit management
 
 ## Support
 
-For issues or questions:
-1. Check the troubleshooting section
-2. Review server logs for error details
-3. Verify all dependencies are correctly installed
+For issues and questions, please open an issue on GitHub.
+
+## License
+
+Proprietary - All rights reserved
+
+## Contributors
+
+- Development Team
 
 ---
 
-**Generated**: Malaria Epidemiology PDF Report Generator v1.0
+**Version**: 1.0.0
+**Last Updated**: 2024

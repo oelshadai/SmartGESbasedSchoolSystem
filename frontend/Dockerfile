@@ -1,19 +1,24 @@
-# Frontend Dockerfile for Railway / Docker deployments
-FROM node:20-alpine AS builder
+FROM node:18-alpine
 
 WORKDIR /app
 
+# Copy package files
 COPY package*.json ./
-RUN npm ci
 
+# Install dependencies
+RUN npm install
+
+# Copy project files
 COPY . .
+
+# Build the app
 RUN npm run build
 
-FROM nginx:stable-alpine
+# Install serve to run the production build
+RUN npm install -g serve
 
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Expose port
+EXPOSE 3000
 
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+# Start the app
+CMD ["serve", "-s", "dist", "-l", "3000"]
