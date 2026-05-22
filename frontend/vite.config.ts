@@ -17,22 +17,18 @@ export default defineConfig(({ mode }) => ({
     watch: {
       usePolling: true,
     },
-    // Proxy API requests to the backend Django server during development
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path.replace(/^\/api/, '/api'),
-      },
-      // Forward static files (Django static) to backend so templates load correctly
-      '/static': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path.replace(/^\/static/, '/static'),
-      },
-    },
+  },
+  preview: {
+    host: true,
+    port: 4173,
+    strictPort: false,
+    allowedHosts: [".railway.app"],
+  },
+  preview: {
+    host: true,
+    port: 4173,
+    strictPort: false,
+    allowedHosts: [".railway.app"],
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
