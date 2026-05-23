@@ -11,7 +11,11 @@ RUN npm install
 # Copy project files
 COPY . .
 
-# Build the app
+# Accept build argument for API URL
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
+# Build the app with environment variable
 RUN npm run build
 
 # Expose port
