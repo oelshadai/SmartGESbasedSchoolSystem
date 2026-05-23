@@ -251,12 +251,16 @@ VAPID_EMAIL = config('VAPID_EMAIL', default='admin@schoolreport.app')
 
 # Extra security (production only)
 if not DEBUG:
+    # Trust Railway's proxy headers for SSL termination
+    USE_X_FORWARDED_FOR = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_HSTS_SECONDS = 31536000  # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
-    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_REDIRECT = False  # Railway handles SSL termination
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
