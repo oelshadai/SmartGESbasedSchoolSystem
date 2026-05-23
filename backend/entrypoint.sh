@@ -1,7 +1,11 @@
 #!/bin/sh
 set -e
 
+echo "Running database migrations..."
 python manage.py migrate --noinput
-python manage.py create_admin
+
+echo "Collecting static files..."
 python manage.py collectstatic --noinput --clear
-exec gunicorn school_report_saas.wsgi:application --bind 0.0.0.0:${PORT:-8000}
+
+echo "Starting Gunicorn server..."
+exec gunicorn school_report_saas.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120
