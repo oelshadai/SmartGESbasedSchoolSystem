@@ -26,5 +26,6 @@ COPY backend/ .
 RUN python manage.py collectstatic --noinput || true
 
 # Run migrations and start server with gunicorn
-CMD python manage.py migrate --noinput && \
-    gunicorn school_report_saas.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120
+CMD python manage.py migrate --noinput; \
+    echo "Starting Gunicorn..."; \
+    exec gunicorn school_report_saas.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120 --log-level info
