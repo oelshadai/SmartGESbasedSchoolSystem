@@ -22,10 +22,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY backend/ .
 
-# Collect static files
-RUN python manage.py collectstatic --noinput || true
+# Collect static files (non-blocking)
+RUN python manage.py collectstatic --noinput || echo "Static collection skipped"
 
-# Run migrations and start server with gunicorn
-CMD python manage.py migrate --noinput; \
-    echo "Starting Gunicorn..."; \
-    exec gunicorn school_report_saas.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120 --log-level info
+# Create startup script
+RUN echo '#!/bin/sh' > /start.sh && \
+    echo 'set -e' >> /start.sh && \
+    echo 'python manage.py migrate --noinput || true' >> /start.sh && \
+    echo 'echo "=== Starting Gunicorn Server ==="' >> /start.sh && \
+    echo 'exec gunicorn school_report_saas.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120 --log-level info --access-logfile - --error-logfile -' >> /start.sh && \
+    chmod +x /start.sh
+
+# Start the application
+CMD ["/start.sh"]
