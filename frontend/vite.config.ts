@@ -24,12 +24,6 @@ export default defineConfig(({ mode }) => ({
     strictPort: false,
     allowedHosts: [".railway.app"],
   },
-  preview: {
-    host: true,
-    port: 4173,
-    strictPort: false,
-    allowedHosts: [".railway.app"],
-  },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
     alias: {
