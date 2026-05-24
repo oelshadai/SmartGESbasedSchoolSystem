@@ -1,6 +1,9 @@
+# Cache bust argument to force rebuild
+ARG CACHE_BUST=20260524-v3
+
 FROM python:3.11-slim
 
-# Force rebuild - cache invalidation timestamp: 2026-05-24
+# Force rebuild with ARG to invalidate Docker cache
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
