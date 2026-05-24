@@ -3,8 +3,6 @@ FROM python:3.11-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-# Railway connects to port 8000 - use this explicitly
-ENV PORT=8000
 
 # Set work directory
 WORKDIR /app
@@ -26,7 +24,7 @@ COPY backend/ .
 # Collect static files (non-blocking)
 RUN python manage.py collectstatic --noinput || echo "Static collection skipped"
 
-# Create startup script
+# Create startup script - use port 8000 (Railway's internal port)
 RUN echo '#!/bin/sh' > /start.sh && \
     echo 'set -e' >> /start.sh && \
     echo 'python manage.py migrate --noinput || true' >> /start.sh && \
