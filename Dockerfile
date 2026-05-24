@@ -1,5 +1,6 @@
 FROM python:3.11-slim
 
+# Force rebuild - cache invalidation timestamp: 2026-05-24
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
