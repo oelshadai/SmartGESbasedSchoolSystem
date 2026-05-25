@@ -773,40 +773,41 @@ class SmsPurchaseVerifyView(APIView):
         if not reference:
             return Response({'error': 'reference is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            order = SmsPurchaseOrder.objects.select_for_update().get(
-                paystack_reference=reference,
-                school=request.user.school,
-            )
-        except SmsPurchaseOrder.DoesNotExist:
-            return Response({'error': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
-
-        # Already processed — return cached result
-        if order.status == SmsPurchaseOrder.STATUS_PAID:
-            return Response({
-                'success': True,
-                'sms_units': order.sms_units,
-                'new_balance': request.user.school.sms_balance,
-                'message': f'{order.sms_units} SMS credits already credited.',
-            })
-
-        secret_key = getattr(django_settings, 'PAYSTACK_SECRET_KEY', '')
-        headers = {'Authorization': f'Bearer {secret_key}'}
-        url = f'https://api.paystack.co/transaction/verify/{reference}'
-
-        try:
-            resp = http_requests.get(url, headers=headers, timeout=30)
-            data = resp.json()
-        except Exception as e:
-            return Response({'error': f'Cannot reach payment gateway: {e}'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
-        if not (resp.status_code == 200 and data.get('status') and data['data'].get('status') == 'success'):
-            order.status = SmsPurchaseOrder.STATUS_FAILED
-            order.save(update_fields=['status', 'updated_at'])
-            return Response({'success': False, 'message': 'Payment not successful.'})
-
-        # Credit the balance atomically
+        # Wrap the entire verification flow in a transaction to support select_for_update()
         with transaction.atomic():
+            try:
+                order = SmsPurchaseOrder.objects.select_for_update().get(
+                    paystack_reference=reference,
+                    school=request.user.school,
+                )
+            except SmsPurchaseOrder.DoesNotExist:
+                return Response({'error': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+            # Already processed — return cached result
+            if order.status == SmsPurchaseOrder.STATUS_PAID:
+                return Response({
+                    'success': True,
+                    'sms_units': order.sms_units,
+                    'new_balance': request.user.school.sms_balance,
+                    'message': f'{order.sms_units} SMS credits already credited.',
+                })
+
+            secret_key = getattr(django_settings, 'PAYSTACK_SECRET_KEY', '')
+            headers = {'Authorization': f'Bearer {secret_key}'}
+            url = f'https://api.paystack.co/transaction/verify/{reference}'
+
+            try:
+                resp = http_requests.get(url, headers=headers, timeout=30)
+                data = resp.json()
+            except Exception as e:
+                return Response({'error': f'Cannot reach payment gateway: {e}'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+            if not (resp.status_code == 200 and data.get('status') and data['data'].get('status') == 'success'):
+                order.status = SmsPurchaseOrder.STATUS_FAILED
+                order.save(update_fields=['status', 'updated_at'])
+                return Response({'success': False, 'message': 'Payment not successful.'})
+
+            # Credit the balance atomically (already inside transaction)
             School.objects.filter(pk=order.school_id).update(
                 sms_balance=models.F('sms_balance') + order.sms_units
             )
@@ -814,9 +815,9 @@ class SmsPurchaseVerifyView(APIView):
             order.credited_at = timezone.now()
             order.save(update_fields=['status', 'credited_at', 'updated_at'])
 
-        # Refresh school to get updated balance
-        order.school.refresh_from_db(fields=['sms_balance'])
-        new_balance = order.school.sms_balance
+            # Refresh school to get updated balance
+            order.school.refresh_from_db(fields=['sms_balance'])
+            new_balance = order.school.sms_balance
 
         return Response({
             'success': True,
