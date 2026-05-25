@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, TrendingUp, TrendingDown, Users, AlertCircle, Wallet, Receipt, PieChart as PieChartIcon } from 'lucide-react';
+import {
+  DollarSign, TrendingUp, TrendingDown, Users, AlertCircle, Wallet,
+  Receipt, PieChart as PieChartIcon, CreditCard, ArrowRight
+} from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '@/lib/api';
 
@@ -39,6 +43,39 @@ interface DashboardData {
 }
 
 const COLORS = ['#f97316', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e'];
+
+const financialModules = [
+  {
+    label: 'Staff',
+    path: '/school/financial/staff',
+    icon: Users,
+    description: 'Manage staff records',
+  },
+  {
+    label: 'Payroll',
+    path: '/school/financial/payroll',
+    icon: CreditCard,
+    description: 'Generate and approve pay runs',
+  },
+  {
+    label: 'Expenses',
+    path: '/school/financial/expenses',
+    icon: Receipt,
+    description: 'Record and approve spending',
+  },
+  {
+    label: 'Income',
+    path: '/school/financial/income',
+    icon: TrendingUp,
+    description: 'Track revenue sources',
+  },
+  {
+    label: 'Budget',
+    path: '/school/financial/budget',
+    icon: PieChartIcon,
+    description: 'Plan and monitor budgets',
+  },
+];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -122,6 +159,28 @@ export default function FinancialDashboard() {
           <p className="text-xs text-muted-foreground">Last updated</p>
           <p className="text-sm font-medium">{new Date().toLocaleString()}</p>
         </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {financialModules.map((module) => {
+          const Icon = module.icon;
+          return (
+            <Link
+              key={module.path}
+              to={module.path}
+              className="group rounded-lg border bg-card p-4 shadow-sm transition-colors hover:border-orange-500/60 hover:bg-orange-500/5"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="rounded-lg bg-orange-500/10 p-2 text-orange-600">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-orange-600" />
+              </div>
+              <p className="mt-3 font-semibold">{module.label}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{module.description}</p>
+            </Link>
+          );
+        })}
       </div>
 
       {/* Alerts */}

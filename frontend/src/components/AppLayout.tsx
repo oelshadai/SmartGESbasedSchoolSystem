@@ -8,7 +8,8 @@ import {
   FileText, Settings, LogOut, ChevronLeft, Menu, School, BarChart3,
   CalendarDays, Award, CreditCard, Shield, MessageSquare, Bell,
   HelpCircle, User, Clock, Briefcase, DollarSign, Globe, Calendar,
-  X, CheckCheck, ClipboardCheck, Megaphone, ShieldCheck
+  X, CheckCheck, ClipboardCheck, Megaphone, ShieldCheck, Receipt,
+  TrendingUp, PieChart
 } from 'lucide-react';
 import type { UserRole } from '@/types';
 
@@ -79,6 +80,11 @@ const getNavItems = (role: UserRole): NavItem[] => {
       { label: 'Attendance Report', path: '/school/attendance', icon: <Calendar className="h-5 w-5" /> },
       { label: 'Fees', path: '/school/fees', icon: <DollarSign className="h-5 w-5" /> },
       { label: 'Financial', path: '/school/financial', icon: <DollarSign className="h-5 w-5" />, requiresPermission: 'financial' },
+      { label: 'Finance Staff', path: '/school/financial/staff', icon: <Users className="h-5 w-5" />, requiresPermission: 'financial' },
+      { label: 'Payroll', path: '/school/financial/payroll', icon: <CreditCard className="h-5 w-5" />, requiresPermission: 'financial' },
+      { label: 'Expenses', path: '/school/financial/expenses', icon: <Receipt className="h-5 w-5" />, requiresPermission: 'financial' },
+      { label: 'Income', path: '/school/financial/income', icon: <TrendingUp className="h-5 w-5" />, requiresPermission: 'financial' },
+      { label: 'Budget', path: '/school/financial/budget', icon: <PieChart className="h-5 w-5" />, requiresPermission: 'financial' },
       { label: 'Purchase SMS', path: '/school/sms-purchase', icon: <MessageSquare className="h-5 w-5" /> },
       { label: 'SMS Settings', path: '/school/sms-settings', icon: <MessageSquare className="h-5 w-5" /> },
       { label: 'Staff Permissions', path: '/school/staff-permissions', icon: <ShieldCheck className="h-5 w-5" /> },
