@@ -217,7 +217,7 @@ const SmsPurchase = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Units input */}
           <div className="space-y-1.5">
-            <Label htmlFor="custom-units" className="text-sm font-medium">
+            <Label htmlFor="custom-units" className="text-sm font-semibold text-foreground">
               Number of SMS Units
             </Label>
             <Input
@@ -234,11 +234,11 @@ const SmsPurchase = () => {
 
           {/* GHS input */}
           <div className="space-y-1.5">
-            <Label htmlFor="custom-amount" className="text-sm font-medium">
+            <Label htmlFor="custom-amount" className="text-sm font-semibold text-foreground">
               Amount to Pay (GHS)
             </Label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium text-sm">GHS</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/70 font-semibold text-sm">GHS</span>
               <Input
                 id="custom-amount"
                 type="number"
