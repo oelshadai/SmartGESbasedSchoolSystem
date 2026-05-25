@@ -123,6 +123,44 @@
   .stat-card {
     @apply bg-card rounded-xl border border-border p-5 shadow-sm transition-shadow hover:shadow-md;
   }
+
+  .app-sidebar-scrollbar {
+    scrollbar-color: hsl(var(--sidebar-foreground) / 0.28) transparent;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      black 14px,
+      black calc(100% - 14px),
+      transparent 100%
+    );
+  }
+
+  .app-sidebar-scrollbar::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  .app-sidebar-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .app-sidebar-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--sidebar-foreground) / 0.18);
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+  }
+
+  .app-sidebar-scrollbar:hover::-webkit-scrollbar-thumb {
+    background: hsl(var(--sidebar-foreground) / 0.34);
+    background-clip: content-box;
+  }
+
+  .app-sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--sidebar-primary) / 0.72);
+    background-clip: content-box;
+  }
 }
 /* Student UI Animated Border Effects */
 

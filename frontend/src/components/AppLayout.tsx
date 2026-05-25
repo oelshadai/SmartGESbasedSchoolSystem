@@ -241,29 +241,41 @@ const AppLayout = () => {
     PARENT: 'Parent / Guardian',
   };
 
+  const showSidebarLabels = mobileOpen || !collapsed;
+
   return (
-    <div className="flex h-screen overflow-hidden bg-background professional-3d page-shell">
+    <div className="flex w-full h-screen overflow-hidden bg-background professional-3d page-shell">
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-foreground/30 backdrop-blur-sm lg:hidden transition-opacity" onClick={() => setMobileOpen(false)} />
+        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden transition-opacity" onClick={() => setMobileOpen(false)} />
       )}
 
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 flex flex-col bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out ${
-          collapsed ? 'w-[72px]' : 'w-[280px] sm:w-64'
-        } ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
+        className={`fixed lg:static inset-y-0 left-0 z-50 flex-col shrink-0 bg-sidebar text-sidebar-foreground transition-transform duration-300 ease-in-out ${
+          collapsed ? 'w-[280px] sm:w-64 lg:w-[72px]' : 'w-[280px] sm:w-64'
+        } ${mobileOpen ? 'flex translate-x-0' : 'hidden -translate-x-full'} lg:flex lg:translate-x-0`}
       >
         <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
-          <div className="shrink-0">
-            <img 
-              src="/EliteTech logo with 3D cube design.png" 
-              alt="School Report SaaS" 
-              className="h-8 w-auto object-contain"
-            />
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="shrink-0">
+              <img
+                src="/EliteTech logo with 3D cube design.png"
+                alt="School Report SaaS"
+                className="h-8 w-auto object-contain"
+              />
+            </div>
+            {showSidebarLabels && <span className="font-bold text-sm truncate">School Report</span>}
           </div>
-          {!collapsed && <span className="font-bold text-sm truncate">School Report</span>}
+          <button
+            type="button"
+            onClick={() => setMobileOpen(false)}
+            className="lg:hidden inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground active:bg-sidebar-accent transition-colors"
+            aria-label="Close sidebar"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-3 sm:py-4 px-2 sm:px-3 space-y-0.5 sm:space-y-1">
+        <nav className="app-sidebar-scrollbar flex-1 overflow-y-auto overscroll-contain py-3 sm:py-4 px-2 sm:px-3 pr-1.5 space-y-0.5 sm:space-y-1">
           {filteredNavItems.map((item) => {
             const active = location.pathname === item.path;
             return (
@@ -278,14 +290,14 @@ const AppLayout = () => {
                 }`}
               >
                 {item.icon}
-                {!collapsed && <span>{item.label}</span>}
+                {showSidebarLabels && <span>{item.label}</span>}
               </Link>
             );
           })}
         </nav>
 
         <div className="border-t border-sidebar-border p-3 space-y-2">
-          {!collapsed && (
+          {showSidebarLabels && (
             <div className="px-3 py-2">
               <p className="text-xs font-medium truncate">{user?.first_name || ''} {user?.last_name || ''}</p>
               <p className="text-xs text-sidebar-foreground/50">{user?.role ? roleLabel[user.role] : ''}</p>
@@ -296,7 +308,7 @@ const AppLayout = () => {
             className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors"
           >
             <LogOut className="h-5 w-5" />
-            {!collapsed && <span>Logout</span>}
+            {showSidebarLabels && <span>Logout</span>}
           </button>
         </div>
 
@@ -308,9 +320,9 @@ const AppLayout = () => {
         </button>
       </aside>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 min-w-0 w-full flex flex-col overflow-hidden">
         <header className="h-14 sm:h-16 border-b border-border flex items-center justify-between px-4 sm:px-6 bg-card/50 backdrop-blur-sm">
-          <button onClick={() => setMobileOpen(true)} className="lg:hidden p-2.5 -ml-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted active:bg-muted/80 transition-colors">
+          <button onClick={() => setMobileOpen(open => !open)} className="lg:hidden p-2.5 -ml-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted active:bg-muted/80 transition-colors" aria-label={mobileOpen ? 'Close sidebar' : 'Open sidebar'}>
             <Menu className="h-5 w-5" />
           </button>
           <div className="lg:hidden text-sm font-semibold text-foreground truncate mx-2 flex-1">
@@ -403,7 +415,7 @@ const AppLayout = () => {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+        <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
       </div>
