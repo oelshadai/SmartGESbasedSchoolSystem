@@ -221,6 +221,7 @@ const StudentDashboard = () => {
   ];
 
   return (
+    <div className="w-full p-4 sm:p-6 overflow-y-auto">
     <div className="space-y-5 sm:space-y-6 animate-fade-in">
 
       {/* Alert notifications */}
@@ -501,6 +502,7 @@ const StudentDashboard = () => {
         </div>
       </div>
 
+    </div>
     </div>
   );
 };

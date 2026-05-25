@@ -320,6 +320,7 @@ const SchoolAdminDashboard = () => {
   ];
 
   return (
+    <div className="w-full p-4 sm:p-6 overflow-y-auto">
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
@@ -530,6 +531,7 @@ const SchoolAdminDashboard = () => {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };

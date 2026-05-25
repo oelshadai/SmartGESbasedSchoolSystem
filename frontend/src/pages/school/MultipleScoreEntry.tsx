@@ -126,7 +126,7 @@ const MultipleScoreEntry = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex flex-col w-full bg-background">
       {/* Header */}
       <div className="sticky top-0 bg-background border-b p-4 z-10">
         <div className="flex items-center gap-3">

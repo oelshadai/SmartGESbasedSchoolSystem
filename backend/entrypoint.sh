@@ -4,6 +4,9 @@ set -e
 echo "Running database migrations..."
 python manage.py migrate --noinput
 
+echo "Ensuring default admin user exists..."
+python manage.py create_admin
+
 echo "Collecting static files..."
 python manage.py collectstatic --noinput --clear || echo "Static files collection failed, continuing..."
 

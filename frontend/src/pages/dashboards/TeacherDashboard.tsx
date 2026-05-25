@@ -243,6 +243,7 @@ const TeacherDashboard = () => {
   ];
 
   return (
+    <div className="w-full p-4 sm:p-6 overflow-y-auto">
     <div className="space-y-5 sm:space-y-6 animate-fade-in">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-foreground">Teacher Dashboard</h1>
@@ -365,6 +366,7 @@ const TeacherDashboard = () => {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };
