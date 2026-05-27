@@ -35,8 +35,10 @@ class Staff(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        db_table = 'financial_staff'
         unique_together = ['school', 'staff_id']
         ordering = ['last_name', 'first_name']
+        managed = False
     
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.staff_id})"
@@ -59,7 +61,9 @@ class StaffSalary(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        db_table = 'financial_staffsalary'
         ordering = ['-effective_date']
+        managed = False
     
     def gross_salary(self):
         return (self.basic_salary + self.housing_allowance + 
@@ -106,8 +110,10 @@ class PayrollRecord(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        db_table = 'financial_payrollrecord'
         unique_together = ['school', 'staff', 'month', 'year']
         ordering = ['-year', '-month']
+        managed = False
     
     def __str__(self):
         return f"{self.staff} - {self.month}/{self.year}"
@@ -139,7 +145,9 @@ class Income(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        db_table = 'financial_income'
         ordering = ['-date']
+        managed = False
     
     def __str__(self):
         return f"{self.category} - GH₵{self.amount} ({self.date})"
@@ -182,7 +190,9 @@ class Expense(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        db_table = 'financial_expense'
         ordering = ['-date']
+        managed = False
     
     def __str__(self):
         return f"{self.category} - GH₵{self.amount} ({self.date})"
@@ -202,12 +212,15 @@ class Budget(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        db_table = 'financial_budget'
         ordering = ['-start_date']
+        managed = False
     
     def __str__(self):
         return f"{self.name} ({self.start_date} - {self.end_date})"
 
 
+class BudgetItem(models.Model):
 class BudgetItem(models.Model):
     """Budget line items"""
     budget = models.ForeignKey(Budget, on_delete=models.CASCADE, related_name='items')
@@ -215,6 +228,10 @@ class BudgetItem(models.Model):
     allocated_amount = models.DecimalField(max_digits=12, decimal_places=2)
     spent_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     description = models.TextField(blank=True)
+    
+    class Meta:
+        db_table = 'financial_budgetitem'
+        managed = False
     
     def remaining_amount(self):
         return self.allocated_amount - self.spent_amount
@@ -241,6 +258,10 @@ class ExpenseApproval(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    class Meta:
+        db_table = 'financial_expenseapproval'
+        managed = False
+    
     def __str__(self):
         return f"{self.expense} - {self.status}"
 
@@ -257,7 +278,9 @@ class PaymentReminder(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
+        db_table = 'financial_paymentreminder'
         ordering = ['-reminder_date']
+        managed = False
     
     def __str__(self):
         return f"Reminder for {self.staff} - {self.reminder_date}"
@@ -289,7 +312,9 @@ class FinancialAuditLog(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'financial_auditlog'
         ordering = ['-timestamp']
+        managed = False
 
     def __str__(self):
         return f"[{self.timestamp}] {self.model_name} {self.action} ({self.object_repr})"
