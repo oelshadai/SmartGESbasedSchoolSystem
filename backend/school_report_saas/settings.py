@@ -38,7 +38,6 @@ INSTALLED_APPS = [
     # Local apps
     'accounts',
     'schools',
-    'financial',
     'students',
     'teachers',
     'scores',
