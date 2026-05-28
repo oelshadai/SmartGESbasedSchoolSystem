@@ -221,7 +221,6 @@ class Budget(models.Model):
 
 
 class BudgetItem(models.Model):
-class BudgetItem(models.Model):
     """Budget line items"""
     budget = models.ForeignKey(Budget, on_delete=models.CASCADE, related_name='items')
     category = models.CharField(max_length=100)
