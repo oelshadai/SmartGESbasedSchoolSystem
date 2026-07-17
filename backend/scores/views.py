@@ -1,0 +1,626 @@
+from rest_framework import viewsets, status, permissions
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.db import transaction
+from django.db.models import Sum, Avg, Count
+from .models import ContinuousAssessment, ExamScore, SubjectResult, TermResult
+from .serializers import (
+    ContinuousAssessmentSerializer, ExamScoreSerializer,
+    SubjectResultSerializer, TermResultSerializer, ScoreEntrySerializer
+)
+from students.models import Student
+from schools.models import ClassSubject, Term
+
+
+class ContinuousAssessmentViewSet(viewsets.ModelViewSet):
+    """CA Score management"""
+    queryset = ContinuousAssessment.objects.all()
+    serializer_class = ContinuousAssessmentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if not hasattr(user, 'school') or not user.school:
+            return ContinuousAssessment.objects.none()
+            
+        queryset = ContinuousAssessment.objects.filter(student__school=user.school)
+        
+        term_id = self.request.query_params.get('term_id')
+        if term_id:
+            queryset = queryset.filter(term_id=term_id)
+        
+        student_id = self.request.query_params.get('student_id')
+        if student_id:
+            queryset = queryset.filter(student_id=student_id)
+        
+        class_subject_id = self.request.query_params.get('class_subject_id')
+        if class_subject_id:
+            queryset = queryset.filter(class_subject_id=class_subject_id)
+        
+        return queryset
+
+
+class ExamScoreViewSet(viewsets.ModelViewSet):
+    """Exam Score management"""
+    queryset = ExamScore.objects.all()
+    serializer_class = ExamScoreSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if not hasattr(user, 'school') or not user.school:
+            return ExamScore.objects.none()
+            
+        queryset = ExamScore.objects.filter(student__school=user.school)
+        
+        term_id = self.request.query_params.get('term_id')
+        if term_id:
+            queryset = queryset.filter(term_id=term_id)
+        
+        student_id = self.request.query_params.get('student_id')
+        if student_id:
+            queryset = queryset.filter(student_id=student_id)
+        
+        class_subject_id = self.request.query_params.get('class_subject_id')
+        if class_subject_id:
+            queryset = queryset.filter(class_subject_id=class_subject_id)
+        
+        return queryset
+
+
+class SubjectResultViewSet(viewsets.ModelViewSet):
+    """Subject Result management"""
+    queryset = SubjectResult.objects.all()
+    serializer_class = SubjectResultSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if not hasattr(user, 'school') or not user.school:
+            return SubjectResult.objects.none()
+            
+        queryset = SubjectResult.objects.filter(student__school=user.school)
+        
+        term_id = self.request.query_params.get('term_id')
+        if term_id:
+            queryset = queryset.filter(term_id=term_id)
+        
+        student_id = self.request.query_params.get('student_id')
+        if student_id:
+            queryset = queryset.filter(student_id=student_id)
+        
+        return queryset
+
+    @action(detail=False, methods=['get'], url_path='my-results')
+    def my_results(self, request):
+        """Return subject results for the logged-in student (or a linked child for PARENT role)"""
+        from students.models import Student
+        role = getattr(request.user, 'role', '')
+        if role == 'PARENT':
+            from accounts.models import ParentStudent
+            student_id = request.query_params.get('student_id', '').strip()
+            if not student_id:
+                return Response({'error': 'student_id required for parent access'}, status=404)
+            link = ParentStudent.objects.filter(
+                parent=request.user, student__student_id=student_id
+            ).select_related('student').first()
+            if not link:
+                return Response({'error': 'Access denied'}, status=403)
+            student = link.student
+        else:
+            try:
+                student = Student.objects.get(user=request.user)
+            except Student.DoesNotExist:
+                return Response({'error': 'Student profile not found'}, status=404)
+
+        qs = SubjectResult.objects.filter(
+            student=student
+        ).select_related('class_subject__subject', 'term').order_by('-term__start_date', 'class_subject__subject__name')
+
+        term_id = request.query_params.get('term_id')
+        if term_id:
+            qs = qs.filter(term_id=term_id)
+
+        data = []
+        for r in qs:
+            data.append({
+                'id': r.id,
+                'subject_name': r.class_subject.subject.name,
+                'ca_score': float(r.ca_score),
+                'exam_score': float(r.exam_score),
+                'total_score': float(r.total_score),
+                'grade': r.grade,
+                'remark': r.remark,
+                'term_id': r.term_id,
+                'term_name': str(r.term),
+            })
+        return Response(data)
+
+
+class TermResultViewSet(viewsets.ModelViewSet):
+    """Term Result management"""
+    queryset = TermResult.objects.all()
+    serializer_class = TermResultSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if not hasattr(user, 'school') or not user.school:
+            return TermResult.objects.none()
+            
+        queryset = TermResult.objects.filter(student__school=user.school)
+        
+        term_id = self.request.query_params.get('term_id')
+        if term_id:
+            queryset = queryset.filter(term_id=term_id)
+        
+        class_id = self.request.query_params.get('class_id')
+        if class_id:
+            queryset = queryset.filter(class_instance_id=class_id)
+        
+        return queryset
+
+    @action(detail=False, methods=['get'], url_path='my-term-results')
+    def my_term_results(self, request):
+        """Return all term results for the logged-in student (or a linked child for PARENT role)"""
+        from students.models import Student
+        role = getattr(request.user, 'role', '')
+        if role == 'PARENT':
+            from accounts.models import ParentStudent
+            student_id = request.query_params.get('student_id', '').strip()
+            if not student_id:
+                return Response({'error': 'student_id required for parent access'}, status=404)
+            link = ParentStudent.objects.filter(
+                parent=request.user, student__student_id=student_id
+            ).select_related('student').first()
+            if not link:
+                return Response({'error': 'Access denied'}, status=403)
+            student = link.student
+        else:
+            try:
+                student = Student.objects.get(user=request.user)
+            except Student.DoesNotExist:
+                return Response({'error': 'Student profile not found'}, status=404)
+
+        qs = TermResult.objects.filter(
+            student=student
+        ).select_related('term', 'class_instance').order_by('-term__start_date')
+
+        data = []
+        for r in qs:
+            data.append({
+                'id': r.id,
+                'term_id': r.term_id,
+                'term_name': str(r.term),
+                'class_name': str(r.class_instance),
+                'total_score': float(r.total_score),
+                'average_score': float(r.average_score),
+                'subjects_count': r.subjects_count,
+                'class_position': r.class_position,
+                'total_students': r.total_students,
+                'teacher_remarks': r.teacher_remarks,
+                'promoted': r.promoted,
+            })
+        return Response(data)
+    
+    @action(detail=False, methods=['post'])
+    def calculate_positions(self, request):
+        """Calculate class positions (overall) and per-subject positions for all students in a term"""
+        term_id = request.data.get('term_id')
+        class_id = request.data.get('class_id')
+        
+        if not term_id or not class_id:
+            return Response(
+                {"error": "term_id and class_id are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # --- Overall class positions ---
+        term_results = TermResult.objects.filter(
+            term_id=term_id,
+            class_instance_id=class_id
+        ).order_by('-total_score', '-average_score')
+        
+        total_students = term_results.count()
+        
+        for position, result in enumerate(term_results, start=1):
+            result.class_position = position
+            result.total_students = total_students
+            result.save()
+        
+        # --- Per-subject positions ---
+        # Get all class_subject ids that belong to this class
+        from schools.models import ClassSubject
+        class_subject_ids = ClassSubject.objects.filter(
+            class_instance_id=class_id
+        ).values_list('id', flat=True)
+        
+        for cs_id in class_subject_ids:
+            # Rank students by their total score in this subject, highest first
+            subject_results = SubjectResult.objects.filter(
+                class_subject_id=cs_id,
+                term_id=term_id
+            ).order_by('-total_score')
+            
+            for pos, sr in enumerate(subject_results, start=1):
+                sr.position = pos
+                sr.save(update_fields=['position'])
+        
+        return Response({
+            "message": f"Positions calculated for {total_students} students"
+        })
+
+
+class ScoreManagementViewSet(viewsets.ViewSet):
+    """Combined score entry and computation"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    @action(detail=False, methods=['post'])
+    def enter_scores(self, request):
+        """Enter CA and exam scores together"""
+        serializer = ScoreEntrySerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        data = serializer.validated_data
+
+        # Only teachers or admins can enter scores
+        user = request.user
+        if getattr(user, 'role', None) not in ('TEACHER', 'SCHOOL_ADMIN'):
+            return Response({"error": "Only teachers can enter scores"}, status=status.HTTP_403_FORBIDDEN)
+
+        # Permission checks for teachers
+        if getattr(user, 'role', None) == 'TEACHER':
+            try:
+                student = Student.objects.get(id=data['student_id'], school=user.school)
+            except Student.DoesNotExist:
+                return Response({"error": "Invalid student"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                cs = ClassSubject.objects.get(id=data['class_subject_id'])
+            except ClassSubject.DoesNotExist:
+                return Response({"error": "Invalid class subject"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Check if teacher has permission to enter scores for this student/subject combination
+            is_class_teacher = student.current_class and student.current_class.class_teacher_id == user.id
+            is_subject_teacher = cs.teacher_id == user.id if cs.teacher_id else False
+            
+            # Allow access if teacher is either the class teacher OR the subject teacher
+            if not (is_class_teacher or is_subject_teacher):
+                return Response({
+                    "error": "You can only enter scores for students in your class or subjects you teach"
+                }, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            with transaction.atomic():
+                # Create or update CA scores
+                ca_score, ca_created = ContinuousAssessment.objects.update_or_create(
+                    student_id=data['student_id'],
+                    class_subject_id=data['class_subject_id'],
+                    term_id=data['term_id'],
+                    defaults={
+                        'task': data['task'],
+                        'homework': data['homework'],
+                        'group_work': data['group_work'],
+                        'project_work': data['project_work'],
+                        'class_test': data['class_test'],
+                    }
+                )
+                
+                # Create or update exam score
+                exam_score, exam_created = ExamScore.objects.update_or_create(
+                    student_id=data['student_id'],
+                    class_subject_id=data['class_subject_id'],
+                    term_id=data['term_id'],
+                    defaults={'score': data['exam_score']}
+                )
+                
+                # Create or update subject result
+                subject_result, result_created = SubjectResult.objects.update_or_create(
+                    student_id=data['student_id'],
+                    class_subject_id=data['class_subject_id'],
+                    term_id=data['term_id'],
+                    defaults={
+                        'ca_score': ca_score.total_ca_score,
+                        'exam_score': exam_score.score,
+                    }
+                )
+                
+                # Calculate total and assign grade
+                subject_result.calculate_total()
+
+                # Auto-update TermResult so scores appear on the student's report immediately
+                _student = Student.objects.select_related('current_class').get(id=data['student_id'])
+                if _student.current_class:
+                    term_result, _ = TermResult.objects.get_or_create(
+                        student_id=data['student_id'],
+                        term_id=data['term_id'],
+                        defaults={'class_instance': _student.current_class}
+                    )
+                    if not term_result.class_instance_id:
+                        term_result.class_instance = _student.current_class
+                        term_result.save(update_fields=['class_instance'])
+                    term_result.calculate_aggregate()
+
+            return Response({
+                "message": "Scores entered successfully",
+                "total_score": float(subject_result.total_score),
+                "grade": subject_result.grade,
+                "ca_score": float(subject_result.ca_score),
+                "exam_score": float(subject_result.exam_score)
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            import traceback
+            print(f"Error in enter_scores: {str(e)}")
+            print(f"Traceback: {traceback.format_exc()}")
+            return Response({
+                "error": f"Failed to save scores: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=False, methods=['post'])
+    def compute_term_results(self, request):
+        """Compute overall term results for students"""
+        term_id = request.data.get('term_id')
+        class_id = request.data.get('class_id')
+        
+        if not term_id:
+            return Response(
+                {"error": "term_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get students
+        students = Student.objects.filter(school=request.user.school, is_active=True)
+        if class_id:
+            students = students.filter(current_class_id=class_id)
+        
+        computed_count = 0
+        
+        with transaction.atomic():
+            for student in students:
+                # Create or update term result
+                term_result, _ = TermResult.objects.update_or_create(
+                    student=student,
+                    term_id=term_id,
+                    defaults={'class_instance': student.current_class}
+                )
+                
+                # Calculate aggregate
+                term_result.calculate_aggregate()
+                
+                # Generate teacher remarks
+                term_result.generate_teacher_remarks()
+                
+                computed_count += 1
+        
+        return Response({
+            "message": f"Term results computed for {computed_count} students"
+        })
+    
+    @action(detail=False, methods=['get'])
+    def class_analytics(self, request):
+        """Get class performance analytics"""
+        term_id = request.query_params.get('term_id')
+        class_id = request.query_params.get('class_id')
+        
+        if not term_id or not class_id:
+            return Response(
+                {"error": "term_id and class_id are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get term results for the class
+        term_results = TermResult.objects.filter(
+            term_id=term_id,
+            class_instance_id=class_id
+        )
+        
+        analytics = {
+            'total_students': term_results.count(),
+            'average_score': term_results.aggregate(Avg('average_score'))['average_score__avg'] or 0,
+            'highest_score': term_results.aggregate(Sum('total_score'))['total_score__sum'] or 0,
+            'top_performers': TermResultSerializer(
+                term_results.order_by('-average_score')[:5], many=True
+            ).data
+        }
+        
+        return Response(analytics)
+    
+    @action(detail=False, methods=['post'])
+    def clear_all_scores(self, request):
+        """Clear all scores for all students in a specific term and class"""
+        term_id = request.data.get('term_id')
+        class_id = request.data.get('class_id')
+        
+        if not term_id or not class_id:
+            return Response(
+                {"error": "term_id and class_id are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        user = request.user
+        if getattr(user, 'role', None) not in ('TEACHER', 'SCHOOL_ADMIN'):
+            return Response({"error": "Only teachers or admins can clear scores"}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            with transaction.atomic():
+                # Get all students in the specified class
+                students = Student.objects.filter(current_class_id=class_id, school=user.school)
+                
+                # Delete CA scores
+                ca_deleted = ContinuousAssessment.objects.filter(
+                    student__in=students,
+                    term_id=term_id
+                ).delete()
+                
+                # Delete exam scores
+                exam_deleted = ExamScore.objects.filter(
+                    student__in=students,
+                    term_id=term_id
+                ).delete()
+                
+                # Delete subject results
+                subject_deleted = SubjectResult.objects.filter(
+                    student__in=students,
+                    term_id=term_id
+                ).delete()
+                
+                # Delete term results
+                term_deleted = TermResult.objects.filter(
+                    student__in=students,
+                    term_id=term_id
+                ).delete()
+                
+                return Response({
+                    "message": f"Successfully cleared all scores for class",
+                    "students_affected": students.count(),
+                    "ca_scores_deleted": ca_deleted[0],
+                    "exam_scores_deleted": exam_deleted[0],
+                    "subject_results_deleted": subject_deleted[0],
+                    "term_results_deleted": term_deleted[0]
+                }, status=status.HTTP_200_OK)
+                
+        except Exception as e:
+            import traceback
+            print(f"Error in clear_all_scores: {str(e)}")
+            print(f"Traceback: {traceback.format_exc()}")
+            return Response({
+                "error": f"Failed to clear scores: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=False, methods=['post'])
+    def clear_selected_scores(self, request):
+        """Clear scores for selected students in a specific term"""
+        term_id = request.data.get('term_id')
+        student_ids = request.data.get('student_ids', [])
+        
+        if not term_id or not student_ids:
+            return Response(
+                {"error": "term_id and student_ids are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        user = request.user
+        if getattr(user, 'role', None) not in ('TEACHER', 'SCHOOL_ADMIN'):
+            return Response({"error": "Only teachers or admins can clear scores"}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            with transaction.atomic():
+                # Get selected students
+                students = Student.objects.filter(
+                    id__in=student_ids, 
+                    school=user.school
+                )
+                
+                if not students.exists():
+                    return Response(
+                        {"error": "No valid students selected"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Delete CA scores
+                ca_deleted = ContinuousAssessment.objects.filter(
+                    student__in=students,
+                    term_id=term_id
+                ).delete()
+                
+                # Delete exam scores
+                exam_deleted = ExamScore.objects.filter(
+                    student__in=students,
+                    term_id=term_id
+                ).delete()
+                
+                # Delete subject results
+                subject_deleted = SubjectResult.objects.filter(
+                    student__in=students,
+                    term_id=term_id
+                ).delete()
+                
+                # Delete term results
+                term_deleted = TermResult.objects.filter(
+                    student__in=students,
+                    term_id=term_id
+                ).delete()
+                
+                return Response({
+                    "message": f"Successfully cleared scores for {students.count()} selected students",
+                    "students_affected": students.count(),
+                    "student_names": [s.get_full_name() for s in students],
+                    "ca_scores_deleted": ca_deleted[0],
+                    "exam_scores_deleted": exam_deleted[0],
+                    "subject_results_deleted": subject_deleted[0],
+                    "term_results_deleted": term_deleted[0]
+                }, status=status.HTTP_200_OK)
+                
+        except Exception as e:
+            import traceback
+            print(f"Error in clear_selected_scores: {str(e)}")
+            print(f"Traceback: {traceback.format_exc()}")
+            return Response({
+                "error": f"Failed to clear scores: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=False, methods=['post'])
+    def clear_student_subject_scores(self, request):
+        """Clear scores for a specific student and subject"""
+        student_id = request.data.get('student_id')
+        class_subject_id = request.data.get('class_subject_id')
+        term_id = request.data.get('term_id')
+        
+        if not all([student_id, class_subject_id, term_id]):
+            return Response(
+                {"error": "student_id, class_subject_id, and term_id are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        user = request.user
+        if getattr(user, 'role', None) not in ('TEACHER', 'SCHOOL_ADMIN'):
+            return Response({"error": "Only teachers or admins can clear scores"}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            with transaction.atomic():
+                # Verify student exists and belongs to teacher's school
+                student = Student.objects.get(id=student_id, school=user.school)
+                
+                # Delete CA score
+                ca_deleted = ContinuousAssessment.objects.filter(
+                    student_id=student_id,
+                    class_subject_id=class_subject_id,
+                    term_id=term_id
+                ).delete()
+                
+                # Delete exam score
+                exam_deleted = ExamScore.objects.filter(
+                    student_id=student_id,
+                    class_subject_id=class_subject_id,
+                    term_id=term_id
+                ).delete()
+                
+                # Delete subject result
+                subject_deleted = SubjectResult.objects.filter(
+                    student_id=student_id,
+                    class_subject_id=class_subject_id,
+                    term_id=term_id
+                ).delete()
+                
+                return Response({
+                    "message": f"Successfully cleared scores for {student.get_full_name()}",
+                    "ca_scores_deleted": ca_deleted[0],
+                    "exam_scores_deleted": exam_deleted[0],
+                    "subject_results_deleted": subject_deleted[0]
+                }, status=status.HTTP_200_OK)
+                
+        except Student.DoesNotExist:
+            return Response(
+                {"error": "Student not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            import traceback
+            print(f"Error in clear_student_subject_scores: {str(e)}")
+            print(f"Traceback: {traceback.format_exc()}")
+            return Response({
+                "error": f"Failed to clear scores: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

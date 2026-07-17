@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assignment Investigation</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .section h3 { margin-top: 0; color: #333; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .status-published { color: green; font-weight: bold; }
+        .status-draft { color: orange; font-weight: bold; }
+        .status-not-started { color: red; }
+        .status-submitted { color: blue; }
+        .status-graded { color: green; }
+        button { padding: 10px 15px; margin: 5px; background: #007cba; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #005a87; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Assignment Investigation Dashboard</h1>
+    <p>Investigating why assignments created by teachers aren't showing up in student portal</p>
+
+    <div class="section">
+        <h3>1. Database Tables</h3>
+        <button onclick="loadTables()">Load Tables</button>
+        <div id="tables-result"></div>
+    </div>
+
+    <div class="section">
+        <h3>2. All Assignments</h3>
+        <button onclick="loadAssignments()">Load Assignments</button>
+        <div id="assignments-result"></div>
+    </div>
+
+    <div class="section">
+        <h3>3. Student Assignment Records</h3>
+        <button onclick="loadStudentAssignments()">Load Student Assignments</button>
+        <div id="student-assignments-result"></div>
+    </div>
+
+    <div class="section">
+        <h3>4. Students</h3>
+        <button onclick="loadStudents()">Load Students</button>
+        <div id="students-result"></div>
+    </div>
+
+    <div class="section">
+        <h3>5. Users</h3>
+        <button onclick="loadUsers()">Load Users</button>
+        <div id="users-result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8001/api';
+
+        async function apiCall(endpoint) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`);
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('API Error:', error);
+                return { error: error.message };
+            }
+        }
+
+        async function loadTables() {
+            const result = await apiCall('/tables');
+            const container = document.getElementById('tables-result');
+            
+            if (result.error) {
+                container.innerHTML = `<p class="error">Error: ${result.error}</p>`;
+                return;
+            }
+
+            container.innerHTML = `
+                <p class="success">Found ${result.tables.length} tables:</p>
+                <ul>${result.tables.map(table => `<li>${table}</li>`).join('')}</ul>
+            `;
+        }
+
+        async function loadAssignments() {
+            const result = await apiCall('/assignments');
+            const container = document.getElementById('assignments-result');
+            
+            if (result.error) {
+                container.innerHTML = `<p class="error">Error: ${result.error}</p>`;
+                return;
+            }
+
+            if (result.assignments.length === 0) {
+                container.innerHTML = '<p class="error">No assignments found in database!</p>';
+                return;
+            }
+
+            const table = `
+                <p class="success">Found ${result.assignments.length} assignments:</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Status</th>
+                            <th>Class</th>
+                            <th>Created By</th>
+                            <th>Created At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${result.assignments.map(assignment => `
+                            <tr>
+                                <td>${assignment.id}</td>
+                                <td>${assignment.title}</td>
+                                <td class="status-${assignment.status.toLowerCase()}">${assignment.status}</td>
+                                <td>${assignment.class_level || 'N/A'} ${assignment.class_section || ''}</td>
+                                <td>${assignment.created_by || 'Unknown'}</td>
+                                <td>${assignment.created_at}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            container.innerHTML = table;
+        }
+
+        async function loadStudentAssignments() {
+            const result = await apiCall('/student-assignments');
+            const container = document.getElementById('student-assignments-result');
+            
+            if (result.error) {
+                container.innerHTML = `<p class="error">Error: ${result.error}</p>`;
+                return;
+            }
+
+            if (result.student_assignments.length === 0) {
+                container.innerHTML = '<p class="error">No student assignment records found!</p>';
+                return;
+            }
+
+            const table = `
+                <p class="success">Found ${result.student_assignments.length} student assignment records:</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Assignment</th>
+                            <th>Student</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${result.student_assignments.map(sa => `
+                            <tr>
+                                <td>${sa.id}</td>
+                                <td>${sa.assignment_title || 'Unknown'}</td>
+                                <td>${sa.student_first_name || ''} ${sa.student_last_name || ''} (${sa.student_number || 'N/A'})</td>
+                                <td class="status-${sa.status.toLowerCase().replace('_', '-')}">${sa.status}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            container.innerHTML = table;
+        }
+
+        async function loadStudents() {
+            const result = await apiCall('/students');
+            const container = document.getElementById('students-result');
+            
+            if (result.error) {
+                container.innerHTML = `<p class="error">Error: ${result.error}</p>`;
+                return;
+            }
+
+            if (result.students.length === 0) {
+                container.innerHTML = '<p class="error">No students found!</p>';
+                return;
+            }
+
+            const table = `
+                <p class="success">Found ${result.students.length} students:</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Student ID</th>
+                            <th>Name</th>
+                            <th>Class</th>
+                            <th>Username</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${result.students.map(student => `
+                            <tr>
+                                <td>${student.id}</td>
+                                <td>${student.student_id}</td>
+                                <td>${student.first_name} ${student.last_name}</td>
+                                <td>${student.class_level || 'N/A'} ${student.class_section || ''}</td>
+                                <td>${student.username || 'No User'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            container.innerHTML = table;
+        }
+
+        async function loadUsers() {
+            const result = await apiCall('/users');
+            const container = document.getElementById('users-result');
+            
+            if (result.error) {
+                container.innerHTML = `<p class="error">Error: ${result.error}</p>`;
+                return;
+            }
+
+            const table = `
+                <p class="success">Found ${result.users.length} users:</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Active</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${result.users.map(user => `
+                            <tr>
+                                <td>${user.id}</td>
+                                <td>${user.username}</td>
+                                <td>${user.email}</td>
+                                <td>${user.is_active ? 'Yes' : 'No'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            container.innerHTML = table;
+        }
+
+        // Auto-load data on page load
+        window.onload = function() {
+            loadTables();
+            loadAssignments();
+            loadStudentAssignments();
+            loadStudents();
+            loadUsers();
+        };
+    </script>
+</body>
+</html>

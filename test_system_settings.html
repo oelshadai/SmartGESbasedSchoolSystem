@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SystemSettings API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+        .container {
+            background: #334155;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        h1 { color: #60a5fa; }
+        h2 { color: #818cf8; margin-top: 30px; }
+        .test-section {
+            background: #1e293b;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-left: 4px solid #60a5fa;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover { background: #2563eb; }
+        button:disabled {
+            background: #64748b;
+            cursor: not-allowed;
+        }
+        .success { color: #22c55e; }
+        .error { color: #ef4444; }
+        .warning { color: #f59e0b; }
+        pre {
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            background: #1e293b;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+        .status.success { background: #166534; }
+        .status.error { background: #991b1b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 SystemSettings API Test</h1>
+        <p>Test the SystemSettings page API endpoints before using the actual page.</p>
+
+        <!-- Configuration -->
+        <div class="test-section">
+            <h2>⚙️ Configuration</h2>
+            <label>API URL:</label>
+            <input type="text" id="apiUrl" value="http://localhost:8000" placeholder="http://localhost:8000">
+            
+            <label>Auth Token:</label>
+            <input type="text" id="token" placeholder="Paste your auth token here">
+            <p class="warning">⚠️ Get token from: Login → Browser DevTools → Application → LocalStorage → 'token'</p>
+        </div>
+
+        <!-- Test 1: Get Settings -->
+        <div class="test-section">
+            <h2>Test 1: Fetch School Settings</h2>
+            <button onclick="testGetSettings()">Run Test</button>
+            <div id="test1-result"></div>
+        </div>
+
+        <!-- Test 2: Get Terms -->
+        <div class="test-section">
+            <h2>Test 2: Fetch Terms</h2>
+            <button onclick="testGetTerms()">Run Test</button>
+            <div id="test2-result"></div>
+        </div>
+
+        <!-- Test 3: Update Settings -->
+        <div class="test-section">
+            <h2>Test 3: Update Settings</h2>
+            <p>This will toggle "show_class_average" setting</p>
+            <button onclick="testUpdateSettings()">Run Test</button>
+            <div id="test3-result"></div>
+        </div>
+
+        <!-- Run All Tests -->
+        <div class="test-section">
+            <h2>🚀 Run All Tests</h2>
+            <button onclick="runAllTests()" style="background: #10b981; font-size: 16px; padding: 12px 24px;">
+                Run All Tests
+            </button>
+            <div id="all-tests-result"></div>
+        </div>
+    </div>
+
+    <script>
+        function getConfig() {
+            const apiUrl = document.getElementById('apiUrl').value;
+            const token = document.getElementById('token').value;
+            
+            if (!token) {
+                alert('Please enter your auth token!');
+                return null;
+            }
+            
+            return { apiUrl, token };
+        }
+
+        async function testGetSettings() {
+            const config = getConfig();
+            if (!config) return;
+
+            const resultDiv = document.getElementById('test1-result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+
+            try {
+                const response = await fetch(`${config.apiUrl}/api/schools/settings/`, {
+                    headers: {
+                        'Authorization': `Bearer ${config.token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <div class="status success">✅ SUCCESS</div>
+                        <p><strong>School Name:</strong> ${data.name}</p>
+                        <p><strong>Current Term ID:</strong> ${data.current_term || 'Not set'}</p>
+                        <p><strong>Score Entry Mode:</strong> ${data.score_entry_mode}</p>
+                        <p><strong>Report Template:</strong> ${data.report_template}</p>
+                        <p><strong>Show Class Average:</strong> ${data.show_class_average}</p>
+                        <p><strong>Grade A Min:</strong> ${data.grade_scale_a_min}%</p>
+                        <details>
+                            <summary>View Full Response</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    `;
+                    return data;
+                } else {
+                    const error = await response.text();
+                    resultDiv.innerHTML = `
+                        <div class="status error">❌ FAILED</div>
+                        <p class="error">Status: ${response.status}</p>
+                        <pre>${error}</pre>
+                    `;
+                    return null;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="status error">❌ ERROR</div>
+                    <p class="error">${error.message}</p>
+                    <p>Make sure backend is running!</p>
+                `;
+                return null;
+            }
+        }
+
+        async function testGetTerms() {
+            const config = getConfig();
+            if (!config) return;
+
+            const resultDiv = document.getElementById('test2-result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+
+            try {
+                const response = await fetch(`${config.apiUrl}/api/schools/terms/`, {
+                    headers: {
+                        'Authorization': `Bearer ${config.token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.length === 0) {
+                        resultDiv.innerHTML = `
+                            <div class="status error">⚠️ WARNING</div>
+                            <p class="warning">No terms found! Create terms first.</p>
+                        `;
+                        return [];
+                    }
+                    
+                    const termsList = data.map(term => 
+                        `<li>${term.display_name} (ID: ${term.id}) ${term.is_current ? '✓ Current' : ''}</li>`
+                    ).join('');
+                    
+                    resultDiv.innerHTML = `
+                        <div class="status success">✅ SUCCESS</div>
+                        <p><strong>Found ${data.length} terms:</strong></p>
+                        <ul>${termsList}</ul>
+                        <details>
+                            <summary>View Full Response</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    `;
+                    return data;
+                } else {
+                    const error = await response.text();
+                    resultDiv.innerHTML = `
+                        <div class="status error">❌ FAILED</div>
+                        <p class="error">Status: ${response.status}</p>
+                        <pre>${error}</pre>
+                    `;
+                    return null;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="status error">❌ ERROR</div>
+                    <p class="error">${error.message}</p>
+                `;
+                return null;
+            }
+        }
+
+        async function testUpdateSettings() {
+            const config = getConfig();
+            if (!config) return;
+
+            const resultDiv = document.getElementById('test3-result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+
+            // First get current settings
+            const currentSettings = await testGetSettings();
+            if (!currentSettings) {
+                resultDiv.innerHTML = `
+                    <div class="status error">❌ FAILED</div>
+                    <p class="error">Could not fetch current settings</p>
+                `;
+                return;
+            }
+
+            // Toggle show_class_average
+            const updateData = {
+                show_class_average: !currentSettings.show_class_average
+            };
+
+            try {
+                const response = await fetch(`${config.apiUrl}/api/schools/settings/`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${config.token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <div class="status success">✅ SUCCESS</div>
+                        <p><strong>Updated show_class_average:</strong></p>
+                        <p>Before: ${currentSettings.show_class_average}</p>
+                        <p>After: ${data.data ? data.data.show_class_average : data.show_class_average}</p>
+                        <details>
+                            <summary>View Full Response</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    `;
+                } else {
+                    const error = await response.text();
+                    resultDiv.innerHTML = `
+                        <div class="status error">❌ FAILED</div>
+                        <p class="error">Status: ${response.status}</p>
+                        <pre>${error}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="status error">❌ ERROR</div>
+                    <p class="error">${error.message}</p>
+                `;
+            }
+        }
+
+        async function runAllTests() {
+            const resultDiv = document.getElementById('all-tests-result');
+            resultDiv.innerHTML = '<h3>Running all tests...</h3>';
+
+            const results = {
+                test1: false,
+                test2: false,
+                test3: false
+            };
+
+            // Test 1
+            const settings = await testGetSettings();
+            results.test1 = settings !== null;
+
+            // Test 2
+            const terms = await testGetTerms();
+            results.test2 = terms !== null;
+
+            // Test 3
+            if (results.test1) {
+                await testUpdateSettings();
+                results.test3 = true;
+            }
+
+            // Summary
+            const passed = Object.values(results).filter(r => r).length;
+            const total = Object.keys(results).length;
+
+            resultDiv.innerHTML = `
+                <h3>Test Summary</h3>
+                <div class="status ${passed === total ? 'success' : 'error'}">
+                    ${passed}/${total} tests passed
+                </div>
+                <ul>
+                    <li class="${results.test1 ? 'success' : 'error'}">
+                        ${results.test1 ? '✅' : '❌'} Fetch Settings
+                    </li>
+                    <li class="${results.test2 ? 'success' : 'error'}">
+                        ${results.test2 ? '✅' : '❌'} Fetch Terms
+                    </li>
+                    <li class="${results.test3 ? 'success' : 'error'}">
+                        ${results.test3 ? '✅' : '❌'} Update Settings
+                    </li>
+                </ul>
+                ${passed === total ? 
+                    '<p class="success"><strong>✅ All tests passed! SystemSettings page should work correctly.</strong></p>' :
+                    '<p class="error"><strong>❌ Some tests failed. Check the errors above.</strong></p>'
+                }
+            `;
+        }
+    </script>
+</body>
+</html>

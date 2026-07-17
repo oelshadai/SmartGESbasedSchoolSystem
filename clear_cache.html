@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Cache</title>
+</head>
+<body>
+    <h1>Clearing Login Attempts...</h1>
+    <script>
+        // Clear specific keys first
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+            if (key.includes('login_attempts') || key.includes('2025BASIC_9001')) {
+                localStorage.removeItem(key);
+            }
+        });
+        
+        // Clear all remaining data
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        document.body.innerHTML += '<p>Cache cleared! You can now try logging in again.</p>';
+        console.log('All cache cleared');
+    </script>
+</body>
+</html>

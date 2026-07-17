@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Grading API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 { color: #333; }
+        h2 { color: #666; margin-top: 0; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #45a049; }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { border-left: 4px solid #4CAF50; }
+        .error { border-left: 4px solid #f44336; }
+        .info { border-left: 4px solid #2196F3; }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .test-data {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎓 Test Grading API</h1>
+    
+    <div class="container">
+        <h2>Test Data</h2>
+        <div class="test-data">
+            <strong>Assignment:</strong> test 1 (ID: 26)<br>
+            <strong>Student:</strong> Bonsu Charity (ID: 19)<br>
+            <strong>Quiz Attempt ID:</strong> 4<br>
+            <strong>Submission ID:</strong> quiz_4<br>
+            <strong>Question:</strong> "what is your name"<br>
+            <strong>Student's Answer:</strong> "yaw"
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>1. Get Pending Assignments</h2>
+        <button onclick="testPendingAssignments()">Test GET /assignments/grading/pending-grading/</button>
+        <div id="result1" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>2. Get Submissions for Assignment</h2>
+        <button onclick="testGetSubmissions()">Test GET /assignments/grading/26/submissions/</button>
+        <div id="result2" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>3. Get Quiz Details</h2>
+        <button onclick="testQuizDetails()">Test GET /assignments/grading/quiz_4/quiz-details/</button>
+        <div id="result3" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>4. Grade Quiz Answer</h2>
+        <label>Answer ID: <input type="number" id="answerId" placeholder="Get from quiz details above"></label>
+        <label>Points Earned: <input type="number" id="points" value="1" min="0" max="1" step="0.5"></label>
+        <label>Teacher Comment: <textarea id="comment" rows="2" placeholder="Good answer!">Good answer!</textarea></label>
+        <button onclick="testGradeAnswer()">Test PATCH /assignments/grading/grade-quiz-answer/</button>
+        <div id="result4" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>5. Grade Overall Submission</h2>
+        <label>Submission ID: <input type="text" id="submissionId" value="quiz_4"></label>
+        <label>Final Score: <input type="number" id="finalScore" value="1" min="0" max="1" step="0.1"></label>
+        <label>Overall Feedback: <textarea id="feedback" rows="2" placeholder="Well done!">Well done!</textarea></label>
+        <button onclick="testGradeSubmission()">Test PATCH /assignments/grading/grade-submission/</button>
+        <div id="result5" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api';
+        
+        // You'll need to get a valid token - login first or use existing token
+        const TOKEN = localStorage.getItem('token') || 'YOUR_TOKEN_HERE';
+
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${TOKEN}`
+                }
+            };
+            
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                const data = await response.json();
+                return { success: response.ok, status: response.status, data };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+
+        function showResult(elementId, result) {
+            const el = document.getElementById(elementId);
+            el.style.display = 'block';
+            el.className = 'result ' + (result.success ? 'success' : 'error');
+            el.textContent = JSON.stringify(result, null, 2);
+        }
+
+        async function testPendingAssignments() {
+            const result = await apiCall('/assignments/grading/pending-grading/');
+            showResult('result1', result);
+        }
+
+        async function testGetSubmissions() {
+            const result = await apiCall('/assignments/grading/26/submissions/');
+            showResult('result2', result);
+        }
+
+        async function testQuizDetails() {
+            const result = await apiCall('/assignments/grading/quiz_4/quiz-details/');
+            showResult('result3', result);
+            
+            // Auto-fill answer ID if available
+            if (result.success && result.data.answers && result.data.answers.length > 0) {
+                document.getElementById('answerId').value = result.data.answers[0].id;
+            }
+        }
+
+        async function testGradeAnswer() {
+            const answerId = document.getElementById('answerId').value;
+            const points = document.getElementById('points').value;
+            const comment = document.getElementById('comment').value;
+            
+            if (!answerId) {
+                alert('Please get quiz details first to get the answer ID');
+                return;
+            }
+            
+            const result = await apiCall('/assignments/grading/grade-quiz-answer/', 'PATCH', {
+                answer_id: parseInt(answerId),
+                points_earned: parseFloat(points),
+                teacher_comment: comment
+            });
+            showResult('result4', result);
+        }
+
+        async function testGradeSubmission() {
+            const submissionId = document.getElementById('submissionId').value;
+            const score = document.getElementById('finalScore').value;
+            const feedback = document.getElementById('feedback').value;
+            
+            const result = await apiCall('/assignments/grading/grade-submission/', 'PATCH', {
+                submission_id: submissionId,
+                score: parseFloat(score),
+                feedback: feedback
+            });
+            showResult('result5', result);
+        }
+
+        // Check if token exists
+        window.onload = function() {
+            if (!TOKEN || TOKEN === 'YOUR_TOKEN_HERE') {
+                alert('⚠️ No authentication token found!\n\nPlease:\n1. Login to the system first\n2. Open browser console (F12)\n3. Run: localStorage.getItem("token")\n4. Copy the token and update this page');
+            }
+        };
+    </script>
+</body>
+</html>

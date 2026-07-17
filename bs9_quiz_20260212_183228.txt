@@ -1,0 +1,72 @@
+BS9 Business Studies Quiz
+=========================
+
+Subject: Business Studies
+Level: BS9
+Duration: 30 minutes
+Total Marks: 10
+
+Instructions:
+- Read each question carefully
+- Select the best answer from the options provided
+- Each question carries 2 marks
+- No negative marking
+
+Questions:
+--------------------------------------------------
+
+Q1. What does SWOT analysis stand for? (2 marks)
+Topic: Strategic Planning
+
+   A) Sales, Work, Operations, Technology
+   B) Strengths, Weaknesses, Opportunities, Threats
+   C) Systems, Workflow, Objectives, Targets
+   D) Strategy, Work, Organization, Time
+
+Correct Answer: B
+--------------------------------------------------
+
+Q2. What is the primary purpose of market research? (2 marks)
+Topic: Marketing
+
+   A) To increase sales
+   B) To understand customer needs
+   C) To reduce costs
+   D) To hire employees
+
+Correct Answer: B
+--------------------------------------------------
+
+Q3. Which is NOT a method of market segmentation? (2 marks)
+Topic: Marketing
+
+   A) Geographic
+   B) Demographic
+   C) Psychographic
+   D) Economic
+
+Correct Answer: D
+--------------------------------------------------
+
+Q4. Which is an example of external recruitment? (2 marks)
+Topic: Human Resources
+
+   A) Promoting existing staff
+   B) Job advertisements
+   C) Internal transfers
+   D) Staff recommendations
+
+Correct Answer: B
+--------------------------------------------------
+
+Q5. Which of the following is NOT a factor of production? (2 marks)
+Topic: Economics
+
+   A) Land
+   B) Labor
+   C) Capital
+   D) Profit
+
+Correct Answer: D
+--------------------------------------------------
+

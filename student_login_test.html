@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Login Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .form-group { margin: 10px 0; }
+        label { display: block; margin-bottom: 5px; }
+        input, button { padding: 8px; margin: 5px 0; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin: 20px 0; padding: 10px; border: 1px solid #ccc; background: #f9f9f9; }
+        .error { border-color: #dc3545; background: #f8d7da; }
+        .success { border-color: #28a745; background: #d4edda; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Student Login Test</h1>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Student ID:</label>
+                <input type="text" id="username" value="STD001" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" value="password123" required>
+            </div>
+            
+            <button type="submit">Test Login</button>
+        </form>
+        
+        <div id="result" class="result" style="display: none;"></div>
+        
+        <h2>CORS Test</h2>
+        <button onclick="testCORS()">Test CORS</button>
+        <div id="corsResult" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api';
+        
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('result');
+            
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = 'Testing login...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/student-login/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h3>Login Successful!</h3>
+                        <p><strong>Student:</strong> ${data.student?.name || 'Unknown'}</p>
+                        <p><strong>Student ID:</strong> ${data.student?.student_id || 'Unknown'}</p>
+                        <p><strong>Class:</strong> ${data.student?.class || 'Unknown'}</p>
+                        <p><strong>Access Token:</strong> ${data.access ? data.access.substring(0, 50) + '...' : 'Not found'}</p>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <h3>Login Failed</h3>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Error:</strong> ${data.detail || data.error || 'Unknown error'}</p>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>Network Error</h3>
+                    <p>${error.message}</p>
+                    <p>Make sure the backend server is running on port 8000</p>
+                `;
+            }
+        });
+        
+        async function testCORS() {
+            const resultDiv = document.getElementById('corsResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = 'Testing CORS...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/student-login/`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': 'http://localhost:8080',
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    }
+                });
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h3>CORS Test Successful!</h3>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>CORS Headers:</strong></p>
+                        <ul>
+                            <li>Access-Control-Allow-Origin: ${response.headers.get('Access-Control-Allow-Origin') || 'Not set'}</li>
+                            <li>Access-Control-Allow-Methods: ${response.headers.get('Access-Control-Allow-Methods') || 'Not set'}</li>
+                            <li>Access-Control-Allow-Headers: ${response.headers.get('Access-Control-Allow-Headers') || 'Not set'}</li>
+                        </ul>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <h3>CORS Test Failed</h3>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>CORS Test Error</h3>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

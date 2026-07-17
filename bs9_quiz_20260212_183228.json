@@ -1,0 +1,80 @@
+{
+  "title": "BS9 Business Studies Quiz",
+  "subject": "Business Studies",
+  "level": "BS9",
+  "duration": "30 minutes",
+  "total_marks": 10,
+  "instructions": [
+    "Read each question carefully",
+    "Select the best answer from the options provided",
+    "Each question carries 2 marks",
+    "No negative marking"
+  ],
+  "questions": [
+    {
+      "number": 1,
+      "question": "What does SWOT analysis stand for?",
+      "options": {
+        "A": "Sales, Work, Operations, Technology",
+        "B": "Strengths, Weaknesses, Opportunities, Threats",
+        "C": "Systems, Workflow, Objectives, Targets",
+        "D": "Strategy, Work, Organization, Time"
+      },
+      "correct_answer": "B",
+      "topic": "Strategic Planning",
+      "marks": 2
+    },
+    {
+      "number": 2,
+      "question": "What is the primary purpose of market research?",
+      "options": {
+        "A": "To increase sales",
+        "B": "To understand customer needs",
+        "C": "To reduce costs",
+        "D": "To hire employees"
+      },
+      "correct_answer": "B",
+      "topic": "Marketing",
+      "marks": 2
+    },
+    {
+      "number": 3,
+      "question": "Which is NOT a method of market segmentation?",
+      "options": {
+        "A": "Geographic",
+        "B": "Demographic",
+        "C": "Psychographic",
+        "D": "Economic"
+      },
+      "correct_answer": "D",
+      "topic": "Marketing",
+      "marks": 2
+    },
+    {
+      "number": 4,
+      "question": "Which is an example of external recruitment?",
+      "options": {
+        "A": "Promoting existing staff",
+        "B": "Job advertisements",
+        "C": "Internal transfers",
+        "D": "Staff recommendations"
+      },
+      "correct_answer": "B",
+      "topic": "Human Resources",
+      "marks": 2
+    },
+    {
+      "number": 5,
+      "question": "Which of the following is NOT a factor of production?",
+      "options": {
+        "A": "Land",
+        "B": "Labor",
+        "C": "Capital",
+        "D": "Profit"
+      },
+      "correct_answer": "D",
+      "topic": "Economics",
+      "marks": 2
+    }
+  ]
+}

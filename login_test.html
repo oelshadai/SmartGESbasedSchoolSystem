@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="email"], input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .response {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background-color: #e9ecef;
+            border: none;
+            cursor: pointer;
+            margin-right: 5px;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab.active {
+            background-color: #007bff;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 Login Test Page</h1>
+    
+    <div class="tabs">
+        <button class="tab active" onclick="showTab('user')">Regular User Login</button>
+        <button class="tab" onclick="showTab('student')">Student Login</button>
+    </div>
+
+    <!-- Regular User Login -->
+    <div id="user-tab" class="tab-content active">
+        <div class="container">
+            <h2>Regular User Login Test</h2>
+            <form id="userLoginForm">
+                <div class="form-group">
+                    <label for="userEmail">Email:</label>
+                    <input type="email" id="userEmail" value="admin@school.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="userPassword">Password:</label>
+                    <input type="password" id="userPassword" value="admin123" required>
+                </div>
+                <button type="submit">Login</button>
+                <button type="button" onclick="testUserProfile()">Test Profile</button>
+                <button type="button" onclick="logoutUser()">Logout</button>
+            </form>
+            <div id="userResponse" class="response" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Student Login -->
+    <div id="student-tab" class="tab-content">
+        <div class="container">
+            <h2>Student Login Test</h2>
+            <form id="studentLoginForm">
+                <div class="form-group">
+                    <label for="studentId">Student ID:</label>
+                    <input type="text" id="studentId" value="BS9001" required>
+                </div>
+                <div class="form-group">
+                    <label for="studentPassword">Password:</label>
+                    <input type="password" id="studentPassword" value="password123" required>
+                </div>
+                <button type="submit">Login</button>
+                <button type="button" onclick="testStudentDashboard()">Test Dashboard</button>
+                <button type="button" onclick="logoutStudent()">Logout</button>
+            </form>
+            <div id="studentResponse" class="response" style="display: none;"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Server Status</h2>
+        <button onclick="checkServerStatus()">Check Server</button>
+        <div id="serverStatus" class="response" style="display: none;"></div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:8000';
+        let userToken = null;
+        let studentToken = null;
+
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function showResponse(elementId, message, isError = false) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.textContent = message;
+            element.className = isError ? 'response error' : 'response success';
+        }
+
+        async function makeRequest(url, method = 'GET', data = null, token = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            };
+
+            if (token) {
+                options.headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+
+            try {
+                const response = await fetch(url, options);
+                const responseData = await response.json();
+                
+                return {
+                    status: response.status,
+                    data: responseData,
+                    ok: response.ok
+                };
+            } catch (error) {
+                return {
+                    status: 0,
+                    data: { error: error.message },
+                    ok: false
+                };
+            }
+        }
+
+        // User Login Form
+        document.getElementById('userLoginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('userEmail').value;
+            const password = document.getElementById('userPassword').value;
+            
+            const result = await makeRequest(`${BASE_URL}/api/accounts/login/`, 'POST', {
+                email,
+                password
+            });
+            
+            if (result.ok) {
+                userToken = result.data.access;
+                showResponse('userResponse', 
+                    `✅ Login Successful!\n` +
+                    `Status: ${result.status}\n` +
+                    `User: ${result.data.user?.email}\n` +
+                    `Role: ${result.data.user?.role}\n` +
+                    `School: ${result.data.user?.school}\n` +
+                    `Token: ${userToken?.substring(0, 50)}...`
+                );
+            } else {
+                showResponse('userResponse', 
+                    `❌ Login Failed!\n` +
+                    `Status: ${result.status}\n` +
+                    `Error: ${JSON.stringify(result.data, null, 2)}`,
+                    true
+                );
+            }
+        });
+
+        // Student Login Form
+        document.getElementById('studentLoginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const student_id = document.getElementById('studentId').value;
+            const password = document.getElementById('studentPassword').value;
+            
+            const result = await makeRequest(`${BASE_URL}/api/accounts/student-login/`, 'POST', {
+                student_id,
+                password
+            });
+            
+            if (result.ok) {
+                studentToken = result.data.access;
+                showResponse('studentResponse', 
+                    `✅ Student Login Successful!\n` +
+                    `Status: ${result.status}\n` +
+                    `Student: ${result.data.student?.name}\n` +
+                    `ID: ${result.data.student?.student_id}\n` +
+                    `Class: ${result.data.student?.class}\n` +
+                    `School: ${result.data.student?.school}\n` +
+                    `Token: ${studentToken?.substring(0, 50)}...`
+                );
+            } else {
+                showResponse('studentResponse', 
+                    `❌ Student Login Failed!\n` +
+                    `Status: ${result.status}\n` +
+                    `Error: ${JSON.stringify(result.data, null, 2)}`,
+                    true
+                );
+            }
+        });
+
+        async function testUserProfile() {
+            if (!userToken) {
+                showResponse('userResponse', '❌ Please login first!', true);
+                return;
+            }
+
+            const result = await makeRequest(`${BASE_URL}/api/accounts/profile/`, 'GET', null, userToken);
+            
+            if (result.ok) {
+                showResponse('userResponse', 
+                    `✅ Profile Access Successful!\n` +
+                    `Status: ${result.status}\n` +
+                    `Data: ${JSON.stringify(result.data, null, 2)}`
+                );
+            } else {
+                showResponse('userResponse', 
+                    `❌ Profile Access Failed!\n` +
+                    `Status: ${result.status}\n` +
+                    `Error: ${JSON.stringify(result.data, null, 2)}`,
+                    true
+                );
+            }
+        }
+
+        async function testStudentDashboard() {
+            if (!studentToken) {
+                showResponse('studentResponse', '❌ Please login first!', true);
+                return;
+            }
+
+            const result = await makeRequest(`${BASE_URL}/api/students/auth/dashboard/`, 'GET', null, studentToken);
+            
+            if (result.ok) {
+                showResponse('studentResponse', 
+                    `✅ Dashboard Access Successful!\n` +
+                    `Status: ${result.status}\n` +
+                    `Student: ${result.data.student?.name}\n` +
+                    `Assignments: ${result.data.stats?.total_assignments}\n` +
+                    `Completed: ${result.data.stats?.completed}\n` +
+                    `Pending: ${result.data.stats?.pending}`
+                );
+            } else {
+                showResponse('studentResponse', 
+                    `❌ Dashboard Access Failed!\n` +
+                    `Status: ${result.status}\n` +
+                    `Error: ${JSON.stringify(result.data, null, 2)}`,
+                    true
+                );
+            }
+        }
+
+        async function logoutUser() {
+            if (!userToken) {
+                showResponse('userResponse', '❌ No active session to logout!', true);
+                return;
+            }
+
+            const result = await makeRequest(`${BASE_URL}/api/accounts/logout/`, 'POST', {}, userToken);
+            
+            userToken = null;
+            showResponse('userResponse', 
+                `✅ Logout Successful!\n` +
+                `Status: ${result.status}\n` +
+                `Message: ${result.data?.message || 'Logged out'}`
+            );
+        }
+
+        async function logoutStudent() {
+            if (!studentToken) {
+                showResponse('studentResponse', '❌ No active session to logout!', true);
+                return;
+            }
+
+            const result = await makeRequest(`${BASE_URL}/api/students/auth/logout/`, 'POST', {}, studentToken);
+            
+            studentToken = null;
+            showResponse('studentResponse', 
+                `✅ Student Logout Successful!\n` +
+                `Status: ${result.status}\n` +
+                `Message: ${result.data?.detail || 'Logged out'}`
+            );
+        }
+
+        async function checkServerStatus() {
+            const result = await makeRequest(`${BASE_URL}/api/`);
+            
+            if (result.ok || result.status === 404) {
+                showResponse('serverStatus', 
+                    `✅ Server is running!\n` +
+                    `Status: ${result.status}\n` +
+                    `URL: ${BASE_URL}`
+                );
+            } else {
+                showResponse('serverStatus', 
+                    `❌ Server is not accessible!\n` +
+                    `Status: ${result.status}\n` +
+                    `Error: ${JSON.stringify(result.data, null, 2)}\n\n` +
+                    `Make sure Django server is running on http://localhost:8000`,
+                    true
+                );
+            }
+        }
+
+        // Check server status on page load
+        window.addEventListener('load', checkServerStatus);
+    </script>
+</body>
+</html>

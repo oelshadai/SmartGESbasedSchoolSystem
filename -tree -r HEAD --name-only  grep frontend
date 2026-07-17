@@ -1,0 +1,10 @@
+[33ma31c649[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix CORS configuration in settings.py
+[33mf1ca992[m Fix DATABASE_URL parsing and stabilize production deployment
+[33m5425b27[m Update deployment configuration and settings
+[33mefc827f[m Fix SPA routing - simplify redirects for deployment
+[33mf2911c4[m Complete modal centering fix - all modals now use React Portal
+[33medd4b59[m Fix modal centering issues - use React Portal for proper positioning
+[33m13b9551[m Fix laptop-specific login issues
+[33m04b3ab4[m CRITICAL: Fix connection instability - Health check using wrong endpoint
+[33m98a09b1[m CRITICAL: Fix browser login failure - CORS credentials & CSRF origins
+[33m24eb434[m CRITICAL: Fix production login failure with enhanced response parsing

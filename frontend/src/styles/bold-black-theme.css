@@ -1,0 +1,469 @@
+/* BOLD BLACK TEXT THEME - SYSTEM CONSISTENCY */
+
+/* Override all text to use bold black theme in light mode, proper contrast in dark mode */
+:not(.dark) * {
+  color: #000000 !important;
+}
+
+.dark {
+  color: #F5F5F5 !important;
+}
+
+/* Headers - Bold Text with Mode Awareness */
+h1, h2, h3, h4, h5, h6,
+.card-title,
+.page-header h1,
+.page-header h2,
+.dialog-title,
+.modal-title,
+.section-title {
+  color: #000000 !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+}
+
+h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: #000000 !important;
+  line-height: 1.4;
+}
+
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6,
+.dark .card-title,
+.dark .page-header h1,
+.dark .page-header h2,
+.dark .dialog-title,
+.dark .modal-title,
+.dark .section-title {
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.dark h3 {
+  color: #FFFFFF !important;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.4;
+}
+
+/* Labels - Bold Black Theme */
+label,
+.label,
+.form-label,
+.field-label,
+.input-label {
+  color: #000000 !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+}
+
+.dark label,
+.dark .label,
+.dark .form-label,
+.dark .field-label,
+.dark .input-label {
+  color: #F0F0F0 !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+}
+
+/* Inputs - Bold Black Text */
+input[type="text"],
+input[type="email"], 
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+textarea,
+select,
+.input,
+.form-control {
+  color: #000000 !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+}
+
+.dark input[type="text"],
+.dark input[type="email"], 
+.dark input[type="password"],
+.dark input[type="number"],
+.dark input[type="tel"],
+.dark input[type="url"],
+.dark input[type="search"],
+.dark input[type="date"],
+.dark input[type="time"],
+.dark input[type="datetime-local"],
+.dark textarea,
+.dark select,
+.dark .input,
+.dark .form-control {
+  color: #FFFFFF !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+}
+
+/* Input Placeholders */
+input::placeholder,
+textarea::placeholder {
+  color: #6B7280 !important;
+  font-weight: 400 !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #A0A0A0 !important;
+  font-weight: 400 !important;
+}
+
+/* Select Options */
+option {
+  color: #000000 !important;
+  font-weight: 500 !important;
+  background: #FFFFFF !important;
+}
+
+.dark option {
+  color: #FFFFFF !important;
+  font-weight: 500 !important;
+  background: #2D3748 !important;
+}
+
+/* Table Headers and Cells */
+th, td,
+.table th,
+.table td,
+table th,
+table td {
+  color: #000000 !important;
+  font-weight: 500 !important;
+}
+
+.dark th, .dark td,
+.dark .table th,
+.dark .table td,
+.dark table th,
+.dark table td {
+  color: #F0F0F0 !important;
+  font-weight: 500 !important;
+}
+
+th, .table th, table th {
+  font-weight: 700 !important;
+}
+
+/* Button Text */
+button,
+.button,
+.btn {
+  font-weight: 600 !important;
+  color: #000000 !important;
+}
+
+.dark button,
+.dark .button,
+.dark .btn {
+  color: #FFFFFF !important;
+}
+
+/* Card Content */
+.card h1, .card h2, .card h3, .card h4, .card h5, .card h6 {
+  color: #000000 !important;
+  font-weight: 700 !important;
+}
+
+.dark .card h1, .dark .card h2, .dark .card h3, .dark .card h4, .dark .card h5, .dark .card h6 {
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+}
+
+.card p, .card span, .card div {
+  color: hsl(0deg 3.37% 13.71%) !important;
+  font-weight: 450 !important;
+}
+
+.dark .card p, .dark .card span, .dark .card div {
+  color: #E0E0E0 !important;
+  font-weight: 450 !important;
+}
+
+/* Navigation Text */
+.nav-link,
+.sidebar a,
+.menu-item {
+  color: #000000 !important;
+  font-weight: 500 !important;
+}
+
+.dark .nav-link,
+.dark .sidebar a,
+.dark .menu-item {
+  color: #F0F0F0 !important;
+  font-weight: 500 !important;
+}
+
+/* Status and Badge Text */
+.badge,
+.status,
+.chip {
+  font-weight: 600 !important;
+  color: #000000 !important;
+}
+
+.dark .badge,
+.dark .status,
+.dark .chip {
+  color: #FFFFFF !important;
+}
+
+/* List Items */
+li, .list-item {
+  color: #1F2937 !important;
+  font-weight: 450 !important;
+}
+
+.dark li, .dark .list-item {
+  color: #E0E0E0 !important;
+  font-weight: 450 !important;
+}
+
+/* Form Sections */
+.form-section label {
+  color: #000000 !important;
+  font-weight: 600 !important;
+}
+
+.dark .form-section label {
+  color: #F0F0F0 !important;
+  font-weight: 600 !important;
+}
+
+.form-section input,
+.form-section textarea,
+.form-section select {
+  color: #000000 !important;
+  font-weight: 500 !important;
+}
+
+.dark .form-section input,
+.dark .form-section textarea,
+.dark .form-section select {
+  color: #FFFFFF !important;
+  font-weight: 500 !important;
+}
+
+/* Dashboard Cards */
+.stat-card h1, .stat-card h2, .stat-card h3 {
+  color: #000000 !important;
+  font-weight: 700 !important;
+}
+
+.dark .stat-card h1, .dark .stat-card h2, .dark .stat-card h3 {
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+}
+
+.stat-card p, .stat-card span {
+  color: #1F2937 !important;
+  font-weight: 500 !important;
+}
+
+.dark .stat-card p, .dark .stat-card span {
+  color: #E0E0E0 !important;
+  font-weight: 500 !important;
+}
+
+/* Modal and Dialog Content */
+.dialog-content h1,
+.dialog-content h2,
+.dialog-content h3,
+.modal-content h1,
+.modal-content h2,
+.modal-content h3 {
+  color: #000000 !important;
+  font-weight: 700 !important;
+}
+
+.dark .dialog-content h1,
+.dark .dialog-content h2,
+.dark .dialog-content h3,
+.dark .modal-content h1,
+.dark .modal-content h2,
+.dark .modal-content h3 {
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+}
+
+.dialog-content label,
+.modal-content label {
+  color: #000000 !important;
+  font-weight: 600 !important;
+}
+
+.dark .dialog-content label,
+.dark .modal-content label {
+  color: #F0F0F0 !important;
+  font-weight: 600 !important;
+}
+
+/* Sidebar Text */
+.sidebar-foreground {
+  color: #FFFFFF !important;
+}
+
+.sidebar h1, .sidebar h2, .sidebar h3,
+.sidebar label, .sidebar span {
+  color: #FFFFFF !important;
+}
+
+/* Specific Component Overrides */
+.card-header h3,
+.card-title {
+  color: #000000 !important;
+  font-weight: 700 !important;
+}
+
+.dark .card-header h3,
+.dark .card-title {
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+}
+
+.page-title {
+  color: #000000 !important;
+  font-weight: 700 !important;
+  font-size: 28px !important;
+}
+
+.dark .page-title {
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  font-size: 28px !important;
+}
+
+.section-header {
+  color: #000000 !important;
+  font-weight: 600 !important;
+  font-size: 18px !important;
+}
+
+.dark .section-header {
+  color: #F0F0F0 !important;
+  font-weight: 600 !important;
+  font-size: 18px !important;
+}
+
+/* Override Tailwind and Component Library Styles */
+.text-foreground {
+  color: #000000 !important;
+}
+
+.dark .text-foreground {
+  color: #F0F0F0 !important;
+}
+
+.text-muted-foreground {
+  color: hsl(0deg 2.46% 17.57%) !important;
+  font-weight: 500 !important;
+}
+
+.dark .text-muted-foreground {
+  color: #E0E0E0 !important;
+  font-weight: 500 !important;
+}
+
+.text-card-foreground {
+  color: #000000 !important;
+}
+
+.dark .text-card-foreground {
+  color: #F0F0F0 !important;
+}
+
+/* Links */
+a {
+  color: #2563EB !important;
+  font-weight: 500 !important;
+}
+
+a:hover {
+  color: #1D4ED8 !important;
+  font-weight: 600 !important;
+}
+
+/* Dark Mode Exceptions - Keep white text in dark areas */
+.dark .sidebar *,
+.bg-dark *,
+.dark-theme * {
+  color: #FFFFFF !important;
+}
+
+/* Specific UI Library Overrides */
+[data-sonner-toaster] {
+  color: #000000 !important;
+}
+
+.sonner-toast * {
+  color: #000000 !important;
+}
+
+/* React Select Overrides */
+.react-select__single-value {
+  color: #000000 !important;
+  font-weight: 500 !important;
+}
+
+.react-select__placeholder {
+  color: #6B7280 !important;
+  font-weight: 400 !important;
+}
+
+/* Ensure form inputs in all contexts */
+form label {
+  color: #000000 !important;
+  font-weight: 600 !important;
+}
+
+form input,
+form textarea,
+form select {
+  color: #000000 !important;
+  font-weight: 500 !important;
+}
+
+/* Override any library styles */
+.text-gray-500,
+.text-gray-600,
+.text-gray-700 {
+  color: #000000 !important;
+  font-weight: 500 !important;
+}
+
+.text-sm {
+  font-weight: 450 !important;
+}
+
+.text-xs {
+  font-weight: 500 !important;
+  color: #000000 !important;
+}
+
+.dark .text-xs {
+  color: #D0D0D0 !important;
+  font-weight: 500 !important;
+}
+
+/* Metric and number displays */
+.metric,
+.number,
+.count,
+.value {
+  color: #000000 !important;
+  font-weight: 700 !important;
+}

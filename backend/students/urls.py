@@ -1,0 +1,69 @@
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import StudentViewSet, AttendanceViewSet, BehaviourViewSet, StudentPromotionViewSet, DailyAttendanceViewSet, create_behaviour_record
+from .attendance_views import AttendanceAdminViewSet, StudentAttendanceViewSet
+from .auth_views import student_login, student_dashboard, student_logout, student_refresh_token
+from .portal_views import student_classes, student_subjects, student_announcements, student_profile, student_assignments_list, student_schedule, student_reports, student_published_reports, download_student_report, view_student_published_report
+from .teacher_attendance_functions import teacher_attendance_my_classes, teacher_attendance_class_students, teacher_attendance_save
+from accounts.password_views import change_password
+from .profile_change_views import (
+    student_request_profile_change, student_get_pending_request,
+    teacher_request_profile_change, teacher_get_pending_request,
+    admin_list_profile_change_requests, admin_approve_profile_change, admin_reject_profile_change,
+)
+from .promotion_views import promote_class_bulk, promote_students_selective, get_promotion_preview
+
+router = DefaultRouter(trailing_slash=True)
+router.register(r'my-attendance', StudentAttendanceViewSet, basename='my-attendance')
+router.register(r'attendance/admin', AttendanceAdminViewSet, basename='attendance-admin')
+router.register(r'attendance', DailyAttendanceViewSet, basename='attendance')
+router.register(r'term-attendance', AttendanceViewSet, basename='term-attendance')
+router.register(r'behaviour', BehaviourViewSet, basename='behaviour')
+router.register(r'promotions', StudentPromotionViewSet, basename='promotion')
+router.register(r'', StudentViewSet, basename='student')
+
+urlpatterns = [
+    # Teacher Attendance Function-based Views
+    path('teacher-attendance/my-classes/', teacher_attendance_my_classes, name='teacher_attendance_my_classes'),
+    path('teacher-attendance/class-students/', teacher_attendance_class_students, name='teacher_attendance_class_students'),
+    path('teacher-attendance/save-attendance/', teacher_attendance_save, name='teacher_attendance_save'),
+    
+    # Student Authentication
+    path('auth/login/', student_login, name='student_login'),
+    path('auth/logout/', student_logout, name='student_logout'),
+    path('auth/refresh/', student_refresh_token, name='student_refresh_token'),
+    path('auth/dashboard/', student_dashboard, name='student_dashboard'),
+    path('auth/change-password/', change_password, name='student_change_password'),
+    
+    # Student Profile
+    path('profile/', student_profile, name='student_profile'),
+    
+    # Student Dashboard API (alternative endpoint)
+    path('dashboard/', student_dashboard, name='student_dashboard_api'),
+    
+    # Student Portal APIs
+    path('my-classes/', student_classes, name='student_classes'),
+    path('my-schedule/', student_schedule, name='student_schedule'),
+    path('assignments/', student_assignments_list, name='student_assignments'),
+    path('reports/', student_reports, name='student_reports'),
+    path('published-reports/', student_published_reports, name='student_published_reports'),
+    path('reports/<int:report_id>/download/', download_student_report, name='download_student_report'),
+    path('published-reports/<int:term_id>/view/', view_student_published_report, name='view_student_published_report'),
+    
+    # Behaviour
+    path('behaviour/create/', create_behaviour_record, name='create_behaviour'),
+    
+    # Enhanced Promotion System
+    path('promotions/bulk-class/', promote_class_bulk, name='promote_class_bulk'),
+    path('promotions/selective/', promote_students_selective, name='promote_students_selective'),
+    path('promotions/preview/', get_promotion_preview, name='get_promotion_preview'),
+
+    # Profile change requests (student/teacher → needs admin approval)
+    path('auth/request-profile-change/', student_request_profile_change, name='student_request_profile_change'),
+    path('auth/pending-profile-change/', student_get_pending_request, name='student_pending_profile_change'),
+    path('auth/teacher-request-profile-change/', teacher_request_profile_change, name='teacher_request_profile_change'),
+    path('auth/teacher-pending-profile-change/', teacher_get_pending_request, name='teacher_pending_profile_change'),
+    path('profile-change-requests/', admin_list_profile_change_requests, name='admin_list_profile_change_requests'),
+    path('profile-change-requests/<int:pk>/approve/', admin_approve_profile_change, name='admin_approve_profile_change'),
+    path('profile-change-requests/<int:pk>/reject/', admin_reject_profile_change, name='admin_reject_profile_change'),
+] + router.urls

@@ -1,0 +1,75 @@
+/* BOLD BLACK THEME UTILITY CLASSES */
+
+@layer utilities {
+  /* Page Title Classes */
+  .theme-page-title {
+    @apply text-theme-black font-theme-header text-theme-title leading-tight tracking-tight;
+  }
+  
+  .theme-section-header {
+    @apply text-theme-black font-theme-label text-theme-section leading-tight;
+  }
+  
+  /* Card Classes */
+  .theme-card-title {
+    @apply text-theme-black font-theme-header text-xl leading-tight;
+  }
+  
+  .theme-card-content {
+    @apply text-theme-gray-800 font-theme-body text-theme-body leading-relaxed;
+  }
+  
+  /* Form Classes */
+  .theme-label {
+    @apply text-theme-black font-theme-label text-theme-label leading-normal;
+  }
+  
+  .theme-input {
+    @apply text-theme-black font-theme-input text-theme-input;
+  }
+  
+  .theme-input::placeholder {
+    @apply text-theme-gray-600 font-normal;
+  }
+  
+  /* Table Classes */
+  .theme-table-header {
+    @apply text-theme-black font-theme-header text-theme-body;
+  }
+  
+  .theme-table-cell {
+    @apply text-theme-black font-theme-input text-theme-body;
+  }
+  
+  /* Navigation Classes */
+  .theme-nav-link {
+    @apply text-theme-black font-theme-input hover:font-theme-label transition-all;
+  }
+  
+  .theme-nav-link-active {
+    @apply text-theme-blue-600 font-theme-label;
+  }
+  
+  /* Button Classes */
+  .theme-button {
+    @apply font-theme-button;
+  }
+  
+  /* Text Hierarchy Classes */
+  .theme-text-primary {
+    @apply text-theme-black font-theme-input;
+  }
+  
+  .theme-text-secondary {
+    @apply text-theme-gray-800 font-theme-body;
+  }
+  
+  .theme-text-muted {
+    @apply text-theme-gray-600 font-normal;
+  }
+  
+  /* Link Classes */
+  .theme-link {
+    @apply text-theme-blue-600 font-theme-input hover:text-theme-blue-700 hover:font-theme-label underline-offset-2;
+  }
+}
