@@ -117,6 +117,48 @@ class ErrorLog(models.Model):
         return f"{self.level}: {self.message[:100]}"
 
 
+class SystemSettings(models.Model):
+    """Singleton platform-wide operational settings (non-secret)."""
+
+    # General
+    platform_name = models.CharField(max_length=100, default='SmartGES')
+    support_email = models.EmailField(default='support@smartges.com')
+    max_schools = models.PositiveIntegerField(default=500)
+    registration_open = models.BooleanField(default=True)
+    maintenance_mode = models.BooleanField(default=False)
+
+    # Notifications
+    email_notifications = models.BooleanField(default=True)
+    sms_alerts = models.BooleanField(default=False)
+
+    # Security
+    two_factor_required = models.BooleanField(default=False)
+    allow_password_reset = models.BooleanField(default=True)
+    password_min_length = models.PositiveSmallIntegerField(default=8)
+    session_timeout_minutes = models.PositiveIntegerField(default=60)
+    audit_logging = models.BooleanField(default=True)
+    api_rate_limit = models.PositiveIntegerField(default=1000)
+
+    # System
+    db_backup_enabled = models.BooleanField(default=True)
+    db_backup_interval_hours = models.PositiveIntegerField(default=24)
+    max_file_upload_mb = models.PositiveIntegerField(default=10)
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'system_settings'
+
+    def __str__(self):
+        return 'System Settings'
+
+    @classmethod
+    def get(cls):
+        """Always returns the single settings row, creating it if needed."""
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
 class SystemHealth(models.Model):
     """Overall system health status"""
     

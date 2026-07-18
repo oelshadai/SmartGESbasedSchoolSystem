@@ -630,6 +630,78 @@ def superadmin_enable_admin_cascade(request, user_id):
 
 
 # ─────────────────────────────────────────────
+# GET  /api/auth/superadmin/settings/
+# PATCH /api/auth/superadmin/settings/
+# ─────────────────────────────────────────────
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsSuperAdmin])
+def superadmin_settings(request):
+    """Get or update platform-wide operational settings."""
+    err = require_superadmin(request)
+    if err:
+        return err
+    try:
+        import os
+        from monitoring.models import SystemSettings
+
+        settings_obj = SystemSettings.get()
+
+        if request.method == 'PATCH':
+            allowed = [
+                'platform_name', 'support_email', 'max_schools',
+                'registration_open', 'maintenance_mode',
+                'email_notifications', 'sms_alerts',
+                'two_factor_required', 'allow_password_reset',
+                'password_min_length', 'session_timeout_minutes',
+                'audit_logging', 'api_rate_limit',
+                'db_backup_enabled', 'db_backup_interval_hours',
+                'max_file_upload_mb',
+            ]
+            for field in allowed:
+                if field in request.data:
+                    setattr(settings_obj, field, request.data[field])
+            settings_obj.save()
+            logger.info(f"SuperAdmin {request.user.email} updated system settings.")
+
+        def _configured(key):
+            """Returns True if an env var is set and non-empty."""
+            return bool(os.environ.get(key, '').strip())
+
+        return Response({
+            'platform_name': settings_obj.platform_name,
+            'support_email': settings_obj.support_email,
+            'max_schools': settings_obj.max_schools,
+            'registration_open': settings_obj.registration_open,
+            'maintenance_mode': settings_obj.maintenance_mode,
+            'email_notifications': settings_obj.email_notifications,
+            'sms_alerts': settings_obj.sms_alerts,
+            'two_factor_required': settings_obj.two_factor_required,
+            'allow_password_reset': settings_obj.allow_password_reset,
+            'password_min_length': settings_obj.password_min_length,
+            'session_timeout_minutes': settings_obj.session_timeout_minutes,
+            'audit_logging': settings_obj.audit_logging,
+            'api_rate_limit': settings_obj.api_rate_limit,
+            'db_backup_enabled': settings_obj.db_backup_enabled,
+            'db_backup_interval_hours': settings_obj.db_backup_interval_hours,
+            'max_file_upload_mb': settings_obj.max_file_upload_mb,
+            'updated_at': settings_obj.updated_at.isoformat() if settings_obj.updated_at else None,
+            # Read-only env-var status (never expose values)
+            'env_status': {
+                'arkesel_configured': _configured('ARKESEL_API_KEY'),
+                'smtp_configured': _configured('EMAIL_HOST_PASSWORD'),
+                'secret_key_configured': _configured('SECRET_KEY'),
+                'database_configured': _configured('DATABASE_URL'),
+                'sms_sender': os.environ.get('ARKESEL_SMS_SENDER', ''),
+                'smtp_host': os.environ.get('EMAIL_HOST', ''),
+                'smtp_user': os.environ.get('EMAIL_HOST_USER', ''),
+            },
+        })
+    except Exception as e:
+        logger.error(f"superadmin_settings error: {e}")
+        return Response({'error': str(e)}, status=500)
+
+
+# ─────────────────────────────────────────────
 # GET  /api/auth/superadmin/messages/        — superadmin: list sent
 # POST /api/auth/superadmin/messages/        — superadmin: send message
 # ─────────────────────────────────────────────
