@@ -77,15 +77,15 @@ const RegisterPage = () => {
               <div className="flex items-center gap-4">
                 <img
                   src="/EliteTech logo with 3D cube design.png"
-                  alt="EliteTech"
+                  alt="Smart School Management System"
                   className="h-24 w-24 object-contain drop-shadow-[0_0_15px_rgba(249,115,22,0.3)]"
                 />
               </div>
               <div className="space-y-4">
                 <h2 className="text-3xl xl:text-4xl font-extrabold leading-[1.15]">
-                  <span className="text-white">Elitech Smart</span>
+                  <span className="text-white">Smart School</span>
                   <br />
-                  <span className="login-gradient-text">School Management</span>
+                  <span className="login-gradient-text">Management System</span>
                 </h2>
                 <p className="text-base text-slate-200 leading-relaxed max-w-md">
                   Register your school and unlock a comprehensive platform for assignments, grading, attendance, and reporting.
@@ -118,10 +118,10 @@ const RegisterPage = () => {
                 <div className="lg:hidden flex items-center justify-center gap-2 mb-4">
                   <img
                     src="/EliteTech logo with 3D cube design.png"
-                    alt="Elitech"
+                    alt="Smart School Management System"
                     className="h-8 w-8 sm:h-10 sm:w-10 object-contain drop-shadow-[0_0_15px_rgba(249,115,22,0.3)]"
                   />
-                  <span className="text-sm sm:text-base font-bold text-white">Elitech</span>
+                  <span className="text-sm sm:text-base font-bold text-white">Smart School Management System</span>
                 </div>
 
                 {/* Header */}

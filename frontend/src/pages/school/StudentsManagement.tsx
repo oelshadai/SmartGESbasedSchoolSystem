@@ -385,9 +385,7 @@ const StudentsManagement = () => {
           }
         }
       });
-      await secureApiClient.put(`/students/${editingStudent.id}/`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      await secureApiClient.put(`/students/${editingStudent.id}/`, formData);
       setShowDialog(false);
       setEditingStudent(null);
       await fetchStudents();
@@ -416,9 +414,7 @@ const StudentsManagement = () => {
       });
       formData.append('create_account', createAccount ? 'true' : 'false');
 
-      const response = await secureApiClient.post('/students/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const response = await secureApiClient.post('/students/', formData);
 
       setShowAccountConfirmDialog(false);
       setPendingStudentSnapshot(null);

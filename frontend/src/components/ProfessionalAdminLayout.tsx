@@ -218,6 +218,12 @@ const getNavItems = (role: UserRole) => {
       description: 'Create and grade work',
     },
     {
+      path: '/teacher/lessons',
+      label: 'Lessons',
+      icon: BookOpen,
+      description: 'Lesson notes & live sessions',
+    },
+    {
       path: '/teacher/gradebook',
       label: 'Grade Book',
       icon: Award,
@@ -309,6 +315,12 @@ const getNavItems = (role: UserRole) => {
       label: 'Schedule',
       icon: Clock,
       description: 'Class schedule',
+    },
+    {
+      path: '/student/lessons',
+      label: 'Lessons',
+      icon: BookOpen,
+      description: 'Join live lessons',
     },
     {
       path: '/student/announcements',
@@ -439,7 +451,17 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
   };
 
   const navItems = getNavItems(user?.role || 'SCHOOL_ADMIN');
-  const title = user?.role === 'SUPER_ADMIN' ? 'Admin Panel' : 'School Admin Panel';
+  const title = user?.role === 'SUPER_ADMIN'
+    ? 'Admin Panel'
+    : user?.role === 'SCHOOL_ADMIN' || user?.role === 'PRINCIPAL'
+      ? 'School Admin Panel'
+      : user?.role === 'TEACHER'
+        ? 'Teacher Panel'
+        : user?.role === 'STUDENT'
+          ? 'Student Panel'
+          : user?.role === 'PARENT'
+            ? 'Parent Portal'
+            : 'School Admin Panel';
   const subtitle = user?.role ? roleLabel[user.role] : 'Admin';
 
   const handleLogout = () => {
@@ -661,7 +683,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
               
               {/* Breadcrumb */}
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-slate-100">{user?.role === 'SUPER_ADMIN' ? 'Admin' : 'School Admin'}</span>
+                <span className="text-slate-100">{user?.role ? roleLabel[user.role] : 'Admin'}</span>
                 <ChevronRight className="h-3 w-3 text-slate-100" />
                 <span className="text-white font-medium">
                   {navItems.find(item => isActivePath(item.path))?.label || 'Dashboard'}

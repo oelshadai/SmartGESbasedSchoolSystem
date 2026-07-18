@@ -108,12 +108,24 @@ def student_announcements(request, class_id=None):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['GET'])
+@api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def student_profile(request):
-    """Return the student's profile data."""
+    """Return or update the student's profile data."""
     try:
         student = _get_student(request)
+
+        if request.method == 'PATCH':
+            # Allow students to upload or update their profile photo directly.
+            if 'photo' in request.FILES:
+                student.photo = request.FILES['photo']
+                student.save(update_fields=['photo'])
+                return Response({
+                    'message': 'Photo updated successfully.',
+                    'photo': student.photo.url if student.photo else None,
+                })
+            return Response({'error': 'No photo uploaded.'}, status=status.HTTP_400_BAD_REQUEST)
+
         data = {
             'id': student.id,
             'student_id': student.student_id,

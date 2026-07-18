@@ -121,13 +121,13 @@ const LoginPage = () => {
             <div className="p-3 rounded-xl bg-slate-800/60 backdrop-blur-sm border border-slate-700/60">
               <img 
                 src="/EliteTech logo with 3D cube design.png" 
-                alt="GES School Management System" 
+                alt="Smart School Management System" 
                 className="h-10 w-10 object-contain"
               />
             </div>
           </div>
           <h1 className="text-4xl font-bold leading-tight text-white">
-            Elitech Smart <span className="text-cyan-400">School Management System</span>
+            Smart School <span className="text-cyan-400">Management System</span>
           </h1>
           <p className="text-slate-300 text-lg leading-relaxed">
             A professional school management platform for administrators, teachers, and students. Manage assignments, track performance, and generate reports effortlessly.
@@ -150,11 +150,11 @@ const LoginPage = () => {
             <div className="p-2 rounded-xl bg-primary/10 select-none relative z-10">
               <img 
                 src="/EliteTech logo with 3D cube design.png" 
-                alt="GES School Management System" 
+                alt="Smart School Management System" 
                 className="h-8 w-8 sm:h-12 sm:w-12 object-contain"
               />
             </div>
-            <span className="text-xs sm:text-lg font-bold text-foreground text-center leading-tight">Elitech Smart School Management</span>
+            <span className="text-xs sm:text-lg font-bold text-foreground text-center leading-tight">Smart School Management System</span>
           </div>
 
           <div className="space-y-0.5 text-center">

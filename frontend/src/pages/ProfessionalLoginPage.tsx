@@ -153,7 +153,7 @@ const ProfessionalLoginPage = () => {
                 <div className="relative">
                   <img
                     src="/EliteTech logo with 3D cube design.png"
-                    alt="EliteTech"
+                    alt="Smart School Management System"
                     className="h-24 w-24 object-contain drop-shadow-[0_0_15px_rgba(249,115,22,0.3)]"
                   />
                 </div>
@@ -162,7 +162,7 @@ const ProfessionalLoginPage = () => {
               {/* Headline */}
               <div className="space-y-4">
                 <h2 className="text-4xl xl:text-5xl font-extrabold leading-[1.15]">
-                  <span className="text-white">GES School</span>
+                  <span className="text-white">Smart School</span>
                   <br />
                   <span className="login-gradient-text">
                     Management System
@@ -203,13 +203,13 @@ const ProfessionalLoginPage = () => {
                 <div className="lg:hidden flex items-center gap-2 mb-2 sm:mb-5">
                   <img
                     src="/EliteTech logo with 3D cube design.png"
-                    alt="EliteTech"
+                    alt="Smart School Management System"
                     className="h-8 w-8 sm:h-14 sm:w-14 flex-shrink-0 object-contain drop-shadow-[0_0_12px_rgba(249,115,22,0.35)]"
                   />
                   <div>
                     <h3 className="text-[13px] sm:text-xl font-extrabold leading-tight">
-                      <span className="text-white">GES School </span>
-                      <span className="login-gradient-text">Management</span>
+                      <span className="text-white">Smart School </span>
+                      <span className="login-gradient-text">Management System</span>
                     </h3>
                     <p className="text-slate-100 text-[9px] sm:text-sm">Sign in to access your dashboard</p>
                   </div>

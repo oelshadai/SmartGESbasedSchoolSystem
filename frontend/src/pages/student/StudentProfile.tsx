@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -63,6 +63,9 @@ const StudentProfile = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingRequest, setPendingRequest] = useState<PendingRequest | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [savingPhoto, setSavingPhoto] = useState(false);
 
   // Edit mode
   const [editMode, setEditMode] = useState(false);
@@ -106,6 +109,51 @@ const StudentProfile = () => {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!photoFile) {
+      setPhotoPreview(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(photoFile);
+    setPhotoPreview(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [photoFile]);
+
+  const handlePhotoSelection = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    if (!file) {
+      setPhotoFile(null);
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file.');
+      setPhotoFile(null);
+      return;
+    }
+    setPhotoFile(file);
+  };
+
+  const handleSavePhoto = async () => {
+    if (!photoFile) {
+      toast.error('Please select a photo to upload.');
+      return;
+    }
+    setSavingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('photo', photoFile);
+      await secureApiClient.patch('/students/profile/', formData);
+      toast.success('Profile photo updated successfully.');
+      setPhotoFile(null);
+      await fetchData(true);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || err?.message || 'Failed to upload photo');
+    } finally {
+      setSavingPhoto(false);
     }
   };
 
@@ -212,21 +260,55 @@ const StudentProfile = () => {
 
       {/* Avatar card */}
       <div className="bg-card border border-border rounded-2xl p-4 sm:p-5">
-        <div className="flex items-center gap-3 sm:gap-4">
-          {student.photo ? (
-            <img src={student.photo} alt={student.name} className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl object-cover shrink-0" />
-          ) : (
-            <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-              <span className="text-lg sm:text-xl font-bold text-primary">{initials(student.name)}</span>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            {photoPreview || student.photo ? (
+              <img
+                src={photoPreview || student.photo || undefined}
+                alt={student.name}
+                className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl object-cover shrink-0"
+              />
+            ) : (
+              <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                <span className="text-lg sm:text-xl font-bold text-primary">{initials(student.name)}</span>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm sm:text-base font-bold text-foreground truncate">{student.name}</p>
+              <p className="text-xs text-muted-foreground truncate">{student.school ?? 'School'}</p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                <Badge className="bg-primary/10 text-primary border-0 text-[10px]">{student.student_id}</Badge>
+                <Badge className="bg-muted text-muted-foreground border-0 text-[10px]">{student.class}</Badge>
+                <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px]">Active</Badge>
+              </div>
             </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="text-sm sm:text-base font-bold text-foreground truncate">{student.name}</p>
-            <p className="text-xs text-muted-foreground truncate">{student.school ?? 'School'}</p>
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              <Badge className="bg-primary/10 text-primary border-0 text-[10px]">{student.student_id}</Badge>
-              <Badge className="bg-muted text-muted-foreground border-0 text-[10px]">{student.class}</Badge>
-              <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px]">Active</Badge>
+          </div>
+          <div className="flex flex-col gap-2 w-full sm:w-auto">
+            <Label className="text-xs text-muted-foreground">Passport / Student Photo</Label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoSelection}
+              className="text-sm text-foreground"
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                onClick={handleSavePhoto}
+                disabled={savingPhoto || !photoFile}
+              >
+                {savingPhoto ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                {photoFile ? 'Upload Photo' : 'Select Photo'}
+              </Button>
+              {photoFile && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setPhotoFile(null)}
+                >
+                  Cancel
+                </Button>
+              )}
             </div>
           </div>
         </div>

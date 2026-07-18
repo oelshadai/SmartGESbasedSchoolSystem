@@ -76,6 +76,7 @@ const AssignmentSubmissions      = lazy(() => import("./pages/teacher/Assignment
 const AssignmentEdit             = lazy(() => import("./pages/teacher/AssignmentEdit"));
 const MyClasses                  = lazy(() => import("./pages/teacher/MyClasses"));
 const CreateAssignment           = lazy(() => import("./pages/teacher/CreateAssignment"));
+const TeacherLessons             = lazy(() => import("./pages/teacher/TeacherLessons"));
 const GradeBook                  = lazy(() => import("./pages/teacher/EnhancedGradeBook"));
 const AttendanceManagement       = lazy(() => import("./pages/teacher/AttendanceManagement"));
 const FeeCollection              = lazy(() => import("./pages/teacher/FeeCollection"));
@@ -94,6 +95,7 @@ const AssignmentReview           = lazy(() => import("./pages/student/Assignment
 const MyGrades                   = lazy(() => import("./pages/student/MyGrades"));
 const AttendanceRecords          = lazy(() => import("./pages/student/AttendanceRecords"));
 const ClassSchedule              = lazy(() => import("./pages/student/ClassSchedule"));
+const StudentLessons             = lazy(() => import("./pages/student/StudentLessons"));
 const StudentAnnouncements       = lazy(() => import("./pages/student/StudentAnnouncements"));
 const StudentProfile             = lazy(() => import("./pages/student/StudentProfile"));
 const StudentReports             = lazy(() => import("./pages/student/StudentReports"));
@@ -238,6 +240,7 @@ const App = () => {
             <Route path="/teacher/assignments/:assignmentId/submissions" element={<AssignmentSubmissions />} />
             <Route path="/teacher/assignments/:assignmentId/edit" element={<AssignmentEdit />} />
             <Route path="/teacher/assignments/create" element={<CreateAssignment />} />
+            <Route path="/teacher/lessons" element={<TeacherLessons />} />
             <Route path="/teacher/gradebook" element={<GradeBook />} />
             <Route path="/teacher/attendance" element={<AttendanceManagement />} />
             <Route path="/teacher/fees" element={<FeeCollection />} />
@@ -256,6 +259,7 @@ const App = () => {
             <Route path="/student/assignments" element={<StudentAssignments />} />
             <Route path="/student/assignments/:id" element={<AssignmentSubmission />} />
             <Route path="/student/assignments/review/:submissionId" element={<AssignmentReview />} />
+            <Route path="/student/lessons" element={<StudentLessons />} />
             <Route path="/student/grades" element={<MyGrades />} />
             <Route path="/student/attendance" element={<AttendanceRecords />} />
             <Route path="/student/schedule" element={<ClassSchedule />} />
