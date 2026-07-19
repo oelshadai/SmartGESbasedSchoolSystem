@@ -199,40 +199,43 @@ class TermResult(models.Model):
         self.save()
     
     def generate_teacher_remarks(self):
-        """Auto-generate teacher remarks based on performance"""
+        """Auto-generate teacher remarks. Uses ai_service for personalised remarks."""
+        from core.ai_service import generate_smart_sms  # noqa — just to confirm import works
+
         avg = float(self.average_score)
-        
+
+        # Personalised remark pools keyed by performance band
         if avg >= 80:
             remarks = [
-                "Excellent performance! Keep up the outstanding work.",
-                "Outstanding achievement in all subjects.",
-                "Exceptional student with excellent results.",
+                f"{self.student.first_name} has shown exceptional dedication this term. Keep it up!",
+                f"Outstanding performance by {self.student.first_name}. A model student.",
+                f"{self.student.first_name} excelled in all areas. Excellent work!",
             ]
         elif avg >= 70:
             remarks = [
-                "Very good performance. Well done!",
-                "Commendable effort and good results.",
-                "Good work. Keep striving for excellence.",
+                f"{self.student.first_name} performed very well this term. Well done!",
+                f"Commendable effort from {self.student.first_name}. Keep striving for excellence.",
+                f"{self.student.first_name} showed great improvement. Keep it up!",
             ]
         elif avg >= 60:
             remarks = [
-                "Good performance. There's room for improvement.",
-                "Satisfactory work. Encourage more effort.",
-                "Fair results. Can do better with more focus.",
+                f"{self.student.first_name} performed satisfactorily. There is room for improvement.",
+                f"Good effort from {self.student.first_name}. More focus will yield better results.",
+                f"{self.student.first_name} is making progress. Encourage more consistent effort.",
             ]
         elif avg >= 50:
             remarks = [
-                "Needs to put in more effort to improve.",
-                "Average performance. Requires more dedication.",
-                "Should work harder to achieve better results.",
+                f"{self.student.first_name} needs to put in more effort to improve.",
+                f"Average performance from {self.student.first_name}. More dedication is required.",
+                f"{self.student.first_name} should work harder to achieve better results.",
             ]
         else:
             remarks = [
-                "Needs significant improvement. Encourage extra classes.",
-                "Weak performance. Requires urgent attention and support.",
-                "Must work very hard to improve in all subjects.",
+                f"{self.student.first_name} needs significant improvement. Extra classes are advised.",
+                f"Weak performance from {self.student.first_name}. Urgent attention and support needed.",
+                f"{self.student.first_name} must work very hard to improve across all subjects.",
             ]
-        
+
         import random
         self.teacher_remarks = random.choice(remarks)
         self.save()

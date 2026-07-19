@@ -1,0 +1,731 @@
+"""
+AI Service — rule-based intelligence layer for SmartGES.
+
+All functions are pure Python; no external AI dependency required.
+Gemini functions are gated behind a try/except so the server starts
+even when google-generativeai is not installed yet.
+"""
+
+import logging
+import os
+from collections import Counter
+from datetime import date, timedelta
+
+import requests
+from django.conf import settings
+
+logger = logging.getLogger(__name__)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION A — RULE-BASED FUNCTIONS (free, no API key needed)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def calculate_student_risk(student, term):
+    """
+    Calculates a risk level for a student in a given term using:
+      - Attendance.attendance_percentage  (term summary)
+      - TermResult.average_score
+      - StudentFee.status / balance
+
+    Returns dict:
+      risk_level        : 'HIGH' | 'MEDIUM' | 'LOW' | 'EXCELLING'
+      risk_factors      : list[str]
+      recommendations   : list[str]
+      attendance_score  : float  (0-100)
+      academic_score    : float  (0-100)
+      fee_score         : float  (0 bad → 100 good)
+    """
+    from students.models import Attendance
+    from scores.models import TermResult
+    from fees.models import StudentFee
+
+    risk_factors = []
+    recommendations = []
+
+    # ── Attendance ────────────────────────────────────────────────────────────
+    attendance_score = 100.0
+    try:
+        att = Attendance.objects.get(student=student, term=term)
+        attendance_score = float(att.attendance_percentage)
+    except Attendance.DoesNotExist:
+        attendance_score = 100.0  # no data → assume fine
+
+    # ── Academic ──────────────────────────────────────────────────────────────
+    academic_score = 100.0
+    try:
+        tr = TermResult.objects.get(student=student, term=term)
+        academic_score = float(tr.average_score)
+    except TermResult.DoesNotExist:
+        academic_score = 100.0
+
+    # ── Fee ───────────────────────────────────────────────────────────────────
+    fee_score = 100.0
+    fee_status = 'UNKNOWN'
+    fee_balance = 0.0
+    try:
+        sf = StudentFee.objects.get(student=student, school=student.school)
+        fee_status = sf.status
+        fee_balance = float(sf.balance)
+        fee_total = float(sf.total_amount) if sf.total_amount else 1.0
+        if fee_status == 'PAID':
+            fee_score = 100.0
+        elif fee_status == 'DEFAULTED':
+            fee_score = 0.0
+        elif fee_status == 'PARTIAL':
+            fee_score = max(0.0, 100.0 - (fee_balance / max(fee_total, 1)) * 100)
+        else:
+            fee_score = 50.0  # NOT_STARTED
+    except StudentFee.DoesNotExist:
+        fee_score = 100.0
+
+    # ── Classify risk ─────────────────────────────────────────────────────────
+    is_high = (
+        attendance_score < 70
+        or academic_score < 50
+        or fee_status == 'DEFAULTED'
+    )
+    is_medium = (
+        (70 <= attendance_score < 80)
+        or (50 <= academic_score < 60)
+        or (fee_status == 'PARTIAL' and fee_balance > 0
+            and (fee_balance / max(float(StudentFee.objects.filter(
+                student=student, school=student.school
+            ).values_list('total_amount', flat=True).first() or 1), 1)) > 0.5)
+    )
+    is_excelling = (
+        attendance_score >= 90
+        and academic_score >= 75
+        and fee_status == 'PAID'
+    )
+
+    if is_high:
+        risk_level = 'HIGH'
+    elif is_excelling:
+        risk_level = 'EXCELLING'
+    elif is_medium:
+        risk_level = 'MEDIUM'
+    else:
+        risk_level = 'LOW'
+
+    # ── Build factors & recommendations ───────────────────────────────────────
+    if attendance_score < 70:
+        risk_factors.append(f'Attendance critically low at {attendance_score:.1f}%')
+        recommendations.append('Contact guardian immediately regarding absences')
+    elif attendance_score < 80:
+        risk_factors.append(f'Attendance below target at {attendance_score:.1f}%')
+        recommendations.append('Send attendance reminder SMS to guardian')
+
+    if academic_score < 50:
+        risk_factors.append(f'Term average below pass mark at {academic_score:.1f}%')
+        recommendations.append('Arrange extra tuition or remedial classes')
+    elif academic_score < 60:
+        risk_factors.append(f'Term average needs improvement at {academic_score:.1f}%')
+        recommendations.append('Identify weak subjects and provide targeted support')
+
+    if fee_status == 'DEFAULTED':
+        risk_factors.append('Fee account in default')
+        recommendations.append('Urgent fee discussion with guardian required')
+    elif fee_status == 'PARTIAL' and fee_balance > 0:
+        risk_factors.append(f'Outstanding fee balance of GH₵{fee_balance:.2f}')
+        recommendations.append('Send fee reminder SMS via MoMo payment option')
+
+    if risk_level == 'EXCELLING':
+        recommendations.append('Nominate for academic excellence recognition')
+
+    return {
+        'risk_level': risk_level,
+        'risk_factors': risk_factors,
+        'recommendations': recommendations,
+        'attendance_score': round(attendance_score, 2),
+        'academic_score': round(academic_score, 2),
+        'fee_score': round(fee_score, 2),
+    }
+
+
+def detect_attendance_patterns(student, term):
+    """
+    Analyses DailyAttendance records for a student within a term's date range.
+
+    Returns dict:
+      pattern_type         : 'REGULAR_ABSENCE' | 'DECLINING' | 'IMPROVING' | 'CONSISTENT'
+      absent_day           : str | None  (e.g. 'Monday')
+      trend                : 'IMPROVING' | 'DECLINING' | 'STABLE'
+      consecutive_absences : int  (max consecutive absent streak)
+      late_count           : int
+      alert_needed         : bool
+    """
+    from students.models import DailyAttendance
+
+    DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+    records = list(
+        DailyAttendance.objects.filter(
+            student=student,
+            date__gte=term.start_date,
+            date__lte=term.end_date,
+        ).order_by('date').values('date', 'status')
+    )
+
+    if not records:
+        return {
+            'pattern_type': 'CONSISTENT',
+            'absent_day': None,
+            'trend': 'STABLE',
+            'consecutive_absences': 0,
+            'late_count': 0,
+            'alert_needed': False,
+        }
+
+    # ── Day-of-week absence frequency ─────────────────────────────────────────
+    absent_days = [r['date'].weekday() for r in records if r['status'] == 'absent']
+    absent_day = None
+    if absent_days:
+        most_common_dow, count = Counter(absent_days).most_common(1)[0]
+        # Only flag if that day accounts for ≥30% of all absences
+        if count / len(absent_days) >= 0.30:
+            absent_day = DAYS[most_common_dow]
+
+    # ── Late count ────────────────────────────────────────────────────────────
+    late_count = sum(1 for r in records if r['status'] == 'late')
+
+    # ── Consecutive absences ──────────────────────────────────────────────────
+    max_streak = 0
+    current_streak = 0
+    for r in records:
+        if r['status'] == 'absent':
+            current_streak += 1
+            max_streak = max(max_streak, current_streak)
+        else:
+            current_streak = 0
+
+    # ── Trend: compare first half vs second half of term ─────────────────────
+    mid = len(records) // 2
+    first_half = records[:mid]
+    second_half = records[mid:]
+
+    def _present_rate(chunk):
+        if not chunk:
+            return 1.0
+        return sum(1 for r in chunk if r['status'] == 'present') / len(chunk)
+
+    first_rate = _present_rate(first_half)
+    second_rate = _present_rate(second_half)
+    diff = second_rate - first_rate
+
+    if diff >= 0.05:
+        trend = 'IMPROVING'
+    elif diff <= -0.05:
+        trend = 'DECLINING'
+    else:
+        trend = 'STABLE'
+
+    # ── Pattern type ──────────────────────────────────────────────────────────
+    if absent_day:
+        pattern_type = 'REGULAR_ABSENCE'
+    elif trend == 'DECLINING':
+        pattern_type = 'DECLINING'
+    elif trend == 'IMPROVING':
+        pattern_type = 'IMPROVING'
+    else:
+        pattern_type = 'CONSISTENT'
+
+    alert_needed = (
+        max_streak >= 3
+        or trend == 'DECLINING'
+        or absent_day is not None
+        or late_count >= 5
+    )
+
+    return {
+        'pattern_type': pattern_type,
+        'absent_day': absent_day,
+        'trend': trend,
+        'consecutive_absences': max_streak,
+        'late_count': late_count,
+        'alert_needed': alert_needed,
+    }
+
+
+def analyse_academic_trends(student, current_term):
+    """
+    Compares SubjectResult scores across the current term and the previous term.
+
+    Returns dict:
+      overall_trend      : 'IMPROVING' | 'DECLINING' | 'STABLE'
+      percentage_change  : float  (positive = improved)
+      best_subject       : str
+      worst_subject      : str
+      subjects_declined  : list[dict]  [{name, prev, current, change}]
+      subjects_improved  : list[dict]
+      alert_needed       : bool
+      alert_reason       : str | None
+    """
+    from scores.models import SubjectResult, TermResult
+    from schools.models import Term
+
+    # ── Current term subject scores ───────────────────────────────────────────
+    current_results = SubjectResult.objects.filter(
+        student=student, term=current_term
+    ).select_related('class_subject__subject')
+
+    if not current_results.exists():
+        return {
+            'overall_trend': 'STABLE',
+            'percentage_change': 0.0,
+            'best_subject': None,
+            'worst_subject': None,
+            'subjects_declined': [],
+            'subjects_improved': [],
+            'alert_needed': False,
+            'alert_reason': None,
+        }
+
+    current_map = {
+        r.class_subject.subject.name: float(r.total_score)
+        for r in current_results
+    }
+
+    best_subject = max(current_map, key=current_map.get)
+    worst_subject = min(current_map, key=current_map.get)
+
+    # ── Previous term ─────────────────────────────────────────────────────────
+    prev_term = (
+        Term.objects.filter(
+            academic_year=current_term.academic_year,
+            end_date__lt=current_term.start_date,
+        )
+        .order_by('-end_date')
+        .first()
+    )
+
+    if not prev_term:
+        # No previous term — return current-only data
+        return {
+            'overall_trend': 'STABLE',
+            'percentage_change': 0.0,
+            'best_subject': best_subject,
+            'worst_subject': worst_subject,
+            'subjects_declined': [],
+            'subjects_improved': [],
+            'alert_needed': False,
+            'alert_reason': None,
+        }
+
+    prev_results = SubjectResult.objects.filter(
+        student=student, term=prev_term
+    ).select_related('class_subject__subject')
+
+    prev_map = {
+        r.class_subject.subject.name: float(r.total_score)
+        for r in prev_results
+    }
+
+    # ── Compare ───────────────────────────────────────────────────────────────
+    subjects_declined = []
+    subjects_improved = []
+    alert_needed = False
+    alert_reason = None
+
+    for subject, current_score in current_map.items():
+        if subject not in prev_map:
+            continue
+        prev_score = prev_map[subject]
+        change = current_score - prev_score
+        entry = {
+            'name': subject,
+            'previous': round(prev_score, 1),
+            'current': round(current_score, 1),
+            'change': round(change, 1),
+        }
+        if change < -15:
+            subjects_declined.append(entry)
+            alert_needed = True
+            alert_reason = f'{subject} dropped by {abs(change):.1f}%'
+        elif change < 0:
+            subjects_declined.append(entry)
+        elif change > 0:
+            subjects_improved.append(entry)
+
+    # ── Overall trend via TermResult averages ─────────────────────────────────
+    percentage_change = 0.0
+    overall_trend = 'STABLE'
+    try:
+        curr_tr = TermResult.objects.get(student=student, term=current_term)
+        prev_tr = TermResult.objects.get(student=student, term=prev_term)
+        percentage_change = float(curr_tr.average_score) - float(prev_tr.average_score)
+        if percentage_change >= 3:
+            overall_trend = 'IMPROVING'
+        elif percentage_change <= -3:
+            overall_trend = 'DECLINING'
+    except TermResult.DoesNotExist:
+        pass
+
+    return {
+        'overall_trend': overall_trend,
+        'percentage_change': round(percentage_change, 2),
+        'best_subject': best_subject,
+        'worst_subject': worst_subject,
+        'subjects_declined': subjects_declined,
+        'subjects_improved': subjects_improved,
+        'alert_needed': alert_needed,
+        'alert_reason': alert_reason,
+    }
+
+
+def predict_fee_default_risk(student, term):
+    """
+    Predicts fee default risk using FeePayment history and TermBill data.
+
+    Returns dict:
+      default_risk         : 'HIGH' | 'MEDIUM' | 'LOW'
+      previous_defaults    : int
+      days_until_due       : int | None
+      balance_remaining    : float
+      recommended_action   : str
+      best_sms_day         : str  (day of week to send reminder)
+    """
+    from fees.models import StudentFee, TermBill, FeePayment
+
+    today = date.today()
+
+    # ── Current balance ───────────────────────────────────────────────────────
+    balance_remaining = 0.0
+    try:
+        sf = StudentFee.objects.get(student=student, school=student.school)
+        balance_remaining = float(sf.balance)
+    except StudentFee.DoesNotExist:
+        pass
+
+    # ── Previous defaults: count terms where student had DEFAULTED status ─────
+    # We approximate by counting TermBills that ended UNPAID/PARTIAL past due date
+    previous_defaults = TermBill.objects.filter(
+        student=student,
+        due_date__lt=today,
+        status__in=['UNPAID', 'PARTIAL'],
+    ).exclude(term=term).count()
+
+    # ── Days until due ────────────────────────────────────────────────────────
+    days_until_due = None
+    upcoming_bill = (
+        TermBill.objects.filter(
+            student=student,
+            term=term,
+            due_date__gte=today,
+            status__in=['UNPAID', 'PARTIAL'],
+        )
+        .order_by('due_date')
+        .first()
+    )
+    if upcoming_bill and upcoming_bill.due_date:
+        days_until_due = (upcoming_bill.due_date - today).days
+
+    # ── Payment timing history: how many days after due date did they pay? ────
+    late_payments = FeePayment.objects.filter(student=student).count()
+    total_payments = late_payments  # we use count as a proxy for engagement
+
+    # ── Risk classification ───────────────────────────────────────────────────
+    if previous_defaults >= 2 or (days_until_due is not None and days_until_due <= 3 and balance_remaining > 0):
+        default_risk = 'HIGH'
+        recommended_action = 'Call guardian immediately and arrange payment plan'
+        best_sms_day = 'Monday'
+    elif previous_defaults == 1 or (days_until_due is not None and days_until_due <= 7 and balance_remaining > 0):
+        default_risk = 'MEDIUM'
+        recommended_action = 'Send SMS reminder with MoMo payment details'
+        best_sms_day = 'Wednesday'
+    else:
+        default_risk = 'LOW'
+        recommended_action = 'Standard fee reminder at term start'
+        best_sms_day = 'Friday'
+
+    return {
+        'default_risk': default_risk,
+        'previous_defaults': previous_defaults,
+        'days_until_due': days_until_due,
+        'balance_remaining': round(balance_remaining, 2),
+        'recommended_action': recommended_action,
+        'best_sms_day': best_sms_day,
+    }
+
+
+def generate_smart_sms(student, alert_type, data):
+    """
+    Generates a personalised SMS under 160 characters.
+
+    alert_type options:
+      ATTENDANCE_LOW    data: {'attendance': float, 'school_phone': str}
+      EXAM_POOR         data: {'average': float, 'worst_subject': str}
+      FEE_REMINDER      data: {'balance': float, 'due_date': str, 'momo_number': str}
+      RISK_ALERT        data: {'risk_level': str, 'main_factor': str}
+      POSITIVE_FEEDBACK data: {'average': float, 'best_subject': str}
+
+    Returns str (max 160 chars).
+    """
+    guardian = student.guardian_name.split()[0] if student.guardian_name else 'Guardian'
+    first_name = student.first_name
+    school = student.school.name if student.school else 'School'
+
+    templates = {
+        'ATTENDANCE_LOW': (
+            f"Hi {guardian}, {first_name}'s attendance is "
+            f"{data.get('attendance', 0):.0f}% this term. "
+            f"Please contact {school}. "
+            f"Call: {data.get('school_phone', '')}"
+        ),
+        'EXAM_POOR': (
+            f"Hi {guardian}, {first_name} scored {data.get('average', 0):.0f}% avg "
+            f"this term. Needs support in {data.get('worst_subject', 'some subjects')}. "
+            f"Contact {school}."
+        ),
+        'FEE_REMINDER': (
+            f"Hi {guardian}, {first_name}'s fee balance is "
+            f"GHS {data.get('balance', 0):.0f}. "
+            f"Due: {data.get('due_date', 'soon')}. "
+            f"Pay via MoMo: {data.get('momo_number', '')} - {school}"
+        ),
+        'RISK_ALERT': (
+            f"Hi {guardian}, {first_name} needs attention at {school}. "
+            f"{data.get('main_factor', 'Please contact the school')}. "
+            f"Call us today."
+        ),
+        'POSITIVE_FEEDBACK': (
+            f"Hi {guardian}, great news! {first_name} scored "
+            f"{data.get('average', 0):.0f}% avg this term. "
+            f"Best in {data.get('best_subject', 'class')}. "
+            f"Well done! - {school}"
+        ),
+    }
+
+    message = templates.get(alert_type, f"Hi {guardian}, please contact {school} regarding {first_name}.")
+    # Hard-truncate to 160 chars (single SMS segment)
+    return message[:160]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION B — GOOGLE GEMINI AI FUNCTIONS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _get_gemini_api_key():
+    """Return the configured Gemini API key from Django settings or environment."""
+    api_key = (
+        getattr(settings, 'GEMINI_API_KEY', '')
+        or getattr(settings, 'GOOGLE_API_KEY', '')
+        or os.getenv('GEMINI_API_KEY', '')
+        or os.getenv('GOOGLE_API_KEY', '')
+    )
+    api_key = str(api_key or '').strip().strip('"').strip("'")
+    if not api_key:
+        raise ValueError('GEMINI_API_KEY or GOOGLE_API_KEY not set in settings')
+    return api_key
+
+
+def _gemini_generate_text(prompt, model='gemini-2.0-flash'):
+    """Call the Gemini REST API using the official Google endpoint and auth header."""
+    api_key = _get_gemini_api_key()
+    url = f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
+    headers = {
+        'x-goog-api-key': api_key,
+        'Content-Type': 'application/json',
+    }
+    data = {
+        'contents': [
+            {
+                'parts': [
+                    {'text': prompt}
+                ]
+            }
+        ]
+    }
+
+    response = requests.post(url, headers=headers, json=data, timeout=30)
+    if response.status_code == 200:
+        result = response.json()
+        if not result.get('candidates'):
+            raise ValueError('Gemini returned no candidates')
+        parts = result['candidates'][0].get('content', {}).get('parts', [])
+        if not parts:
+            raise ValueError('Gemini returned no content parts')
+        return parts[0].get('text', '').strip()
+
+    if response.status_code == 401:
+        raise ValueError('Gemini API authentication failed')
+    if response.status_code == 429:
+        raise ValueError('Gemini API rate limit exceeded')
+    raise ValueError(f'Gemini API request failed with status {response.status_code}')
+
+
+def generate_ai_student_report(student, term):
+    """
+    Uses Gemini to generate a friendly end-of-term report paragraph for parents.
+
+    Returns str (100-150 words) or raises on failure.
+    """
+    from scores.models import TermResult, SubjectResult
+    from students.models import Attendance, Behaviour
+
+    # ── Gather data ───────────────────────────────────────────────────────────
+    attendance_pct = 0.0
+    try:
+        att = Attendance.objects.get(student=student, term=term)
+        attendance_pct = float(att.attendance_percentage)
+    except Attendance.DoesNotExist:
+        pass
+
+    average = 0.0
+    try:
+        tr = TermResult.objects.get(student=student, term=term)
+        average = float(tr.average_score)
+    except TermResult.DoesNotExist:
+        pass
+
+    subject_results = SubjectResult.objects.filter(
+        student=student, term=term
+    ).select_related('class_subject__subject').order_by('-total_score')
+
+    best_subject = worst_subject = best_score = worst_score = None
+    if subject_results.exists():
+        best = subject_results.first()
+        worst = subject_results.last()
+        best_subject = best.class_subject.subject.name
+        best_score = float(best.total_score)
+        worst_subject = worst.class_subject.subject.name
+        worst_score = float(worst.total_score)
+
+    conduct = attitude = punctuality = 'Good'
+    try:
+        beh = Behaviour.objects.get(student=student, term=term)
+        conduct = beh.get_conduct_display()
+        attitude = beh.get_attitude_display()
+        punctuality = beh.get_punctuality_display()
+    except Behaviour.DoesNotExist:
+        pass
+
+    class_name = str(student.current_class) if student.current_class else 'Unknown Class'
+
+    prompt = (
+        f"Write a friendly end-of-term school report for parents in Ghana. "
+        f"Student: {student.first_name} {student.last_name}, Class: {class_name}. "
+        f"Attendance: {attendance_pct:.0f}%. Average score: {average:.1f}%. "
+        f"Best subject: {best_subject} ({best_score:.0f}%). "
+        f"Needs improvement in: {worst_subject} ({worst_score:.0f}%). "
+        f"Behaviour: {conduct} conduct, {attitude} attitude, {punctuality} punctuality. "
+        f"Write 2-3 encouraging sentences. Be honest but positive. "
+        f"Use simple English. Ghana school context. Maximum 150 words."
+    )
+
+    client = _get_gemini_client()
+    response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+    return response.text.strip()
+
+
+def generate_lesson_plan(subject, topic, class_level, duration_minutes):
+    """
+    Uses Gemini to generate a lesson plan following Ghana Education Service format.
+
+    Returns dict with keys: objectives, introduction, main_activities,
+                            assessment, homework, resources_needed
+    """
+    import json
+
+    prompt = (
+        f"Create a lesson plan for a Ghana Basic School teacher. "
+        f"Subject: {subject}. Topic: {topic}. Class: {class_level}. "
+        f"Duration: {duration_minutes} minutes. "
+        f"Follow Ghana Education Service format. "
+        f"Return ONLY valid JSON with these keys: "
+        f"objectives (list of 3), introduction (string, 2 sentences), "
+        f"main_activities (list of 4 steps), assessment (string), "
+        f"homework (string), resources_needed (list)."
+    )
+
+    text = _gemini_generate_text(prompt)
+
+    # Strip markdown code fences if present
+    if text.startswith('```'):
+        text = text.split('```')[1]
+        if text.startswith('json'):
+            text = text[4:]
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # Return structured fallback if Gemini returns non-JSON
+        return {
+            'objectives': [f'Understand {topic}', f'Apply {topic} concepts', f'Evaluate {topic}'],
+            'introduction': f'Begin with a review of prior knowledge related to {topic}.',
+            'main_activities': [
+                'Teacher introduces the topic with examples.',
+                'Students work in groups on guided practice.',
+                'Class discussion and Q&A.',
+                'Individual practice exercise.',
+            ],
+            'assessment': 'Short quiz or oral questions at end of lesson.',
+            'homework': f'Complete exercises on {topic} from textbook.',
+            'resources_needed': ['Textbook', 'Chalkboard', 'Exercise books'],
+            '_note': 'Fallback plan — Gemini response was not valid JSON.',
+        }
+
+
+def generate_class_insights(class_obj, term):
+    """
+    Uses Gemini to analyse class performance and give teaching recommendations.
+
+    Returns str with teaching strategy recommendations.
+    """
+    from scores.models import SubjectResult, TermResult
+    from students.models import Attendance
+    from django.db.models import Avg
+
+    # ── Aggregate class data ──────────────────────────────────────────────────
+    students = class_obj.students.filter(is_active=True)
+    total = students.count()
+    if total == 0:
+        return 'No active students in this class.'
+
+    avg_score = TermResult.objects.filter(
+        term=term, class_instance=class_obj
+    ).aggregate(avg=Avg('average_score'))['avg'] or 0
+
+    avg_attendance = 0.0
+    att_records = Attendance.objects.filter(
+        student__in=students, term=term
+    )
+    if att_records.exists():
+        total_pct = sum(float(a.attendance_percentage) for a in att_records)
+        avg_attendance = total_pct / att_records.count()
+
+    # Subjects with lowest average scores
+    subject_avgs = (
+        SubjectResult.objects.filter(
+            student__in=students, term=term
+        )
+        .values('class_subject__subject__name')
+        .annotate(avg=Avg('total_score'))
+        .order_by('avg')[:3]
+    )
+    weak_subjects = [f"{s['class_subject__subject__name']} ({s['avg']:.1f}%)" for s in subject_avgs]
+
+    from scores.models import StudentRiskProfile  # noqa — may not exist yet
+    at_risk_count = 0
+    try:
+        from core.models import StudentRiskProfile as SRP
+        at_risk_count = SRP.objects.filter(
+            student__in=students, term=term, risk_level__in=['HIGH', 'MEDIUM']
+        ).count()
+    except Exception:
+        pass
+
+    prompt = (
+        f"You are an educational advisor for a Ghana Basic School. "
+        f"Class: {class_obj}. Term: {term}. Total students: {total}. "
+        f"Class average score: {avg_score:.1f}%. "
+        f"Average attendance: {avg_attendance:.1f}%. "
+        f"Subjects needing most attention: {', '.join(weak_subjects) or 'None identified'}. "
+        f"Students at risk: {at_risk_count}. "
+        f"Give 3-4 specific, practical teaching recommendations for this class. "
+        f"Keep it concise and actionable. Ghana school context."
+    )
+
+    client = _get_gemini_client()
+    response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+    return response.text.strip()

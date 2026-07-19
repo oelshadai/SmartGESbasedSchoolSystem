@@ -69,6 +69,7 @@ const PayrollManagement          = lazy(() => import("./pages/school/PayrollMana
 const ExpenseManagement          = lazy(() => import("./pages/school/ExpenseManagement"));
 const IncomeTracking             = lazy(() => import("./pages/school/IncomeTracking"));
 const BudgetPlanning             = lazy(() => import("./pages/school/BudgetPlanning"));
+const AIDashboard                = lazy(() => import("./pages/school/AIDashboard"));
 
 // Teacher
 const TeacherAssignments         = lazy(() => import("./pages/teacher/TeacherAssignments"));
@@ -103,6 +104,7 @@ const StudentBills               = lazy(() => import("./pages/student/StudentBil
 const StudentPaymentPage         = lazy(() => import("./pages/student/StudentPaymentPage"));
 const StudentEvents              = lazy(() => import("./pages/student/StudentEvents"));
 const MySubmissions              = lazy(() => import("./pages/student/MySubmissions"));
+const StudentAIHub               = lazy(() => import("./pages/student/StudentAIHub"));
 
 // Parent
 const ParentDashboard            = lazy(() => import("./pages/parent/ParentDashboard"));
@@ -230,6 +232,7 @@ const App = () => {
             <Route path="/school/financial/expenses" element={<ExpenseManagement />} />
             <Route path="/school/financial/income" element={<IncomeTracking />} />
             <Route path="/school/financial/budget" element={<BudgetPlanning />} />
+            <Route path="/school/ai" element={<AIDashboard />} />
           </Route>
 
           {/* Teacher */}
@@ -270,6 +273,7 @@ const App = () => {
             <Route path="/student/events" element={<StudentEvents />} />
             <Route path="/student/submissions" element={<MySubmissions />} />
             <Route path="/student/profile" element={<StudentProfile />} />
+            <Route path="/student/ai" element={<StudentAIHub />} />
           </Route>
 
           {/* Parent */}

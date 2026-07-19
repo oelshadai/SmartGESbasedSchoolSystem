@@ -6,7 +6,7 @@ import {
   HeadphonesIcon, FileText, Shield, 
   LogOut, Bell, Search, Menu, X,
   ChevronRight, ChevronLeft, Home, CalendarDays, BookOpen, GraduationCap, Briefcase, CreditCard, Receipt, TrendingUp, PieChart, Globe, ShieldCheck, MessageSquare,
-  ClipboardList, Award, User, HelpCircle, CheckCheck, Clock, DollarSign
+  ClipboardList, Award, User, HelpCircle, CheckCheck, Clock, DollarSign, Sparkles
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import type { UserRole } from '@/types';
@@ -196,6 +196,12 @@ const getNavItems = (role: UserRole) => {
       icon: MessageSquare,
       description: 'Communications',
     },
+    {
+      path: '/school/ai',
+      label: 'AI Intelligence',
+      icon: Sparkles,
+      description: 'Risk, trends & smart SMS',
+    },
   ];
 
   const teacherNavItems = [
@@ -283,6 +289,12 @@ const getNavItems = (role: UserRole) => {
       icon: HelpCircle,
       description: 'Support resources',
     },
+    {
+      path: '/school/ai',
+      label: 'AI Tools',
+      icon: Sparkles,
+      description: 'Lesson plans & insights',
+    },
   ];
 
   const studentNavItems = [
@@ -363,6 +375,12 @@ const getNavItems = (role: UserRole) => {
       label: 'Profile',
       icon: User,
       description: 'Account settings',
+    },
+    {
+      path: '/student/ai',
+      label: 'AI Learning Hub',
+      icon: Sparkles,
+      description: 'Tutor, analysis & practice',
     },
   ];
 

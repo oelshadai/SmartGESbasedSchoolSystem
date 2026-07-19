@@ -5,10 +5,12 @@ Django settings for school_report_saas project.
 from pathlib import Path
 from datetime import timedelta
 from decouple import config
+from dotenv import load_dotenv
 import os
 import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
 
 # Security
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-development-key-change-in-production')
@@ -50,6 +52,7 @@ INSTALLED_APPS = [
     'announcements',
     'timetable',
     'monitoring',
+    'core',
 ]
 
 MIDDLEWARE = [
@@ -244,6 +247,15 @@ PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY', default='')
 # Get your key from https://arkesel.com → Dashboard → API Keys
 ARKESEL_API_KEY = config('ARKESEL_API_KEY', default='')
 ARKESEL_SENDER_NAME = config('ARKESEL_SENDER_NAME', default='SchoolSMS')
+
+# Gemini AI
+load_dotenv(BASE_DIR / '.env')
+GEMINI_API_KEY = (
+    config('GEMINI_API_KEY', default=os.getenv('GEMINI_API_KEY', os.getenv('GOOGLE_API_KEY', ''))) or ''
+).strip().strip('"').strip("'")
+GOOGLE_API_KEY = (
+    config('GOOGLE_API_KEY', default=os.getenv('GOOGLE_API_KEY', '')) or ''
+).strip().strip('"').strip("'")
 
 # Web Push (VAPID)
 VAPID_PUBLIC_KEY = config('VAPID_PUBLIC_KEY', default='BCOQPyoGEBtB6ypPn3u5nOgeIoeIA_ruKyaPXOpme3b8a-qUjNEFwbM2823k3NHs0-Kl6U8xEfUSco9co8yWz7w')
