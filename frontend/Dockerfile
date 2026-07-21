@@ -25,4 +25,4 @@ RUN npm run build
 EXPOSE 4173
 
 # Start the app with a static server on Railway's dynamic port
-CMD ["sh", "-c", "http-server dist -a 0.0.0.0 -p ${PORT:-4173}"]
+CMD ["sh", "-c", "PORT=${PORT:-4173} && http-server dist -a 0.0.0.0 -p $PORT"]
