@@ -84,19 +84,26 @@ class TeacherTimetableViewSet(viewsets.ViewSet):
 
     def create(self, request):
         """POST /api/timetable/teacher/ — add a lesson slot"""
-        class_id       = request.data.get('class_id')
+        class_id         = request.data.get('class_id')
         class_subject_id = request.data.get('class_subject_id')
-        day            = request.data.get('day')
-        start_time     = request.data.get('start_time')
-        end_time       = request.data.get('end_time')
-        room           = request.data.get('room', '')
-        notes          = request.data.get('notes', '')
+        day              = request.data.get('day')
+        start_time       = request.data.get('start_time')
+        end_time         = request.data.get('end_time')
+        room             = request.data.get('room', '')
+        notes            = request.data.get('notes', '')
 
         if not all([class_id, class_subject_id, day, start_time, end_time]):
             return Response({'error': 'class_id, class_subject_id, day, start_time, end_time are required'}, status=400)
 
-        cls = self._get_class(request, class_id)
-        if not cls:
+        # Allow both class teachers and subject teachers to add slots
+        try:
+            cls = Class.objects.get(id=class_id, school=request.user.school)
+        except Class.DoesNotExist:
+            return Response({'error': 'Class not found'}, status=404)
+
+        is_class_teacher = cls.class_teacher == request.user
+        is_subject_teacher = ClassSubject.objects.filter(teacher=request.user, class_instance=cls).exists()
+        if not (is_class_teacher or is_subject_teacher):
             return Response({'error': 'Class not found or not assigned to you'}, status=404)
 
         try:
@@ -123,7 +130,10 @@ class TeacherTimetableViewSet(viewsets.ViewSet):
         except LessonSlot.DoesNotExist:
             return Response({'error': 'Slot not found'}, status=404)
 
-        if slot.class_instance.class_teacher != request.user:
+        cls = slot.class_instance
+        is_class_teacher = cls.class_teacher == request.user
+        is_subject_teacher = ClassSubject.objects.filter(teacher=request.user, class_instance=cls).exists()
+        if not (is_class_teacher or is_subject_teacher):
             return Response({'error': 'Permission denied'}, status=403)
 
         for field in ('day', 'start_time', 'end_time', 'room', 'notes'):
@@ -147,7 +157,10 @@ class TeacherTimetableViewSet(viewsets.ViewSet):
         except LessonSlot.DoesNotExist:
             return Response({'error': 'Slot not found'}, status=404)
 
-        if slot.class_instance.class_teacher != request.user:
+        cls = slot.class_instance
+        is_class_teacher = cls.class_teacher == request.user
+        is_subject_teacher = ClassSubject.objects.filter(teacher=request.user, class_instance=cls).exists()
+        if not (is_class_teacher or is_subject_teacher):
             return Response({'error': 'Permission denied'}, status=403)
 
         slot.delete()
