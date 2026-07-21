@@ -196,8 +196,8 @@ else:
     CORS_ALLOW_ALL_ORIGINS = False
     CORS_ALLOWED_ORIGINS = [h.strip() for h in config(
         'CORS_ALLOWED_ORIGINS',
-        default='https://schoolreport-frontend.onrender.com,https://smartgesbasedschoolsystem-production.up.railway.app'
-    ).split(',')]
+        default=''  # Set this in Railway to your production frontend origin(s)
+    ).split(',') if h.strip()]
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
@@ -241,6 +241,13 @@ EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER or 'noreply@schoolreport.com')
 
 FRONTEND_URL = config('FRONTEND_URL', default='https://your-frontend.railway.app')
+
+# Ensure production CORS allows the configured frontend URL
+if not DEBUG:
+    _frontend_origins = [h.strip() for h in config('CORS_ALLOWED_ORIGINS', default='').split(',') if h.strip()]
+    if FRONTEND_URL and FRONTEND_URL not in _frontend_origins:
+        _frontend_origins.append(FRONTEND_URL)
+    CORS_ALLOWED_ORIGINS = _frontend_origins
 
 # Payment
 PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY', default='')
