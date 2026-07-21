@@ -47,17 +47,34 @@ class TeacherTimetableViewSet(viewsets.ViewSet):
         except Class.DoesNotExist:
             return None
 
+    def _get_teacher_classes(self, request):
+        """Return all classes this teacher is either class teacher of or teaches a subject in."""
+        school = request.user.school
+        class_teacher_ids = Class.objects.filter(
+            class_teacher=request.user, school=school
+        ).values_list('id', flat=True)
+        subject_teacher_ids = ClassSubject.objects.filter(
+            teacher=request.user, class_instance__school=school
+        ).values_list('class_instance_id', flat=True)
+        all_ids = set(list(class_teacher_ids) + list(subject_teacher_ids))
+        return Class.objects.filter(id__in=all_ids)
+
     def list(self, request):
         """GET /api/timetable/teacher/?class_id=<id>"""
         class_id = request.query_params.get('class_id')
         if not class_id:
-            # Return all classes the teacher manages
-            classes = Class.objects.filter(class_teacher=request.user, school=request.user.school)
+            classes = self._get_teacher_classes(request)
             return Response([{'id': c.id, 'name': str(c)} for c in classes])
 
         cls = self._get_class(request, class_id)
         if not cls:
-            return Response({'error': 'Class not found or not assigned to you'}, status=404)
+            # Also allow subject teachers to view the timetable
+            try:
+                cls = Class.objects.get(id=class_id, school=request.user.school)
+                if not ClassSubject.objects.filter(teacher=request.user, class_instance=cls).exists():
+                    return Response({'error': 'Class not found or not assigned to you'}, status=404)
+            except Class.DoesNotExist:
+                return Response({'error': 'Class not found or not assigned to you'}, status=404)
 
         slots = LessonSlot.objects.filter(class_instance=cls)
         return Response({

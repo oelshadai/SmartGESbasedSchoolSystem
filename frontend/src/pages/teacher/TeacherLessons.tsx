@@ -3,7 +3,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { secureApiClient } from '@/lib/secureApiClient';
 import { toast } from 'sonner';
 import {
@@ -49,16 +48,9 @@ const sanitizeRoomName = (value: string) =>
     .toLowerCase();
 
 const buildMeetingRoom = (className: string, slot: Slot) => {
-  const safeClass = sanitizeRoomName(className || 'class');
-  const safeSubject = sanitizeRoomName(slot.subject || 'lesson');
-  const safeDay = sanitizeRoomName(slot.day || 'day');
-  const safeTime = sanitizeRoomName(slot.start_time || 'time');
-  return `smartschool-${safeClass}-${safeSubject}-${safeDay}-${safeTime}`;
-};
-
-const buildDirectMeetingRoom = (className: string) => {
-  const safeClass = sanitizeRoomName(className || 'class');
-  return `smartschool-${safeClass}-live-class`;
+  return sanitizeRoomName(
+    `SmartSchool-${className}-${slot.subject}-${slot.day}-${slot.start_time}`
+  );
 };
 
 const TeacherLessons = () => {
@@ -70,7 +62,7 @@ const TeacherLessons = () => {
   const [noteDrafts, setNoteDrafts] = useState<Record<number, string>>({});
   const [expandedDay, setExpandedDay] = useState<string | null>('MON');
   const [activeMeetingSlot, setActiveMeetingSlot] = useState<Slot | null>(null);
-  const [meetingRoomName, setMeetingRoomName] = useState<string | null>(null);
+
 
   const fetchClasses = async () => {
     setLoading(true);
@@ -123,17 +115,7 @@ const TeacherLessons = () => {
     return classes.find((cls) => cls.id === selectedClass)?.name || '';
   }, [classes, selectedClass]);
 
-  const meetingUrl = meetingRoomName ? `https://meet.jit.si/${meetingRoomName}` : null;
-
-  const handleStartDirectVideo = () => {
-    if (!selectedClassName) {
-      toast.error('Select a class before starting a live class.');
-      return;
-    }
-
-    setActiveMeetingSlot(null);
-    setMeetingRoomName(buildDirectMeetingRoom(selectedClassName));
-  };
+  const meetingUrl = activeMeetingSlot ? `https://meet.jit.si/${buildMeetingRoom(selectedClassName, activeMeetingSlot)}` : null;
 
   const handleSaveNotes = async (slotId: number) => {
     const notes = noteDrafts[slotId] ?? '';
@@ -151,21 +133,15 @@ const TeacherLessons = () => {
 
   const handleJoinVideo = (slot: Slot) => {
     setActiveMeetingSlot(slot);
-    setMeetingRoomName(buildMeetingRoom(selectedClassName, slot));
-  };
-
-  const handleCloseMeetingModal = () => {
-    setActiveMeetingSlot(null);
-    setMeetingRoomName(null);
   };
 
   const handleOpenExternalMeeting = () => {
-    if (!meetingRoomName || !meetingUrl) return;
+    if (!activeMeetingSlot) return;
     window.open(meetingUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleCopyMeetingLink = async () => {
-    if (!meetingRoomName || !meetingUrl) return;
+    if (!activeMeetingSlot) return;
     try {
       await navigator.clipboard.writeText(meetingUrl || '');
       toast.success('Meeting link copied');
@@ -189,21 +165,6 @@ const TeacherLessons = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 pb-24 space-y-5">
-      <Dialog open={Boolean(meetingRoomName)} onOpenChange={(open) => !open && handleCloseMeetingModal()}>
-        <DialogContent className="max-w-6xl h-[90vh] p-0 overflow-hidden">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Live lesson room</DialogTitle>
-          </DialogHeader>
-          {meetingRoomName && meetingUrl ? (
-            <iframe
-              title="Live Lesson Meeting"
-              src={meetingUrl}
-              className="h-full w-full"
-              allow="camera; microphone; fullscreen; display-capture"
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center">
@@ -266,24 +227,26 @@ const TeacherLessons = () => {
             <p className="text-sm text-muted-foreground">Start a shared Jitsi session inside the app so students and colleagues join the same room.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="secondary" className="gap-2" onClick={handleStartDirectVideo} disabled={!selectedClassName}>
-              <Link2 className="h-4 w-4" /> Start Live Class
-            </Button>
-            <Button size="sm" className="gap-2" disabled={!meetingRoomName} onClick={handleOpenExternalMeeting}>
+            <Button size="sm" className="gap-2" disabled={!activeMeetingSlot} onClick={handleOpenExternalMeeting}>
               <Link2 className="h-4 w-4" /> Open in new tab
             </Button>
-            <Button size="sm" variant="outline" className="gap-2" disabled={!meetingRoomName} onClick={handleCopyMeetingLink}>
+            <Button size="sm" variant="outline" className="gap-2" disabled={!activeMeetingSlot} onClick={handleCopyMeetingLink}>
               <Link2 className="h-4 w-4" /> Copy room link
             </Button>
           </div>
         </div>
-        {meetingRoomName ? (
-          <div className="mt-4 rounded-3xl border border-border bg-slate-950/70 p-4 text-sm text-muted-foreground">
-            The live class room is ready. Open it in the modal below to join the session.
+        {activeMeetingSlot ? (
+          <div className="mt-4 rounded-3xl overflow-hidden border border-border bg-black">
+            <iframe
+              title="Live Lesson Meeting"
+              src={meetingUrl || ''}
+              className="h-[540px] w-full"
+              allow="camera; microphone; fullscreen; display-capture"
+            />
           </div>
         ) : (
           <div className="mt-4 rounded-3xl border border-dashed border-border bg-slate-950/70 p-6 text-center text-sm text-muted-foreground">
-            Start a live class directly for this class, or choose a lesson below to open its room in a modal.
+            Select a lesson below to embed the live video meeting inside the app.
           </div>
         )}
       </div>
@@ -365,6 +328,7 @@ const TeacherLessons = () => {
                               value={noteDrafts[slot.id] ?? ''}
                               onChange={(event) => setNoteDrafts((prev) => ({ ...prev, [slot.id]: event.target.value }))}
                               placeholder="Write notes for this lesson"
+                              maxLength={255}
                               className="mt-1 min-h-[3rem] bg-slate-900/80"
                             />
                           </div>
