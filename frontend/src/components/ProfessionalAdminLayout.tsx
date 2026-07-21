@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type KeyboardEvent } from 'react';
+import { useState, useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
@@ -8,6 +8,11 @@ import {
   ChevronRight, ChevronLeft, Home, CalendarDays, BookOpen, GraduationCap, Briefcase, CreditCard, Receipt, TrendingUp, PieChart, Globe, ShieldCheck, MessageSquare,
   ClipboardList, Award, User, HelpCircle, CheckCheck, Clock, DollarSign, Sparkles
 } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useAuthStore } from '@/stores/authStore';
 import type { UserRole } from '@/types';
 
@@ -290,7 +295,7 @@ const getNavItems = (role: UserRole) => {
       description: 'Support resources',
     },
     {
-      path: '/teacher/ai',
+      path: '/school/ai',
       label: 'AI Tools',
       icon: Sparkles,
       description: 'Lesson plans & insights',
@@ -446,11 +451,16 @@ const roleLabel: Record<UserRole, string> = {
   PARENT: 'Parent / Guardian',
 };
 
+interface ProfessionalAdminLayoutProps {
+  children?: ReactNode;
+}
+
 const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const sidebarRef = useRef<HTMLDivElement | null>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -504,7 +514,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
   }, [location.pathname, sidebarOpen]);
 
   return (
-    <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -519,7 +529,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
         role="navigation"
         aria-label={`${subtitle} navigation`}
         onKeyDown={handleSidebarKeyDown}
-        className={`professional-sidebar app-sidebar-scrollbar fixed lg:static inset-y-0 left-0 z-50 h-screen ${collapsed ? 'w-20 lg:w-24' : 'w-72 lg:w-80'} bg-slate-900/95 lg:bg-slate-900/50 backdrop-blur-xl border-r border-slate-800/50 flex flex-col transition-all duration-300 ease-in-out ${
+        className={`professional-sidebar app-sidebar-scrollbar fixed lg:static inset-y-0 left-0 z-50 ${collapsed ? 'w-20 lg:w-24' : 'w-72 lg:w-80'} bg-slate-900/95 lg:bg-slate-900/50 backdrop-blur-xl border-r border-slate-800/50 flex flex-col transition-all duration-300 ease-in-out ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
@@ -657,9 +667,25 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
               <button className="h-8 w-8 rounded-md flex items-center justify-center bg-slate-800/30 text-slate-100 hover:bg-slate-800/50">
                 <Bell className="h-4 w-4" />
               </button>
-              <button onClick={handleLogout} className="h-8 w-8 rounded-md flex items-center justify-center bg-red-500/10 text-red-400 hover:bg-red-500/20">
-                <LogOut className="h-4 w-4" />
-              </button>
+              <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+                <AlertDialogTrigger asChild>
+                  <button className="h-8 w-8 rounded-md flex items-center justify-center bg-red-500/10 text-red-400 hover:bg-red-500/20">
+                    <LogOut className="h-4 w-4" />
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Sign out?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      You'll need to sign in again to access your account.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleLogout}>Sign out</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           ) : (
             <div className="space-y-2">
@@ -671,14 +697,29 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
                 Notifications
               </Button>
               
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                className="w-full justify-start bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/50"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </Button>
+              <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/50"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign Out
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Sign out?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      You'll need to sign in again to access your account.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleLogout}>Sign out</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           )}
         </div>
@@ -730,7 +771,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
         </div>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto min-w-0">
+        <div className="flex-1 overflow-auto min-w-0">
           <Outlet />
         </div>
       </div>
