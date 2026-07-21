@@ -8,11 +8,13 @@ even when google-generativeai is not installed yet.
 
 import logging
 import os
+import time
 from collections import Counter
 from datetime import date, timedelta
 
 import requests
 from django.conf import settings
+from requests.exceptions import ConnectionError, RequestException, SSLError, Timeout
 
 logger = logging.getLogger(__name__)
 
@@ -502,8 +504,89 @@ def generate_smart_sms(student, alert_type, data):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION B — GOOGLE GEMINI AI FUNCTIONS
+# SECTION B — AI PROVIDER FUNCTIONS
 # ─────────────────────────────────────────────────────────────────────────────
+
+def _get_ai_provider():
+    """Return the preferred AI provider: ollama, gemini, or auto."""
+    provider = (
+        getattr(settings, 'AI_PROVIDER', '')
+        or os.getenv('AI_PROVIDER', '')
+        or 'auto'
+    ).strip().lower()
+    return provider or 'auto'
+
+
+def _get_ollama_base_url():
+    """Return the Ollama base URL from settings or environment."""
+    base_url = (
+        getattr(settings, 'OLLAMA_HOST', '')
+        or getattr(settings, 'OLLAMA_BASE_URL', '')
+        or os.getenv('OLLAMA_HOST', '')
+        or os.getenv('OLLAMA_BASE_URL', '')
+        or 'http://127.0.0.1:11434'
+    ).strip().strip('"').strip("'")
+    return base_url.rstrip('/')
+
+
+def _get_ollama_model():
+    """Return the requested Ollama model name."""
+    model = (
+        getattr(settings, 'OLLAMA_MODEL', '')
+        or os.getenv('OLLAMA_MODEL', '')
+        or 'llama3.2'
+    ).strip().strip('"').strip("'")
+    return model or 'llama3.2'
+
+
+def _ollama_generate_text(prompt, model=None):
+    """Call a local Ollama server when available."""
+    base_url = _get_ollama_base_url()
+    model_name = model or _get_ollama_model()
+    url = f'{base_url}/api/generate'
+    payload = {
+        'model': model_name,
+        'prompt': prompt,
+        'stream': False,
+        'options': {'num_predict': 300},
+    }
+
+    try:
+        response = requests.post(url, json=payload, timeout=60)
+    except (SSLError, ConnectionError, Timeout, RequestException) as exc:
+        raise ValueError(f'Ollama is unavailable: {exc}') from exc
+
+    if response.status_code != 200:
+        raise ValueError(f'Ollama request failed with status {response.status_code}: {response.text[:200]}')
+
+    result = response.json()
+    text = (result.get('response') or '').strip()
+    if not text:
+        raise ValueError('Ollama returned no response')
+    return text
+
+
+def _get_groq_api_key():
+    """Return the configured Groq API key from Django settings or environment."""
+    api_key = (
+        getattr(settings, 'GROQ_API_KEY', '')
+        or os.getenv('GROQ_API_KEY', '')
+    )
+    api_key = str(api_key or '').strip().strip('"').strip("'")
+    if not api_key:
+        raise ValueError('GROQ_API_KEY not set in settings')
+    return api_key
+
+
+def _get_groq_model():
+    """Return the configured Groq model name."""
+    model = (
+        getattr(settings, 'GROQ_MODEL', '')
+        or os.getenv('GROQ_MODEL', '')
+        or 'llama-3.1-8b-instant'
+    ).strip().strip('"').strip("'")
+    return model or 'llama-3.1-8b-instant'
+
 
 def _get_gemini_api_key():
     """Return the configured Gemini API key from Django settings or environment."""
@@ -519,7 +602,39 @@ def _get_gemini_api_key():
     return api_key
 
 
-def _gemini_generate_text(prompt, model='gemini-2.0-flash'):
+def _groq_generate_text(prompt, model=None):
+    """Call the Groq API using an OpenAI-compatible endpoint."""
+    api_key = _get_groq_api_key()
+    model_name = model or _get_groq_model()
+    url = 'https://api.groq.com/openai/v1/chat/completions'
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json',
+    }
+    data = {
+        'model': model_name,
+        'messages': [
+            {
+                'role': 'system',
+                'content': 'You are a friendly school tutor for Ghanaian students. Keep answers clear, simple, and under 200 words.'
+            },
+            {'role': 'user', 'content': prompt},
+        ],
+        'temperature': 0.7,
+    }
+
+    response = requests.post(url, headers=headers, json=data, timeout=60)
+    if response.status_code != 200:
+        raise ValueError(f'Groq API request failed with status {response.status_code}: {response.text[:200]}')
+
+    result = response.json()
+    choices = result.get('choices', [])
+    if not choices:
+        raise ValueError('Groq returned no choices')
+    return (choices[0].get('message', {}) or {}).get('content', '').strip()
+
+
+def _gemini_generate_text_impl(prompt, model='gemini-2.0-flash'):
     """Call the Gemini REST API using the official Google endpoint and auth header."""
     api_key = _get_gemini_api_key()
     url = f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
@@ -537,7 +652,17 @@ def _gemini_generate_text(prompt, model='gemini-2.0-flash'):
         ]
     }
 
-    response = requests.post(url, headers=headers, json=data, timeout=30)
+    max_attempts = 3
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = requests.post(url, headers=headers, json=data, timeout=30)
+            break
+        except (SSLError, ConnectionError, Timeout, RequestException) as exc:
+            logger.warning('Gemini request attempt %s failed: %s', attempt, exc)
+            if attempt == max_attempts:
+                raise ValueError('AI service is temporarily unavailable. Please try again shortly.')
+            time.sleep(1.5 * attempt)
+
     if response.status_code == 200:
         result = response.json()
         if not result.get('candidates'):
@@ -552,6 +677,33 @@ def _gemini_generate_text(prompt, model='gemini-2.0-flash'):
     if response.status_code == 429:
         raise ValueError('Gemini API rate limit exceeded')
     raise ValueError(f'Gemini API request failed with status {response.status_code}')
+
+
+def _gemini_generate_text(prompt, model=None):
+    """Prefer Ollama locally, then Groq, then Gemini."""
+    provider = _get_ai_provider()
+
+    if provider == 'ollama':
+        return _ollama_generate_text(prompt, model=model or _get_ollama_model())
+
+    if provider == 'groq':
+        return _groq_generate_text(prompt, model=model or _get_groq_model())
+
+    if provider == 'gemini':
+        return _gemini_generate_text_impl(prompt, model=model or 'gemini-2.0-flash')
+
+    # Auto mode: try Ollama first, then Groq, then Gemini.
+    try:
+        return _ollama_generate_text(prompt, model=model)
+    except Exception as exc:
+        logger.info('Ollama unavailable, trying Groq: %s', exc)
+
+    try:
+        return _groq_generate_text(prompt, model=model)
+    except Exception as exc:
+        logger.info('Groq unavailable, falling back to Gemini: %s', exc)
+
+    return _gemini_generate_text_impl(prompt, model=model)
 
 
 def generate_ai_student_report(student, term):

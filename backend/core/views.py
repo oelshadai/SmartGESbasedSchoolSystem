@@ -364,16 +364,16 @@ def _gemini_call(prompt):
         error_str = str(exc).lower()
         logger.warning('Gemini call failed: %s', exc)
 
-        if 'authentication failed' in error_str or 'api key' in error_str and 'invalid' in error_str:
-            return 'AI service configuration error. Please contact the administrator.'
+        if 'authentication failed' in error_str or ('api key' in error_str and 'invalid' in error_str):
+            raise ValueError('AI service configuration error. Please contact the administrator.')
 
         if 'getaddrinfo failed' in error_str or 'connecterror' in error_str or 'timed out' in error_str:
-            return 'AI service is temporarily unavailable. Please check your internet connection and try again.'
+            raise ValueError('AI service is temporarily unavailable. Please check your internet connection and try again.')
 
         if '429' in error_str or 'rate limit' in error_str or 'quota' in error_str:
-            return 'AI service is busy right now. Please try again in 1 minute.'
+            raise ValueError('AI service is busy right now. Please try again in 1 minute.')
 
-        return 'AI is temporarily unavailable. Please try again shortly.'
+        raise ValueError('AI is temporarily unavailable. Please try again shortly.')
 
 
 # ── Feature 1: AI Study Chatbot ───────────────────────────────────────────────
@@ -409,11 +409,15 @@ def student_chat(request):
         )
 
     class_level = str(student.current_class) if student.current_class else 'Basic School'
+    student_name = getattr(student, 'get_full_name', lambda: '')()
+    if not student_name:
+        student_name = getattr(student, 'first_name', '') or getattr(student, 'name', '') or 'student'
     subject_context = f' about {subject}' if subject else ''
 
     prompt = (
-        f"You are a friendly school tutor for a Ghana Basic/SHS student in {class_level}. "
+        f"You are a friendly school tutor for a Ghana Basic/SHS student named {student_name} in {class_level}. "
         f"Answer this question{subject_context} simply and clearly, using examples relevant to Ghana. "
+        f"Address the student by their name naturally when appropriate. "
         f"If it's a homework question, guide them to the answer with hints — don't just give it directly. "
         f"Keep response under 200 words. "
         f"Question: {message}"

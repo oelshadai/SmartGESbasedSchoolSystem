@@ -290,7 +290,7 @@ const getNavItems = (role: UserRole) => {
       description: 'Support resources',
     },
     {
-      path: '/school/ai',
+      path: '/teacher/ai',
       label: 'AI Tools',
       icon: Sparkles,
       description: 'Lesson plans & insights',
@@ -504,7 +504,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
   }, [location.pathname, sidebarOpen]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex">
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -519,7 +519,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
         role="navigation"
         aria-label={`${subtitle} navigation`}
         onKeyDown={handleSidebarKeyDown}
-        className={`professional-sidebar app-sidebar-scrollbar fixed lg:static inset-y-0 left-0 z-50 ${collapsed ? 'w-20 lg:w-24' : 'w-72 lg:w-80'} bg-slate-900/95 lg:bg-slate-900/50 backdrop-blur-xl border-r border-slate-800/50 flex flex-col transition-all duration-300 ease-in-out ${
+        className={`professional-sidebar app-sidebar-scrollbar fixed lg:static inset-y-0 left-0 z-50 h-screen ${collapsed ? 'w-20 lg:w-24' : 'w-72 lg:w-80'} bg-slate-900/95 lg:bg-slate-900/50 backdrop-blur-xl border-r border-slate-800/50 flex flex-col transition-all duration-300 ease-in-out ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
@@ -730,7 +730,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
         </div>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-auto min-w-0">
+        <div className="flex-1 overflow-y-auto min-w-0">
           <Outlet />
         </div>
       </div>
