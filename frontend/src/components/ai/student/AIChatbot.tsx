@@ -1,8 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, BookOpen } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Send, Bot, User, Loader2, BookOpen, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { secureApiClient } from '@/lib/secureApiClient';
+
+// Browser speech API types
+const SpeechRecognitionAPI =
+  (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+const hasSpeechRecognition = !!SpeechRecognitionAPI;
+const hasSpeechSynthesis = 'speechSynthesis' in window;
 
 interface Message {
   id: number;
@@ -27,12 +33,56 @@ export default function AIChatbot() {
   const [loading, setLoading] = useState(false);
   const [used, setUsed] = useState(0);
   const [limit] = useState(20);
+  const [listening, setListening] = useState(false);
+  const [speakingId, setSpeakingId] = useState<number | null>(null);
+  const [autoSpeak, setAutoSpeak] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Clean up speech on unmount
+  useEffect(() => () => {
+    window.speechSynthesis?.cancel();
+    recognitionRef.current?.stop();
+  }, []);
+
+  const speak = useCallback((text: string, msgId: number) => {
+    if (!hasSpeechSynthesis) return;
+    window.speechSynthesis.cancel();
+    if (speakingId === msgId) { setSpeakingId(null); return; }
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.rate = 1;
+    utt.onend = () => setSpeakingId(null);
+    utt.onerror = () => setSpeakingId(null);
+    setSpeakingId(msgId);
+    window.speechSynthesis.speak(utt);
+  }, [speakingId]);
+
+  const toggleListening = useCallback(() => {
+    if (!hasSpeechRecognition) return;
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      return;
+    }
+    const rec = new SpeechRecognitionAPI();
+    rec.lang = 'en-US';
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.onresult = (e: any) => {
+      const transcript = e.results[0][0].transcript;
+      setInput(prev => prev ? `${prev} ${transcript}` : transcript);
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    recognitionRef.current = rec;
+    rec.start();
+    setListening(true);
+  }, [listening]);
 
   const send = async () => {
     const text = input.trim();
@@ -49,11 +99,10 @@ export default function AIChatbot() {
         subject: subject !== 'all' ? subject : undefined,
       }) as any;
 
-      setMessages(prev => [
-        ...prev,
-        { id: Date.now() + 1, role: 'ai', text: res.reply, time },
-      ]);
+      const aiMsg: Message = { id: Date.now() + 1, role: 'ai', text: res.reply, time };
+      setMessages(prev => [...prev, aiMsg]);
       setUsed(res.messages_used ?? used + 1);
+      if (autoSpeak && hasSpeechSynthesis) speak(res.reply, aiMsg.id);
 
       // Show suggestions as quick-reply chips
       if (res.suggestions?.length) {
@@ -96,11 +145,22 @@ export default function AIChatbot() {
           <p className="text-sm font-semibold text-white">AI Tutor</p>
           <p className="text-xs text-white/70">Always here to help</p>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-white/70">Questions today</p>
-          <p className={`text-sm font-bold ${used >= limit ? 'text-red-300' : 'text-white'}`}>
-            {used}/{limit}
-          </p>
+        <div className="text-right flex items-center gap-2">
+          {hasSpeechSynthesis && (
+            <button
+              onClick={() => { setAutoSpeak(p => !p); window.speechSynthesis.cancel(); setSpeakingId(null); }}
+              title={autoSpeak ? 'Auto-speak on — click to turn off' : 'Auto-speak off — click to turn on'}
+              className={`p-1.5 rounded-lg transition-colors ${autoSpeak ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/70'}`}
+            >
+              {autoSpeak ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            </button>
+          )}
+          <div>
+            <p className="text-xs text-white/70">Questions today</p>
+            <p className={`text-sm font-bold ${used >= limit ? 'text-red-300' : 'text-white'}`}>
+              {used}/{limit}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -157,9 +217,22 @@ export default function AIChatbot() {
                   : 'bg-primary text-primary-foreground rounded-tr-sm'
               }`}>
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                <p className={`text-[10px] mt-1 ${isAI ? 'text-muted-foreground' : 'text-primary-foreground/60'} text-right`}>
-                  {msg.time}
-                </p>
+                <div className={`flex items-center justify-end gap-2 mt-1`}>
+                  {isAI && hasSpeechSynthesis && (
+                    <button
+                      onClick={() => speak(msg.text, msg.id)}
+                      className="text-muted-foreground hover:text-primary transition-colors"
+                      title={speakingId === msg.id ? 'Stop reading' : 'Read aloud'}
+                    >
+                      {speakingId === msg.id
+                        ? <VolumeX className="h-3.5 w-3.5" />
+                        : <Volume2 className="h-3.5 w-3.5" />}
+                    </button>
+                  )}
+                  <p className={`text-[10px] ${isAI ? 'text-muted-foreground' : 'text-primary-foreground/60'}`}>
+                    {msg.time}
+                  </p>
+                </div>
               </div>
             </div>
           );
@@ -188,12 +261,24 @@ export default function AIChatbot() {
           <p className="text-xs text-destructive text-center mb-2">Daily limit reached. Come back tomorrow!</p>
         )}
         <div className="flex items-end gap-2">
+          {hasSpeechRecognition && (
+            <Button
+              size="icon"
+              variant={listening ? 'destructive' : 'outline'}
+              className="h-9 w-9 rounded-xl shrink-0"
+              onClick={toggleListening}
+              disabled={used >= limit || loading}
+              title={listening ? 'Stop listening' : 'Speak your question'}
+            >
+              {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </Button>
+          )}
           <textarea
             ref={inputRef}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="Ask your AI Tutor…"
+            placeholder={listening ? '🎤 Listening…' : 'Ask your AI Tutor…'}
             rows={1}
             disabled={used >= limit || loading}
             className="flex-1 resize-none rounded-xl border border-border bg-muted/50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 max-h-28 overflow-y-auto"
