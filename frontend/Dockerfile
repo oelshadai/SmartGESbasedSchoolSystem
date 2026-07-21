@@ -24,4 +24,4 @@ RUN npm run build
 EXPOSE 4173
 
 # Start the app with vite preview listening on Railway's dynamic port
-CMD ["sh", "-c", "npm run preview -- --host 0.0.0.0 --port ${PORT:-4173}"]
+CMD ["sh", "-c", "vite preview --host 0.0.0.0 --port ${PORT:-4173}"]
