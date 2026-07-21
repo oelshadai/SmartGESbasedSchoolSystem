@@ -65,8 +65,9 @@ class SecureApiClient {
   private rateLimiter = new RateLimiter();
 
   constructor() {
-    // Production-ready base URL handling
-    const baseURL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/';
+    // Production-ready base URL handling: prefer build-time VITE var, then runtime-injected window.__ENV__, then localhost fallback
+    const runtimeEnv = (typeof window !== 'undefined' && (window as any).__ENV) ? (window as any).__ENV : undefined;
+    const baseURL = import.meta.env.VITE_API_BASE_URL || runtimeEnv?.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/';
     
     this.client = axios.create({
       baseURL,
