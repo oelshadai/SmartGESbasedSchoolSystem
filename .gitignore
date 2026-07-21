@@ -88,3 +88,7 @@ tmp/
 *.pem
 *.key
 *.crt
+
+# Allow frontend src lib 
+!frontend/src/lib/ 
+!frontend/src/lib/** 
