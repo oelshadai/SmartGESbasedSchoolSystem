@@ -9,8 +9,8 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "preview:railway": "sh -c 'vite preview --host 0.0.0.0 --port ${PORT:-4173}'",
-    "serve:railway": "sh -c 'http-server dist -a 0.0.0.0 -p ${PORT:-4173}'",
+    "preview:railway": "sh -c 'PORT=${PORT:-4173} && vite preview --host 0.0.0.0 --port "$PORT"'",
+    "serve:railway": "sh -c 'PORT=${PORT:-4173} && http-server dist -a 0.0.0.0 -p "$PORT"'",
     "test": "vitest run",
     "test:watch": "vitest"
   },

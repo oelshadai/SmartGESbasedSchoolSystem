@@ -7,7 +7,6 @@ COPY package*.json ./
 
 # Install dependencies
 RUN npm install
-RUN npm install -g http-server
 
 # Copy project files
 COPY . .
@@ -24,5 +23,5 @@ RUN npm run build
 # Expose port
 EXPOSE 4173
 
-# Start the app with a static server on Railway's dynamic port
-CMD ["sh", "-c", "PORT=${PORT:-4173} && http-server dist -a 0.0.0.0 -p $PORT"]
+# Start the app with vite preview listening on Railway's dynamic port
+CMD ["sh", "-c", "npm run preview -- --host 0.0.0.0 --port ${PORT:-4173}"]
