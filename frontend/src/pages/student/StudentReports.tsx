@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { secureApiClient } from '@/lib/secureApiClient';
+import { getApiBaseUrl } from '@/lib/apiBase';
 import { useAuthStore } from '@/stores/authStore';
 import { SecureTokenStorage } from '@/services/authService';
 import {
@@ -148,11 +149,12 @@ const StudentReports = () => {
     subjects: []
   } : null);
 
+  const apiBase = getApiBaseUrl();
+
   const handleViewReport = (termId: number) => {
     // Use direct server URL with token in query param — exactly like the teacher's preview.
     // This ensures the iframe loads CSS, images and fonts from the server correctly
     // (a blob: URL would break all relative resource paths).
-    const apiBase = import.meta.env.VITE_API_URL || '/api';
     const tokenValue = token || '';
     const src = `${apiBase}/students/published-reports/${termId}/view/?token=${encodeURIComponent(tokenValue)}`;
     setPreviewUrl(src);
@@ -165,7 +167,6 @@ const StudentReports = () => {
 
     try {
       // Try server-side PDF generation first
-      const apiBase = import.meta.env.VITE_API_URL || '/api';
       const response = await fetch(`${apiBase}/reports/report-cards/generate_pdf_report/`, {
         method: 'POST',
         headers: {
@@ -204,7 +205,6 @@ const StudentReports = () => {
       console.error('Download failed:', err);
       // Fallback: open in new tab for printing
       try {
-        const apiBase = import.meta.env.VITE_API_URL || '/api';
         const tokenValue = token || '';
         const printUrl = `${apiBase}/students/published-reports/${termId}/view/?token=${encodeURIComponent(tokenValue)}`;
         window.open(printUrl, '_blank');
