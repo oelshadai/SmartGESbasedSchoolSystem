@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { useAuthStore } from '@/stores/authStore';
+import { getApiBaseUrl } from '@/lib/apiBase';
 
 // Production-ready security configuration
 const SECURITY_CONFIG = {
@@ -65,9 +66,7 @@ class SecureApiClient {
   private rateLimiter = new RateLimiter();
 
   constructor() {
-    // Production-ready base URL handling: prefer build-time VITE var, then runtime-injected window.__ENV__, then localhost fallback
-    const runtimeEnv = (typeof window !== 'undefined' && (window as any).__ENV) ? (window as any).__ENV : undefined;
-    const baseURL = import.meta.env.VITE_API_BASE_URL || runtimeEnv?.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/';
+    const baseURL = getApiBaseUrl();
     
     this.client = axios.create({
       baseURL,

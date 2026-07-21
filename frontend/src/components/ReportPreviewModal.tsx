@@ -36,7 +36,7 @@ const ReportPreviewModal = ({
   
   if (!isOpen) return null;
 
-  const apiBase = import.meta.env.VITE_API_URL || '/api';
+  const apiBase = getApiBaseUrl();
 
   // Determine iframe source based on preview type
   const getIframeSrc = () => {

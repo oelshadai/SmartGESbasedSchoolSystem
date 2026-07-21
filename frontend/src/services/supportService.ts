@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { getApiBaseUrl } from '@/lib/apiBase';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = getApiBaseUrl();
 
 export interface SupportTicket {
   id?: number;

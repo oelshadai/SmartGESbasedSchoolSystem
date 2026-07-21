@@ -31,7 +31,7 @@ const BulkReportPreviewModal = ({
   
   if (!isOpen) return null;
 
-  const apiBase = import.meta.env.VITE_API_URL || '/api';
+  const apiBase = getApiBaseUrl();
   const currentStudent = students[currentStudentIndex];
   const isFirstStudent = currentStudentIndex === 0;
   const isLastStudent = currentStudentIndex === students.length - 1;
