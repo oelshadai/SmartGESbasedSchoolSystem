@@ -249,6 +249,20 @@ if not DEBUG:
         _frontend_origins.append(FRONTEND_URL)
     CORS_ALLOWED_ORIGINS = _frontend_origins
 
+# CSRF trusted origins for Railway-hosted frontend
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS = [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://localhost:3000',
+        'http://localhost:8080',
+        'http://127.0.0.1:8080',
+    ]
+else:
+    CSRF_TRUSTED_ORIGINS = [h.strip() for h in config('CSRF_TRUSTED_ORIGINS', default='').split(',') if h.strip()]
+    if FRONTEND_URL and FRONTEND_URL not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(FRONTEND_URL)
+
 # Payment
 PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY', default='')
 PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY', default='')
