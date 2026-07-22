@@ -48,12 +48,16 @@ export default function AIChatbot() {
   // Clean up speech on unmount
   useEffect(() => () => {
     window.speechSynthesis?.cancel();
+    clearInterval(resumeTimerRef.current);
     recognitionRef.current?.stop();
   }, []);
+
+  const resumeTimerRef = useRef<any>(null);
 
   const speak = useCallback((text: string, msgId: number) => {
     if (!hasSpeechSynthesis) return;
     window.speechSynthesis.cancel();
+    clearInterval(resumeTimerRef.current);
     if (speakingIdRef.current === msgId) {
       speakingIdRef.current = null;
       setSpeakingId(null);
@@ -62,8 +66,15 @@ export default function AIChatbot() {
     const doSpeak = () => {
       const utt = new SpeechSynthesisUtterance(text);
       utt.rate = 1;
-      utt.onend = () => { speakingIdRef.current = null; setSpeakingId(null); };
-      utt.onerror = () => { speakingIdRef.current = null; setSpeakingId(null); };
+      utt.onstart = () => {
+        // Android Chrome bug: synthesis pauses after ~15s, keep resuming it
+        resumeTimerRef.current = setInterval(() => {
+          if (window.speechSynthesis.speaking) window.speechSynthesis.resume();
+          else clearInterval(resumeTimerRef.current);
+        }, 10000);
+      };
+      utt.onend = () => { clearInterval(resumeTimerRef.current); speakingIdRef.current = null; setSpeakingId(null); };
+      utt.onerror = () => { clearInterval(resumeTimerRef.current); speakingIdRef.current = null; setSpeakingId(null); };
       speakingIdRef.current = msgId;
       setSpeakingId(msgId);
       window.speechSynthesis.speak(utt);
