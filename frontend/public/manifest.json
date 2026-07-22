@@ -1,6 +1,6 @@
 ﻿{
-  "name": "School Report SaaS - Elite Tech",
-  "short_name": "School Report",
+  "name": "EliteTech Smart School System",
+  "short_name": "EliteTech",
   "description": "Comprehensive school management system for teachers, students, and administrators",
   "start_url": "/",
   "display": "standalone",
