@@ -39,6 +39,7 @@ export default function AIChatbot() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
+  const speakingIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -53,14 +54,24 @@ export default function AIChatbot() {
   const speak = useCallback((text: string, msgId: number) => {
     if (!hasSpeechSynthesis) return;
     window.speechSynthesis.cancel();
-    if (speakingId === msgId) { setSpeakingId(null); return; }
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.rate = 1;
-    utt.onend = () => setSpeakingId(null);
-    utt.onerror = () => setSpeakingId(null);
-    setSpeakingId(msgId);
-    window.speechSynthesis.speak(utt);
-  }, [speakingId]);
+    if (speakingIdRef.current === msgId) {
+      speakingIdRef.current = null;
+      setSpeakingId(null);
+      return;
+    }
+    const doSpeak = () => {
+      const utt = new SpeechSynthesisUtterance(text);
+      utt.rate = 1;
+      utt.onend = () => { speakingIdRef.current = null; setSpeakingId(null); };
+      utt.onerror = () => { speakingIdRef.current = null; setSpeakingId(null); };
+      speakingIdRef.current = msgId;
+      setSpeakingId(msgId);
+      window.speechSynthesis.speak(utt);
+    };
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length) { doSpeak(); }
+    else { window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.onvoiceschanged = null; doSpeak(); }; }
+  }, []);
 
   const toggleListening = useCallback(() => {
     if (!hasSpeechRecognition) return;
