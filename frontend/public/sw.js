@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'school-report-v4';
+﻿const CACHE_NAME = 'school-report-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -26,56 +26,46 @@ self.addEventListener('activate', (event) => {
 
 // Fetch strategy:
 // - API: bypass SW
-// - Navigations/documents: network-first with offline fallback
-// - Scripts/styles/workers: always network (avoid stale deploy chunk mismatches)
+// - JS/CSS assets (hashed chunks): always network, never cache
+// - Navigations/documents: network-first, NO cache storage (avoids stale index.html)
 // - Images/fonts: network-first with cache fallback
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET and cross-origin API requests
   if (request.method !== 'GET') return;
   if (url.pathname.startsWith('/api')) return;
-  
-  // Skip chrome-extension and other non-http requests
   if (!url.protocol.startsWith('http')) return;
 
   const isSameOrigin = url.origin === self.location.origin;
   const destination = request.destination;
 
-  if (request.mode === 'navigate' || destination === 'document') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok && isSameOrigin) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match('/')))
-    );
-    return;
-  }
-
+  // Never cache JS/CSS/worker chunks — always fetch fresh
   if (destination === 'script' || destination === 'style' || destination === 'worker') {
     event.respondWith(fetch(request));
     return;
   }
 
+  // Navigation: network-first, fall back to cached /index.html only
+  // Do NOT store the response — avoids caching a stale index.html
+  if (request.mode === 'navigate' || destination === 'document') {
+    event.respondWith(
+      fetch(request).catch(() => caches.match('/index.html').then((r) => r || caches.match('/')))
+    );
+    return;
+  }
+
+  // Images/fonts: network-first with cache fallback
   event.respondWith(
     fetch(request)
       .then((response) => {
-        // Cache successful responses for non-code static assets
         if (response.ok && isSameOrigin && (destination === 'image' || destination === 'font')) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         }
         return response;
       })
-      .catch(() => {
-        return caches.match(request).then((cached) => cached || new Response('', { status: 408, statusText: 'Offline' }));
-      })
+      .catch(() => caches.match(request).then((cached) => cached || new Response('', { status: 408, statusText: 'Offline' })))
   );
 });
 
