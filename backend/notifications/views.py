@@ -14,20 +14,82 @@ User = get_user_model()
 class SupportTicketViewSet(viewsets.ModelViewSet):
     serializer_class = SupportTicketSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
-        return SupportTicket.objects.filter(user=self.request.user)
-    
+        user = self.request.user
+        if getattr(user, 'role', '') == 'SUPERADMIN':
+            qs = SupportTicket.objects.all().select_related('user', 'replied_by')
+            status_filter = self.request.query_params.get('status')
+            priority_filter = self.request.query_params.get('priority')
+            search = self.request.query_params.get('search')
+            if status_filter:
+                qs = qs.filter(status=status_filter)
+            if priority_filter:
+                qs = qs.filter(priority=priority_filter)
+            if search:
+                qs = qs.filter(
+                    Q(subject__icontains=search) |
+                    Q(message__icontains=search) |
+                    Q(school_name__icontains=search) |
+                    Q(user__email__icontains=search)
+                )
+            return qs
+        return SupportTicket.objects.filter(user=user)
+
     def perform_create(self, serializer):
-        ticket = serializer.save(user=self.request.user)
-        # Send email to superadmin
+        user = self.request.user
+        school_name = ''
+        if hasattr(user, 'school') and user.school:
+            school_name = user.school.name
+        ticket = serializer.save(user=user, school_name=school_name)
         try:
             superadmins = User.objects.filter(role='SUPERADMIN')
             for superadmin in superadmins:
                 EmailService.send_support_ticket_notification(superadmin, ticket)
-        except Exception as e:
-            pass  # Continue even if email fails
+        except Exception:
+            pass
         return ticket
+
+    @action(detail=True, methods=['post'])
+    def reply(self, request, pk=None):
+        if getattr(request.user, 'role', '') != 'SUPERADMIN':
+            return Response({'error': 'Only superadmin can reply'}, status=status.HTTP_403_FORBIDDEN)
+        ticket = self.get_object()
+        reply_text = request.data.get('reply', '').strip()
+        new_status = request.data.get('status', ticket.status)
+        if not reply_text:
+            return Response({'error': 'Reply text is required'}, status=status.HTTP_400_BAD_REQUEST)
+        from django.utils import timezone
+        ticket.admin_reply = reply_text
+        ticket.replied_at = timezone.now()
+        ticket.replied_by = request.user
+        ticket.status = new_status
+        ticket.save()
+        try:
+            EmailService.send_support_reply_notification(ticket)
+        except Exception:
+            pass
+        return Response(SupportTicketSerializer(ticket).data)
+
+    @action(detail=True, methods=['patch'])
+    def update_status(self, request, pk=None):
+        if getattr(request.user, 'role', '') != 'SUPERADMIN':
+            return Response({'error': 'Only superadmin can update status'}, status=status.HTTP_403_FORBIDDEN)
+        ticket = self.get_object()
+        new_status = request.data.get('status')
+        new_priority = request.data.get('priority')
+        valid_statuses = [s[0] for s in SupportTicket.STATUS_CHOICES]
+        valid_priorities = [p[0] for p in SupportTicket.PRIORITY_CHOICES]
+        if new_status and new_status not in valid_statuses:
+            return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
+        if new_priority and new_priority not in valid_priorities:
+            return Response({'error': 'Invalid priority'}, status=status.HTTP_400_BAD_REQUEST)
+        if new_status:
+            ticket.status = new_status
+        if new_priority:
+            ticket.priority = new_priority
+        ticket.save()
+        return Response(SupportTicketSerializer(ticket).data)
 
 class NotificationViewSet(viewsets.ModelViewSet):
     serializer_class = NotificationSerializer

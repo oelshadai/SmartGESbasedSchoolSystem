@@ -15,6 +15,7 @@ const faqs = [
 const HelpSupport = () => {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
+  const [priority, setPriority] = useState('medium');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -30,7 +31,7 @@ const HelpSupport = () => {
     setError('');
     
     try {
-      await supportService.createTicket({ subject, message });
+      await supportService.createTicket({ subject, message, priority });
       setSuccess(true);
       setSubject('');
       setMessage('');
@@ -96,12 +97,22 @@ const HelpSupport = () => {
         )}
         
         <form onSubmit={handleSubmit} className="space-y-3">
-          <Input 
-            placeholder="Subject" 
+          <Input
+            placeholder="Subject"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             required
           />
+          <select
+            value={priority}
+            onChange={e => setPriority(e.target.value)}
+            className="h-10 w-full px-3 rounded-md border border-input bg-background text-sm"
+          >
+            <option value="low">Low Priority</option>
+            <option value="medium">Medium Priority</option>
+            <option value="high">High Priority</option>
+            <option value="critical">Critical — Urgent Issue</option>
+          </select>
           <Textarea 
             placeholder="Describe your issue..." 
             className="min-h-[100px]" 

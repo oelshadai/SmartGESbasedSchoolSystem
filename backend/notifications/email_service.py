@@ -226,7 +226,36 @@ class EmailService:
             return False
 
     @staticmethod
-    def send_support_ticket_notification(superadmin, ticket):
+    def send_support_reply_notification(ticket):
+        """Notify the ticket submitter that superadmin has replied"""
+        try:
+            subject = f'Re: {ticket.subject} — Support Reply'
+            html_content = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #4f46e5;">Support Ticket Update</h2>
+                <p>Hello {ticket.user.first_name},</p>
+                <p>Your support ticket has received a reply:</p>
+                <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p><strong>Ticket:</strong> {ticket.subject}</p>
+                    <p><strong>Status:</strong> {ticket.get_status_display()}</p>
+                </div>
+                <div style="background: #eff6ff; padding: 20px; border-left: 4px solid #4f46e5; border-radius: 0 8px 8px 0; margin: 20px 0;">
+                    <p style="margin: 0 0 8px 0; font-weight: bold; color: #4f46e5;">Reply from Support Team:</p>
+                    <p style="margin: 0; white-space: pre-wrap;">{ticket.admin_reply}</p>
+                </div>
+                <p>Log in to your dashboard to view the full ticket details.</p>
+                <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+                <p style="color: #6b7280; font-size: 12px;">School Management System</p>
+            </div>
+            """
+            text_content = strip_tags(html_content)
+            email = EmailMultiAlternatives(subject, text_content, settings.DEFAULT_FROM_EMAIL, [ticket.user.email])
+            email.attach_alternative(html_content, "text/html")
+            email.send()
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send support reply notification: {e}")
+            return False
         """Send support ticket notification to superadmin"""
         try:
             subject = f'Support Ticket: {ticket.subject}'
