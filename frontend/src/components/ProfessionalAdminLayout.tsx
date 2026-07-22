@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import NotificationPanel from '@/components/NotificationPanel';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
@@ -664,9 +665,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
         <div className="p-3 lg:p-4 border-t border-slate-800/50">
           {collapsed ? (
             <div className="flex flex-col items-center gap-2">
-              <button className="h-8 w-8 rounded-md flex items-center justify-center bg-slate-800/30 text-slate-100 hover:bg-slate-800/50">
-                <Bell className="h-4 w-4" />
-              </button>
+              <NotificationPanel />
               <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
                 <AlertDialogTrigger asChild>
                   <button className="h-8 w-8 rounded-md flex items-center justify-center bg-red-500/10 text-red-400 hover:bg-red-500/20">
@@ -689,13 +688,9 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
             </div>
           ) : (
             <div className="space-y-2">
-              <Button
-                variant="outline"
-                className="w-full justify-start bg-slate-800/30 border-slate-700/50 text-slate-100 hover:bg-slate-800 hover:text-white hover:border-slate-600"
-              >
-                <Bell className="h-4 w-4 mr-2" />
-                Notifications
-              </Button>
+              <div className="px-1">
+                <NotificationPanel />
+              </div>
               
               <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
                 <AlertDialogTrigger asChild>
@@ -762,10 +757,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
               </div>
 
               {/* Notifications */}
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5 text-slate-100" />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full" />
-              </Button>
+              <NotificationPanel />
             </div>
           </div>
         </div>

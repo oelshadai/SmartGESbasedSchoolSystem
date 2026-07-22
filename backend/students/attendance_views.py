@@ -296,6 +296,23 @@ class TeacherAttendanceViewSet(viewsets.ViewSet):
                     sms_details.append({'student': student.get_full_name(), 'result': 'error', 'error': str(sms_err)})
                     print(f"DEBUG: SMS alert failed for student {student_id}: {sms_err}")
 
+                # Notify the student about their attendance
+                try:
+                    from notifications.views import create_notification
+                    status_label = {'present': 'Present ✅', 'absent': 'Absent ❌', 'late': 'Late ⚠️'}.get(status_value, status_value.capitalize())
+                    create_notification(
+                        user=student.user,
+                        title=f'Attendance Marked: {status_label}',
+                        message=f'Your attendance for {selected_date.strftime("%d %b %Y")} has been marked as {status_value}.',
+                        notification_type='attendance',
+                        activity_type='attendance_taken',
+                        class_name=str(cls),
+                        teacher_name=request.user.get_full_name(),
+                        class_id=cls.id,
+                    )
+                except Exception:
+                    pass
+
                 if created:
                     saved_count += 1
                 else:

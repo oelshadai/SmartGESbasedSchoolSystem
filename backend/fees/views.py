@@ -1001,11 +1001,11 @@ class TermBillViewSet(viewsets.ModelViewSet):
             except Exception as _sf_err:
                 logger.warning(f'StudentFee sync after bill generate failed: {_sf_err}')
 
-        # Send email notifications to guardians/parents for newly created bills
+        # Send email + in-app notifications to students for newly created bills
         if created_count > 0:
             try:
                 from notifications.email_service import EmailService
-                # Group new bills by student for a single email per student
+                from notifications.views import create_notification
                 from collections import defaultdict
                 student_bills = defaultdict(list)
                 for bill in TermBill.objects.filter(
@@ -1018,6 +1018,19 @@ class TermBillViewSet(viewsets.ModelViewSet):
                             student_bill_list[0].student,
                             student_bill_list,
                             term,
+                        )
+                    except Exception:
+                        pass
+                    # In-app notification to the student
+                    try:
+                        stud = student_bill_list[0].student
+                        total = sum(float(b.amount_billed) for b in student_bill_list)
+                        create_notification(
+                            user=stud.user,
+                            title=f'New Fee Bill: {term.get_name_display()}',
+                            message=f'A fee bill of GH₵{total:,.2f} has been generated for {term.get_name_display()}. Please check your Bills page.',
+                            notification_type='fee',
+                            activity_type='bill_generated',
                         )
                     except Exception:
                         pass

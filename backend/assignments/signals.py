@@ -45,6 +45,21 @@ def create_student_assignments(sender, instance, created, **kwargs):
                 student=student,
                 defaults={'status': 'NOT_STARTED'}
             )
+            # Notify the student
+            try:
+                from notifications.views import create_notification
+                due = instance.due_date.strftime('%d %b %Y') if instance.due_date else 'No due date'
+                create_notification(
+                    user=student.user,
+                    title=f'New Assignment: {instance.title}',
+                    message=f'A new assignment "{instance.title}" has been posted. Due: {due}.',
+                    notification_type='assignment',
+                    activity_type='assignment_created',
+                    class_name=str(instance.class_instance),
+                    assignment_id=instance.id,
+                )
+            except Exception:
+                pass
 
 
 @receiver(pre_save, sender=StudentAssignment)

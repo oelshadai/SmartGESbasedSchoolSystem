@@ -88,7 +88,30 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         return response
     
     def perform_create(self, serializer):
-        serializer.save(school=self.request.user.school, created_by=self.request.user)
+        announcement = serializer.save(school=self.request.user.school, created_by=self.request.user)
+        # Notify relevant users in-app
+        try:
+            from notifications.views import create_notification
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            audience = announcement.audience  # 'ALL', 'STUDENTS', 'TEACHERS', 'PARENTS'
+            role_map = {'ALL': None, 'STUDENTS': 'STUDENT', 'TEACHERS': 'TEACHER', 'PARENTS': 'PARENT'}
+            target_role = role_map.get(audience)
+            qs = User.objects.filter(school=self.request.user.school).exclude(id=self.request.user.id)
+            if target_role:
+                qs = qs.filter(role=target_role)
+            for user in qs:
+                create_notification(
+                    user=user,
+                    title=f'Announcement: {announcement.title}',
+                    message=announcement.content[:200],
+                    notification_type='general',
+                    activity_type='announcement',
+                    class_name='',
+                    teacher_name=self.request.user.get_full_name(),
+                )
+        except Exception:
+            pass
     
     def update(self, request, *args, **kwargs):
         # Check if user is admin

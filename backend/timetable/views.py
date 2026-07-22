@@ -145,6 +145,27 @@ class TeacherTimetableViewSet(viewsets.ViewSet):
             notes=notes,
             created_by=request.user,
         )
+
+        # Notify all students in the class
+        try:
+            from notifications.views import create_notification
+            from students.models import Student
+            day_label = dict(LessonSlot.DAY_CHOICES).get(day, day)
+            students = Student.objects.filter(current_class=cls, is_active=True).select_related('user')
+            for student in students:
+                create_notification(
+                    user=student.user,
+                    title=f'New Lesson: {cs.subject.name}',
+                    message=f'A new lesson slot has been added — {cs.subject.name} on {day_label} at {start_time}.',
+                    notification_type='general',
+                    activity_type='lesson_added',
+                    class_name=str(cls),
+                    teacher_name=request.user.get_full_name(),
+                    class_id=cls.id,
+                )
+        except Exception:
+            pass
+
         return Response(_slot_data(slot), status=201)
 
     def update(self, request, pk=None):
