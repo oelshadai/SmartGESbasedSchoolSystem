@@ -57,10 +57,10 @@ const SmsSettings = () => {
   const [saving, setSaving] = useState(false);
   const [balanceRefreshing, setBalanceRefreshing] = useState(false);
 
-  // Editable fields
-  const [smsEnabled, setSmsEnabled] = useState(false);
-  const [attendanceEnabled, setAttendanceEnabled] = useState(false);
-  const [feeReminderEnabled, setFeeReminderEnabled] = useState(false);
+  // Editable fields — initialise to undefined so Switch stays uncontrolled until data loads
+  const [smsEnabled, setSmsEnabled] = useState<boolean | undefined>(undefined);
+  const [attendanceEnabled, setAttendanceEnabled] = useState<boolean | undefined>(undefined);
+  const [feeReminderEnabled, setFeeReminderEnabled] = useState<boolean | undefined>(undefined);
   const [senderName, setSenderName] = useState('');
 
   // History
@@ -79,9 +79,9 @@ const SmsSettings = () => {
         const data: SmsSettings = await secureApiClient.get('/schools/sms-settings/');
         setSettings(data);
         // Set state to match the fetched data
-        setSmsEnabled(data.sms_enabled);
-        setAttendanceEnabled(data.sms_attendance_enabled);
-        setFeeReminderEnabled(data.sms_fee_reminder_enabled);
+        setSmsEnabled(!!data.sms_enabled);
+        setAttendanceEnabled(!!data.sms_attendance_enabled);
+        setFeeReminderEnabled(!!data.sms_fee_reminder_enabled);
         setSenderName(data.sms_sender_name || '');
       } catch (error: any) {
         console.error('Failed to load SMS settings:', error);
@@ -156,19 +156,18 @@ const SmsSettings = () => {
       
       // Update all state to match server response
       setSettings(updated);
-      setSmsEnabled(updated.sms_enabled);
-      setAttendanceEnabled(updated.sms_attendance_enabled);
-      setFeeReminderEnabled(updated.sms_fee_reminder_enabled);
+      setSmsEnabled(!!updated.sms_enabled);
+      setAttendanceEnabled(!!updated.sms_attendance_enabled);
+      setFeeReminderEnabled(!!updated.sms_fee_reminder_enabled);
       setSenderName(updated.sms_sender_name || '');
-      
       toast.success(`${field === 'sms_enabled' ? 'SMS' : field === 'sms_attendance_enabled' ? 'Attendance alerts' : 'Fee reminders'} ${value ? 'enabled' : 'disabled'}`);
     } catch (error: any) {
       console.error(`Failed to save ${field} toggle:`, error);
       
       // Revert the toggle on error
-      if (field === 'sms_enabled') setSmsEnabled(!value);
-      else if (field === 'sms_attendance_enabled') setAttendanceEnabled(!value);
-      else if (field === 'sms_fee_reminder_enabled') setFeeReminderEnabled(!value);
+      if (field === 'sms_enabled') setSmsEnabled(!!(!value));
+      else if (field === 'sms_attendance_enabled') setAttendanceEnabled(!!(!value));
+      else if (field === 'sms_fee_reminder_enabled') setFeeReminderEnabled(!!(!value));
       
       toast.error(`Failed to save ${field === 'sms_enabled' ? 'SMS' : field === 'sms_attendance_enabled' ? 'Attendance' : 'Fee reminder'} setting`);
     }
@@ -313,7 +312,7 @@ const SmsSettings = () => {
               </Badge>
               <Switch
                 id="sms-enabled"
-                checked={smsEnabled}
+                checked={smsEnabled ?? false}
                 onCheckedChange={(checked) => {
                   console.log('SMS Toggle changed to:', checked);
                   handleToggleChange('sms_enabled', checked);
@@ -345,7 +344,7 @@ const SmsSettings = () => {
             </div>
             <Switch
               id="attendance-sms"
-              checked={attendanceEnabled}
+              checked={attendanceEnabled ?? false}
               onCheckedChange={(checked) => {
                 console.log('Attendance Toggle changed to:', checked);
                 handleToggleChange('sms_attendance_enabled', checked);
@@ -369,7 +368,7 @@ const SmsSettings = () => {
             </div>
             <Switch
               id="fee-sms"
-              checked={feeReminderEnabled}
+              checked={feeReminderEnabled ?? false}
               onCheckedChange={(checked) => {
                 console.log('Fee Reminder Toggle changed to:', checked);
                 handleToggleChange('sms_fee_reminder_enabled', checked);

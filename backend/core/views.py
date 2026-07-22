@@ -232,8 +232,8 @@ def send_smart_sms(request, student_id):
     from notifications.sms_service import SmsService
     svc = SmsService()
     school = request.user.school
-    result = svc.send([phone], message, school)
-    sms_status = 'SENT' if result.get('success') else 'FAILED'
+    success = svc.send([phone], message, school)
+    sms_status = 'SENT' if success else 'FAILED'
 
     SmartSMSLog.objects.create(
         student=student,
