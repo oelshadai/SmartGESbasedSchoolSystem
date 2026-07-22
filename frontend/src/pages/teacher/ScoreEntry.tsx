@@ -41,7 +41,7 @@ interface ClassSubject {
   class_instance: {
     id: number;
     name: string;
-  };c
+  };
 }
 
 interface CurrentTerm {

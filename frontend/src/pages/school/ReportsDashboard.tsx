@@ -134,21 +134,32 @@ const ReportsDashboard = () => {
   const handleBulkGenerate = async () => {
     setGenerating(true);
     setGenerateError(null);
-    
+
     try {
       if (!bulkGenerateForm.class_id || bulkGenerateForm.class_id === 'select-class' || !bulkGenerateForm.term_id || bulkGenerateForm.term_id === 'select-term-bulk') {
         setGenerateError('Please select both class and term.');
         return;
       }
-      
-      await secureApiClient.post('/reports/report-cards/bulk_generate/', {
-        class_id: bulkGenerateForm.class_id,
-        term_id: bulkGenerateForm.term_id,
-      });
-      
+
+      const blob = await secureApiClient.post<Blob>(
+        '/reports/report-cards/bulk_generate/',
+        { class_id: bulkGenerateForm.class_id, term_id: bulkGenerateForm.term_id },
+        { responseType: 'blob' as any }
+      );
+
+      const zipBlob = blob instanceof Blob ? blob : new Blob([blob as any], { type: 'application/zip' });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      const cls = classes.find(c => c.id.toString() === bulkGenerateForm.class_id);
+      const term = terms.find(t => t.id.toString() === bulkGenerateForm.term_id);
+      a.download = `${cls?.full_name || 'Class'}_${term?.name || 'Term'}_Reports.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+
       setShowBulkGenerateDialog(false);
       await fetchReportCards();
-      alert('Bulk reports generated successfully!');
+      toast.success('Reports generated and downloaded as ZIP!');
     } catch (err: any) {
       setGenerateError(err.message || 'Failed to generate reports');
     } finally {
@@ -493,7 +504,7 @@ const ReportsDashboard = () => {
           </div>
           <DialogFooter>
             <Button onClick={handleBulkGenerate} disabled={generating}>
-              {generating ? 'Generating...' : 'Generate All Reports'}
+              {generating ? 'Generating & Downloading...' : 'Generate & Download ZIP'}
             </Button>
           </DialogFooter>
         </DialogContent>

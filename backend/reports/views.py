@@ -1029,133 +1029,83 @@ class ReportCardViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def bulk_generate(self, request):
-        """Generate reports for multiple students"""
+        """Generate PDF reports for all students in a class and return a ZIP file."""
         term_id = request.data.get('term_id')
         class_id = request.data.get('class_id')
-        
+
         if not term_id:
-            return Response(
-                {"error": "term_id is required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            return Response({'error': 'term_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             term = Term.objects.get(id=term_id)
             students = Student.objects.filter(school=request.user.school, is_active=True)
-            
-            # Handle permissions for class teachers
+
             if request.user.role == 'TEACHER':
                 from schools.models import Class
                 teacher_classes = Class.objects.filter(
-                    school=request.user.school, 
-                    class_teacher=request.user
+                    school=request.user.school, class_teacher=request.user
                 )
-                
                 if not teacher_classes.exists():
-                    return Response(
-                        {"error": "You are not assigned as a class teacher"},
-                        status=status.HTTP_403_FORBIDDEN
-                    )
-                
-                # Filter to only their class students
+                    return Response({'error': 'You are not assigned as a class teacher'}, status=status.HTTP_403_FORBIDDEN)
                 teacher_class_ids = teacher_classes.values_list('id', flat=True)
                 students = students.filter(current_class_id__in=teacher_class_ids)
-                
-                # If class_id is provided, ensure it's their class
-                if class_id and int(class_id) not in teacher_class_ids:
-                    return Response(
-                        {"error": "You can only generate reports for your assigned class"},
-                        status=status.HTTP_403_FORBIDDEN
-                    )
-            
+                if class_id and int(class_id) not in list(teacher_class_ids):
+                    return Response({'error': 'You can only generate reports for your assigned class'}, status=status.HTTP_403_FORBIDDEN)
+
             if class_id:
                 students = students.filter(current_class_id=class_id)
-            
+
+            if not students.exists():
+                return Response({'error': 'No active students found for the selected class/term'}, status=status.HTTP_404_NOT_FOUND)
+
+            from .pdf_generator import generate_terminal_report_pdf
+            from django.http import HttpResponse
+            import zipfile, io
+
+            zip_buffer = io.BytesIO()
             generated_count = 0
             errors = []
-            
-            for student in students:
-                try:
-                    # Generate HTML report for each student
-                    from django.template.loader import render_to_string
-                    from datetime import timedelta
-                    
-                    # Get class teacher name
-                    class_teacher_name = ""
-                    if student.current_class and student.current_class.class_teacher:
-                        class_teacher_name = student.current_class.class_teacher.get_full_name()
-                    
-                    # Calculate reopening date
-                    reopening_date = term.end_date + timedelta(weeks=2) if term.end_date else None
-                    
-                    # Calculate total marks
-                    total_marks_ca = sum(sr.ca_score for sr in subject_results) if subject_results else 0
-                    total_marks_exam = sum(sr.exam_score for sr in subject_results) if subject_results else 0
-                    total_marks_overall = total_marks_ca + total_marks_exam
-                    
-                    # Get media URL base
-                    from .utils import get_media_base_url
-                    media_url_base = get_media_base_url(request)
-                    
-                    context = {
-                        'school': student.school,
-                        'student': student,
-                        'term': term,
-                        'term_result': term_result,
-                        'subject_results': subject_results,
-                        'class_teacher_name': class_teacher_name,
-                        'position': f"{term_result.class_position}/{term_result.total_students}",
-                        'reopening_date': reopening_date,
-                        'attendance': attendance,
-                        'behaviour': behaviour,
-                        'empty_rows': range(max(0, 9 - subject_results.count())),
-                        'total_marks_ca': total_marks_ca,
-                        'total_marks_exam': total_marks_exam,
-                        'total_marks_overall': total_marks_overall,
-                        'media_url_base': media_url_base,
-                    }
-                    
-                    html_content = render_to_string('reports/terminal_report.html', context)
-                    
-                    report_card, created = ReportCard.objects.get_or_create(
-                        student=student,
-                        term=term,
-                        defaults={'generated_by': request.user}
-                    )
-                    
-                    if created:
-                        report_card.generate_report_code()
-                    
-                    pdf_filename = f"report_card_{student.student_id}_{term.id}.pdf"
-                    
-                    # TODO: Replace with actual HTML-to-PDF conversion
-                    from django.core.files.base import ContentFile
-                    report_card.pdf_file.save(pdf_filename, ContentFile(html_content.encode('utf-8')), save=False)
-                    
-                    report_card.status = 'GENERATED'
-                    report_card.generated_at = timezone.now()
-                    report_card.save()
-                    
-                    generated_count += 1
-                    
-                except Exception as e:
-                    errors.append(f"{student.get_full_name()}: {str(e)}")
-            
-            return Response({
-                "message": f"Generated {generated_count} report cards",
-                "errors": errors
-            })
-            
+
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+                for student in students:
+                    try:
+                        context = self._get_report_context(student, term, request)
+                        pdf_bytes = generate_terminal_report_pdf(context)
+
+                        if not isinstance(pdf_bytes, (bytes, bytearray)) or not bytes(pdf_bytes).startswith(b'%PDF'):
+                            errors.append(f"{student.get_full_name()}: PDF generation returned invalid content")
+                            continue
+
+                        filename = f"{student.student_id}_{term.name}_Report.pdf"
+                        zf.writestr(filename, pdf_bytes)
+
+                        report_card, created = ReportCard.objects.get_or_create(
+                            student=student, term=term,
+                            defaults={'generated_by': request.user}
+                        )
+                        if created:
+                            report_card.generate_report_code()
+                        report_card.status = 'GENERATED'
+                        report_card.generated_at = timezone.now()
+                        report_card.save(update_fields=['status', 'generated_at'])
+
+                        generated_count += 1
+                    except Exception as e:
+                        errors.append(f"{student.get_full_name()}: {str(e)}")
+
+            if generated_count == 0:
+                return Response({'error': 'No reports could be generated', 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            zip_buffer.seek(0)
+            class_label = students.first().current_class or 'class'
+            response = HttpResponse(zip_buffer.read(), content_type='application/zip')
+            response['Content-Disposition'] = f'attachment; filename="{class_label}_{term.name}_Reports.zip"'
+            return response
+
         except Term.DoesNotExist:
-            return Response(
-                {"error": "Term not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({'error': 'Term not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return Response(
-                {"error": f"Bulk generation failed: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({'error': f'Bulk generation failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=False, methods=['post'])
     def publish_bulk(self, request):

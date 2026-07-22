@@ -215,11 +215,11 @@ class TermResultViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # --- Overall class positions ---
+        # --- Overall class positions --- rank by average_score for fairness
         term_results = TermResult.objects.filter(
             term_id=term_id,
             class_instance_id=class_id
-        ).order_by('-total_score', '-average_score')
+        ).order_by('-average_score', 'student__first_name')
         
         total_students = term_results.count()
         
@@ -249,6 +249,44 @@ class TermResultViewSet(viewsets.ModelViewSet):
         return Response({
             "message": f"Positions calculated for {total_students} students"
         })
+
+
+def _recalculate_positions(term_id, class_id):
+    """Recalculate overall class positions and per-subject positions after a score save."""
+    try:
+        # Overall positions — rank by average_score so students with different subject counts compare fairly
+        class_term_results = list(
+            TermResult.objects.filter(
+                term_id=term_id, class_instance_id=class_id
+            ).order_by('-average_score', 'student__first_name')
+        )
+        total = len(class_term_results)
+        for position, tr in enumerate(class_term_results, start=1):
+            tr.class_position = position
+            tr.total_students = total
+            tr.save(update_fields=['class_position', 'total_students'])
+
+        # Per-subject positions within this class
+        from schools.models import ClassSubject
+        class_subject_ids = ClassSubject.objects.filter(
+            class_instance_id=class_id
+        ).values_list('id', flat=True)
+
+        class_student_ids = [tr.student_id for tr in class_term_results]
+        for cs_id in class_subject_ids:
+            subject_results = list(
+                SubjectResult.objects.filter(
+                    class_subject_id=cs_id,
+                    term_id=term_id,
+                    student_id__in=class_student_ids,
+                ).order_by('-total_score', 'student__first_name')
+            )
+            for pos, sr in enumerate(subject_results, start=1):
+                sr.position = pos
+                sr.save(update_fields=['position'])
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning('Position recalculation failed: %s', e)
 
 
 class ScoreManagementViewSet(viewsets.ViewSet):
@@ -342,6 +380,9 @@ class ScoreManagementViewSet(viewsets.ViewSet):
                         term_result.class_instance = _student.current_class
                         term_result.save(update_fields=['class_instance'])
                     term_result.calculate_aggregate()
+
+                    # Recalculate class positions after every score save
+                    _recalculate_positions(data['term_id'], _student.current_class_id)
 
             return Response({
                 "message": "Scores entered successfully",
