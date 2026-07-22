@@ -82,6 +82,27 @@ class TeacherTimetableViewSet(viewsets.ViewSet):
             'timetable': _group_by_day(slots),
         })
 
+    @action(detail=False, methods=['get'], url_path='class-subjects')
+    def class_subjects(self, request):
+        """GET /api/timetable/teacher/class-subjects/?class_id=<id>
+        Returns all subjects for a class — used to populate the Add Slot form.
+        """
+        class_id = request.query_params.get('class_id')
+        if not class_id:
+            return Response({'error': 'class_id is required'}, status=400)
+        if not getattr(request.user, 'school', None):
+            return Response({'error': 'User is not associated with a school'}, status=400)
+        try:
+            cls = Class.objects.get(id=class_id, school=request.user.school)
+        except Class.DoesNotExist:
+            return Response({'error': 'Class not found'}, status=404)
+        subjects = ClassSubject.objects.filter(class_instance=cls).select_related('subject', 'teacher')
+        return Response([{
+            'id': cs.id,
+            'subject_name': cs.subject.name,
+            'teacher_name': cs.teacher.get_full_name() if cs.teacher else None,
+        } for cs in subjects])
+
     def create(self, request):
         """POST /api/timetable/teacher/ — add a lesson slot"""
         class_id         = request.data.get('class_id')
@@ -95,13 +116,16 @@ class TeacherTimetableViewSet(viewsets.ViewSet):
         if not all([class_id, class_subject_id, day, start_time, end_time]):
             return Response({'error': 'class_id, class_subject_id, day, start_time, end_time are required'}, status=400)
 
+        if not getattr(request.user, 'school', None):
+            return Response({'error': 'User is not associated with a school'}, status=400)
+
         # Allow both class teachers and subject teachers to add slots
         try:
             cls = Class.objects.get(id=class_id, school=request.user.school)
         except Class.DoesNotExist:
             return Response({'error': 'Class not found'}, status=404)
 
-        is_class_teacher = cls.class_teacher == request.user
+        is_class_teacher = cls.class_teacher_id == request.user.id
         is_subject_teacher = ClassSubject.objects.filter(teacher=request.user, class_instance=cls).exists()
         if not (is_class_teacher or is_subject_teacher):
             return Response({'error': 'Class not found or not assigned to you'}, status=404)

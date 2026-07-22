@@ -103,14 +103,14 @@ const TimetableManagement = () => {
     try {
       const [ttRes, csRes] = await Promise.all([
         secureApiClient.get(`/timetable/teacher/?class_id=${classId}`),
-        secureApiClient.get(`/schools/class-subjects/?class_instance=${classId}`),
+        secureApiClient.get(`/timetable/teacher/class-subjects/?class_id=${classId}`),
       ]);
       setTimetable(ttRes?.timetable ?? []);
       const subjects = Array.isArray(csRes) ? csRes : (csRes?.results ?? []);
       setClassSubjects(subjects.map((cs: any) => ({
         id: cs.id,
-        subject_name: cs.subject_name ?? cs.subject?.name ?? cs.subject,
-        teacher_name: cs.teacher_name ?? cs.teacher?.get_full_name ?? null,
+        subject_name: cs.subject_name,
+        teacher_name: cs.teacher_name ?? null,
       })));
     } catch {
       toast.error('Failed to load timetable');
