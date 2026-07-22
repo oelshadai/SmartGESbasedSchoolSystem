@@ -10,8 +10,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Save, Users, Shield, Loader2, Trash2,
   RefreshCw, GraduationCap, Link2, UserPlus, Copy, CheckCircle2,
-  Phone, Mail, X, UserCheck,
+  Phone, Mail, X, UserCheck, Eye, EyeOff,
 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import secureApiClient from '@/lib/secureApiClient';
 
