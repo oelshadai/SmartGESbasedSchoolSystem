@@ -79,28 +79,46 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Handle push notifications (optional, for future use)
+// Handle push notifications
 self.addEventListener('push', (event) => {
+  let data = { title: 'SmartSchool', body: 'You have a new notification.' };
+  try {
+    data = event.data ? JSON.parse(event.data.text()) : data;
+  } catch {
+    data.body = event.data ? event.data.text() : data.body;
+  }
+
   const options = {
-    body: event.data?.text() || 'New notification from School Report',
+    body: data.body,
     icon: '/EliteTech logo with 3D cube design.png',
     badge: '/EliteTech logo with 3D cube design.png',
-    vibrate: [100, 50, 100],
-    data: {
-      dateOfArrival: Date.now(),
-      primaryKey: 1
-    }
+    vibrate: [200, 100, 200],
+    tag: data.tag || 'smartschool-notification',
+    renotify: true,
+    requireInteraction: false,
+    data: { url: data.url || '/' },
   };
 
   event.waitUntil(
-    self.registration.showNotification('School Report', options)
+    self.registration.showNotification(data.title, options)
   );
 });
 
 // Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const url = event.notification.data?.url || '/';
   event.waitUntil(
-    clients.openWindow('/')
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Focus existing tab if open
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      // Otherwise open a new tab
+      if (clients.openWindow) return clients.openWindow(url);
+    })
   );
 });

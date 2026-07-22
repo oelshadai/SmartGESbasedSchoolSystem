@@ -63,10 +63,10 @@ class NotificationViewSet(viewsets.ModelViewSet):
         return Response({'status': 'marked as read'})
 
 
-def create_notification(user, title, message, notification_type='general', 
-                       activity_type='', class_name='', teacher_name='', 
+def create_notification(user, title, message, notification_type='general',
+                       activity_type='', class_name='', teacher_name='',
                        class_id=None, assignment_id=None):
-    return Notification.objects.create(
+    notif = Notification.objects.create(
         user=user,
         title=title,
         message=message,
@@ -77,6 +77,13 @@ def create_notification(user, title, message, notification_type='general',
         class_id=class_id,
         assignment_id=assignment_id
     )
+    # Fire web push (best-effort — never crash the caller)
+    try:
+        from .push_service import send_push_to_user
+        send_push_to_user(user, title, message)
+    except Exception:
+        pass
+    return notif
 
 
 def notify_admins_attendance_taken(school, teacher, class_obj, date):

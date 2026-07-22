@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import NotificationPanel from '@/components/NotificationPanel';
+import usePushSubscription from '@/hooks/usePushSubscription';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
@@ -497,6 +498,8 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
     logout();
     navigate('/login');
   };
+
+  usePushSubscription(!!user);
 
   const isActivePath = (path: string) => {
     return location.pathname === path || location.pathname.startsWith(path + '/');
