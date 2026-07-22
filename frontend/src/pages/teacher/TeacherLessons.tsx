@@ -115,7 +115,9 @@ const TeacherLessons = () => {
     return classes.find((cls) => cls.id === selectedClass)?.name || '';
   }, [classes, selectedClass]);
 
-  const meetingUrl = activeMeetingSlot ? `https://meet.jit.si/${buildMeetingRoom(selectedClassName, activeMeetingSlot)}` : null;
+  const meetingUrl = activeMeetingSlot
+    ? `https://meet.jit.si/${buildMeetingRoom(selectedClassName, activeMeetingSlot)}#config.defaultLanguage="en"&config.lang="en"`
+    : null;
 
   const handleSaveNotes = async (slotId: number) => {
     const notes = noteDrafts[slotId] ?? '';
@@ -152,7 +154,7 @@ const TeacherLessons = () => {
 
   const handleCopyLink = async (slot: Slot) => {
     const room = buildMeetingRoom(selectedClassName, slot);
-    const url = `https://meet.jit.si/${room}`;
+    const url = `https://meet.jit.si/${room}#config.defaultLanguage="en"&config.lang="en"`;
     try {
       await navigator.clipboard.writeText(url);
       toast.success('Lesson link copied');
