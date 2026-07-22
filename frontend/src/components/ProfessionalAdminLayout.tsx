@@ -548,19 +548,41 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
           </button>
 
           <div className={collapsed ? 'flex items-center justify-center mb-2' : 'flex items-center gap-3 mb-4'}>
-            <div className={collapsed ? 'relative p-1' : 'relative'}>
-              <div className={collapsed ? 'relative bg-gradient-to-br from-blue-600 to-cyan-600 p-2 rounded-md flex items-center justify-center' : 'relative bg-gradient-to-br from-blue-600 to-cyan-600 p-3 rounded-xl flex items-center justify-center'}>
+            {/* Logo */}
+            <div className="relative shrink-0">
+              <div className={`relative ${
+                collapsed ? 'p-2 rounded-xl' : 'p-2.5 rounded-2xl'
+              } bg-gradient-to-br from-blue-500 via-cyan-500 to-indigo-600 shadow-lg shadow-blue-500/40 ring-1 ring-white/20 flex items-center justify-center`}>
                 <img
                   src="/EliteTech logo with 3D cube design.png"
-                  alt="App logo"
-                  className={collapsed ? 'h-5 w-5 object-contain' : 'h-6 w-6 object-contain'}
+                  alt="SmartGES"
+                  className={collapsed ? 'h-6 w-6 object-contain drop-shadow-md' : 'h-8 w-8 object-contain drop-shadow-md'}
                 />
               </div>
+              {/* Glow dot */}
+              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-slate-900 shadow shadow-emerald-400/60" />
             </div>
+
             {!collapsed && (
-              <div>
-                <h1 className="text-xl font-bold text-white">{title}</h1>
-                <p className="text-xs text-slate-100">{subtitle}</p>
+              <div className="min-w-0">
+                <h1 className="text-base font-extrabold leading-tight tracking-tight bg-gradient-to-r from-white via-blue-100 to-cyan-300 bg-clip-text text-transparent">
+                  SmartGES
+                </h1>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide uppercase ${
+                    user?.role === 'SUPER_ADMIN'
+                      ? 'bg-red-500/20 text-red-300 ring-1 ring-red-500/30'
+                      : user?.role === 'SCHOOL_ADMIN' || user?.role === 'PRINCIPAL'
+                      ? 'bg-blue-500/20 text-blue-300 ring-1 ring-blue-500/30'
+                      : user?.role === 'TEACHER'
+                      ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/30'
+                      : user?.role === 'STUDENT'
+                      ? 'bg-purple-500/20 text-purple-300 ring-1 ring-purple-500/30'
+                      : 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/30'
+                  }`}>
+                    {subtitle}
+                  </span>
+                </div>
               </div>
             )}
           </div>
@@ -582,28 +604,36 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
           {/* User Info (compact when collapsed) */}
           {collapsed ? (
             <div className="flex items-center justify-center mt-2">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
-                <span className="text-blue-400 font-semibold text-sm">
-                  {user?.first_name?.[0] || user?.email?.[0] || 'A'}
-                </span>
+              <div className={`w-9 h-9 rounded-full ring-2 ring-offset-2 ring-offset-slate-900 flex items-center justify-center font-bold text-sm ${
+                user?.role === 'SUPER_ADMIN' ? 'bg-gradient-to-br from-red-500 to-orange-500 ring-red-500/50 text-white'
+                : user?.role === 'SCHOOL_ADMIN' || user?.role === 'PRINCIPAL' ? 'bg-gradient-to-br from-blue-500 to-cyan-500 ring-blue-500/50 text-white'
+                : user?.role === 'TEACHER' ? 'bg-gradient-to-br from-emerald-500 to-teal-500 ring-emerald-500/50 text-white'
+                : user?.role === 'STUDENT' ? 'bg-gradient-to-br from-purple-500 to-pink-500 ring-purple-500/50 text-white'
+                : 'bg-gradient-to-br from-amber-500 to-yellow-500 ring-amber-500/50 text-white'
+              }`}>
+                {user?.first_name?.[0] || user?.email?.[0] || 'A'}
               </div>
             </div>
           ) : (
-            <div className="bg-slate-800/30 rounded-xl p-3">
+            <div className="bg-slate-800/40 rounded-xl p-3 ring-1 ring-slate-700/50">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
-                  <span className="text-blue-400 font-semibold text-sm">
-                    {user?.first_name?.[0] || user?.email?.[0] || 'A'}
-                  </span>
+                <div className={`w-10 h-10 rounded-full ring-2 ring-offset-1 ring-offset-slate-800 flex items-center justify-center font-bold text-sm shrink-0 ${
+                  user?.role === 'SUPER_ADMIN' ? 'bg-gradient-to-br from-red-500 to-orange-500 ring-red-500/40 text-white'
+                  : user?.role === 'SCHOOL_ADMIN' || user?.role === 'PRINCIPAL' ? 'bg-gradient-to-br from-blue-500 to-cyan-500 ring-blue-500/40 text-white'
+                  : user?.role === 'TEACHER' ? 'bg-gradient-to-br from-emerald-500 to-teal-500 ring-emerald-500/40 text-white'
+                  : user?.role === 'STUDENT' ? 'bg-gradient-to-br from-purple-500 to-pink-500 ring-purple-500/40 text-white'
+                  : 'bg-gradient-to-br from-amber-500 to-yellow-500 ring-amber-500/40 text-white'
+                }`}>
+                  {user?.first_name?.[0] || user?.email?.[0] || 'A'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium text-sm truncate">
-                    {user?.first_name && user?.last_name 
+                  <p className="text-white font-semibold text-sm truncate">
+                    {user?.first_name && user?.last_name
                       ? `${user.first_name} ${user.last_name}`
-                      : user?.email || 'Admin User'
+                      : user?.email || 'User'
                     }
                   </p>
-                  <p className="text-slate-100 text-xs truncate">{user?.email}</p>
+                  <p className="text-slate-400 text-xs truncate">{user?.email}</p>
                 </div>
               </div>
             </div>
@@ -642,11 +672,11 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
                 {!collapsed && (
                   <div className="flex-1 min-w-0">
                     <p className={`font-medium text-sm ${
-                      isActive ? 'text-white' : 'text-slate-100 group-hover:text-white'
+                      isActive ? 'text-white' : 'text-slate-300 group-hover:text-white'
                     }`}>
                       {item.label}
                     </p>
-                    <p className="text-xs text-slate-100 group-hover:text-slate-100">
+                    <p className="text-xs text-slate-500 group-hover:text-slate-400">
                       {item.description}
                     </p>
                   </div>
@@ -740,9 +770,9 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
               
               {/* Breadcrumb */}
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-slate-100">{user?.role ? roleLabel[user.role] : 'Admin'}</span>
-                <ChevronRight className="h-3 w-3 text-slate-100" />
-                <span className="text-white font-medium">
+                <span className="text-slate-400 text-xs">{user?.role ? roleLabel[user.role] : 'Admin'}</span>
+                <ChevronRight className="h-3 w-3 text-slate-600" />
+                <span className="text-white font-semibold">
                   {navItems.find(item => isActivePath(item.path))?.label || 'Dashboard'}
                 </span>
               </div>
