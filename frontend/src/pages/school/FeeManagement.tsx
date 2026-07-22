@@ -30,7 +30,7 @@ import { useAuthStore } from '@/stores/authStore';
 import {
   feeService,
   type StudentSearchResult, type FeeType, type StudentFee, type FeePayment,
-  type FeeStructure, type TermBill, type GenerateBillsResult,
+  type FeeStructure, type TermBill, type WeeklyBill, type GenerateBillsResult,
   FREQUENCY_LABELS, type CollectionFrequency,
 } from '@/services/feeService';
 import secureApiClient from '@/lib/secureApiClient';
@@ -108,6 +108,9 @@ const FeeManagement = () => {
     dailyExpected: 0,
     nonDailyCollected: 0,
     nonDailyOutstanding: 0,
+    weeklyCollected: 0,
+    weeklyOutstanding: 0,
+    weeklyTotalBilled: 0,
   });
 
   // ------ Analytics state ------
@@ -129,6 +132,9 @@ const FeeManagement = () => {
   const [recClassFilter, setRecClassFilter] = useState('all');
   const [recFeeTypeFilter, setRecFeeTypeFilter] = useState('all');
   const [recStatusFilter, setRecStatusFilter] = useState('all');
+  const [recBillType, setRecBillType] = useState<'term' | 'weekly'>('term');
+  const [weeklyBills, setWeeklyBills] = useState<WeeklyBill[]>([]);
+  const [weeklyBillsLoading, setWeeklyBillsLoading] = useState(false);
 
   // ------ SMS Reminders panel state (Records tab) ------
   const [showSmsPanel, setShowSmsPanel] = useState(false);
@@ -196,7 +202,7 @@ const FeeManagement = () => {
   useEffect(() => { fetchInitialData(); }, []);
   useEffect(() => { if (activeTab === 'setup') fetchSetupData(); }, [activeTab]);
   useEffect(() => { if (activeTab === 'analytics') fetchAnalytics(); }, [activeTab]);
-  useEffect(() => { if (activeTab === 'records') fetchRecordsBills(); }, [activeTab]);
+  useEffect(() => { if (activeTab === 'records') { fetchRecordsBills(); fetchWeeklyBills(); } }, [activeTab]);
 
   // Auto-fetch fee structure amount when student + fee type are both selected
   useEffect(() => {
@@ -323,6 +329,9 @@ const FeeManagement = () => {
         dailyExpected: data.daily_expected ?? 0,
         nonDailyCollected: data.non_daily_collected ?? 0,
         nonDailyOutstanding: data.non_daily_outstanding ?? 0,
+        weeklyCollected: data.weekly_collected ?? 0,
+        weeklyOutstanding: data.weekly_outstanding ?? 0,
+        weeklyTotalBilled: data.weekly_total_billed ?? 0,
       });
       setCollectionByFeeType(data.by_fee_type || []);
       setCollectionByCollector(data.by_collector || []);
@@ -482,6 +491,18 @@ const FeeManagement = () => {
       console.error('Failed to load fee records', e);
     } finally {
       setRecordsBillsLoading(false);
+    }
+  };
+
+  const fetchWeeklyBills = async () => {
+    setWeeklyBillsLoading(true);
+    try {
+      const data = await feeService.getWeeklyBills({ ordering: '-week_start' });
+      setWeeklyBills(data.results);
+    } catch (e) {
+      console.error('Failed to load weekly bills', e);
+    } finally {
+      setWeeklyBillsLoading(false);
     }
   };
 
@@ -1076,7 +1097,7 @@ const FeeManagement = () => {
       )}
       
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <Card variant="elevated" key={i}>
@@ -1121,6 +1142,42 @@ const FeeManagement = () => {
               color="text-red-600"
               trend={summary.totalExpected > 0
                 ? `${((summary.nonDailyCollected / (summary.nonDailyCollected + summary.nonDailyOutstanding || 1)) * 100).toFixed(1)}% collected`
+                : undefined}
+            />
+            <StatCard
+              label="Weekly Fees Collected"
+              value={formatCurrency(summary.weeklyCollected)}
+              icon={<CalendarDays className="h-5 w-5" />}
+              color="text-purple-600"
+              trend={summary.weeklyTotalBilled > 0
+                ? `${((summary.weeklyCollected / summary.weeklyTotalBilled) * 100).toFixed(1)}% of billed`
+                : 'No weekly bills yet'}
+            />
+            <StatCard
+              label="Weekly Fees Outstanding"
+              value={formatCurrency(summary.weeklyOutstanding)}
+              icon={<AlertCircle className="h-5 w-5" />}
+              color="text-orange-600"
+              trend={summary.weeklyTotalBilled > 0
+                ? `${formatCurrency(summary.weeklyTotalBilled)} total billed`
+                : undefined}
+            />
+            <StatCard
+              label="Weekly Fees Collected"
+              value={formatCurrency(summary.weeklyCollected)}
+              icon={<CalendarDays className="h-5 w-5" />}
+              color="text-purple-600"
+              trend={summary.weeklyTotalBilled > 0
+                ? `${((summary.weeklyCollected / summary.weeklyTotalBilled) * 100).toFixed(1)}% of billed`
+                : 'No weekly bills yet'}
+            />
+            <StatCard
+              label="Weekly Fees Outstanding"
+              value={formatCurrency(summary.weeklyOutstanding)}
+              icon={<AlertCircle className="h-5 w-5" />}
+              color="text-orange-600"
+              trend={summary.weeklyTotalBilled > 0
+                ? `${formatCurrency(summary.weeklyTotalBilled)} total billed`
                 : undefined}
             />
           </>
@@ -1446,6 +1503,42 @@ const FeeManagement = () => {
         </TabsContent>
 
         <TabsContent value="records" className="space-y-4">
+          {/* Bill type toggle */}
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant={recBillType === 'term' ? 'default' : 'outline'}
+              onClick={() => setRecBillType('term')}
+            >
+              <Receipt className="h-3.5 w-3.5 mr-1.5" />
+              Term Bills
+              <span className="ml-1.5 bg-primary-foreground/20 text-xs px-1.5 py-0.5 rounded-full">
+                {recordsBills.length}
+              </span>
+            </Button>
+            <Button
+              size="sm"
+              variant={recBillType === 'weekly' ? 'default' : 'outline'}
+              onClick={() => setRecBillType('weekly')}
+            >
+              <CalendarDays className="h-3.5 w-3.5 mr-1.5" />
+              Weekly Bills
+              <span className="ml-1.5 bg-primary-foreground/20 text-xs px-1.5 py-0.5 rounded-full">
+                {weeklyBills.length}
+              </span>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-auto"
+              onClick={() => recBillType === 'term' ? fetchRecordsBills() : fetchWeeklyBills()}
+              disabled={recBillType === 'term' ? recordsBillsLoading : weeklyBillsLoading}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 mr-1 ${(recBillType === 'term' ? recordsBillsLoading : weeklyBillsLoading) ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+
           {/* Filter / search bar */}
           <Card variant="elevated">
             <CardContent className="p-4">
@@ -1520,6 +1613,7 @@ const FeeManagement = () => {
           </Card>
 
           {/* SMS Reminders Panel */}
+          {recBillType === 'term' && (
           <Card variant="elevated" className={`border-orange-200 ${showSmsPanel ? 'bg-orange-50/50 dark:bg-orange-950/10' : ''}`}>
             <CardHeader className="py-3 px-4">
               <button
@@ -1689,8 +1783,10 @@ const FeeManagement = () => {
             )}
           </Card>
 
+          )}
+
           {/* Summary totals row */}
-          {filteredRecords.length > 0 && (
+          {recBillType === 'term' && filteredRecords.length > 0 && (
             <div className="grid grid-cols-3 gap-3">
               <div className="rounded-lg border bg-blue-50 border-blue-200 p-3 text-center">
                 <div className="text-xs text-blue-600 font-medium mb-0.5">Total Billed</div>
@@ -1707,7 +1803,8 @@ const FeeManagement = () => {
             </div>
           )}
 
-          {/* Main table */}
+          {/* Main table — Term Bills */}
+          {recBillType === 'term' && (
           <Card variant="elevated">
             <CardContent className="p-0">
               {recordsBillsLoading ? (
@@ -1904,6 +2001,127 @@ const FeeManagement = () => {
               )}
             </CardContent>
           </Card>
+          )}
+
+          {/* Weekly Bills Table */}
+          {recBillType === 'weekly' && (
+            <Card variant="elevated">
+              <CardContent className="p-0">
+                {weeklyBillsLoading ? (
+                  <div className="p-6 space-y-3">
+                    {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+                  </div>
+                ) : weeklyBills.length === 0 ? (
+                  <div className="p-10 text-center text-muted-foreground">
+                    <CalendarDays className="h-8 w-8 mx-auto opacity-30 mb-2" />
+                    <p className="font-medium">No weekly bills generated yet</p>
+                    <p className="text-sm">Go to Setup → Generate Bills → Weekly Bills to create them.</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Weekly summary totals */}
+                    <div className="grid grid-cols-3 gap-3 p-4 border-b">
+                      <div className="rounded-lg border bg-blue-50 border-blue-200 p-3 text-center">
+                        <div className="text-xs text-blue-600 font-medium mb-0.5">Total Billed</div>
+                        <div className="text-lg font-bold text-blue-800">
+                          {formatCurrency(weeklyBills.reduce((s, b) => s + Number(b.amount_billed), 0))}
+                        </div>
+                      </div>
+                      <div className="rounded-lg border bg-green-50 border-green-200 p-3 text-center">
+                        <div className="text-xs text-green-600 font-medium mb-0.5">Total Paid</div>
+                        <div className="text-lg font-bold text-green-800">
+                          {formatCurrency(weeklyBills.reduce((s, b) => s + Number(b.amount_paid), 0))}
+                        </div>
+                      </div>
+                      <div className="rounded-lg border bg-red-50 border-red-200 p-3 text-center">
+                        <div className="text-xs text-red-600 font-medium mb-0.5">Outstanding</div>
+                        <div className="text-lg font-bold text-red-800">
+                          {formatCurrency(weeklyBills.reduce((s, b) => s + Number(b.balance), 0))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      {/* Desktop */}
+                      <div className="hidden sm:block">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b bg-muted/40">
+                              <th className="text-left p-3 font-medium text-muted-foreground">Student</th>
+                              <th className="text-left p-3 font-medium text-muted-foreground">Class</th>
+                              <th className="text-left p-3 font-medium text-muted-foreground">Fee Type</th>
+                              <th className="text-left p-3 font-medium text-muted-foreground">Week</th>
+                              <th className="text-right p-3 font-medium text-muted-foreground">Billed</th>
+                              <th className="text-right p-3 font-medium text-muted-foreground">Paid</th>
+                              <th className="text-right p-3 font-medium text-muted-foreground">Balance</th>
+                              <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {weeklyBills.map(b => (
+                              <tr key={b.id} className="hover:bg-muted/30 transition-colors">
+                                <td className="p-3">
+                                  <div className="font-medium">{b.student_name}</div>
+                                  <div className="text-xs text-muted-foreground">{b.student_id}</div>
+                                </td>
+                                <td className="p-3">
+                                  <Badge variant="outline" className="text-xs">{b.class_level.replace('_', ' ')}</Badge>
+                                </td>
+                                <td className="p-3 text-sm">{b.fee_type_name}</td>
+                                <td className="p-3 text-xs text-muted-foreground">
+                                  {b.week_start} → {b.week_end}
+                                </td>
+                                <td className="p-3 text-right font-mono font-medium">{formatCurrency(Number(b.amount_billed))}</td>
+                                <td className="p-3 text-right font-mono text-green-600">{formatCurrency(Number(b.amount_paid))}</td>
+                                <td className="p-3 text-right font-mono">
+                                  {Number(b.balance) > 0
+                                    ? <span className="text-red-600">{formatCurrency(Number(b.balance))}</span>
+                                    : <span className="text-muted-foreground">—</span>}
+                                </td>
+                                <td className="p-3 text-center">
+                                  <Badge variant="outline" className={BILL_STATUS_COLORS[b.status]}>
+                                    {b.status}
+                                  </Badge>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Mobile */}
+                      <div className="sm:hidden p-3 space-y-3">
+                        {weeklyBills.map(b => (
+                          <div key={b.id} className="border rounded-xl p-3 space-y-2 bg-card">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="font-medium text-sm truncate">{b.student_name}</p>
+                                <p className="text-xs text-muted-foreground">{b.student_id} · {b.class_level.replace('_', ' ')}</p>
+                              </div>
+                              <Badge variant="outline" className={`text-xs shrink-0 ${BILL_STATUS_COLORS[b.status]}`}>
+                                {b.status}
+                              </Badge>
+                            </div>
+                            <p className="text-xs font-medium">{b.fee_type_name}</p>
+                            <p className="text-xs text-muted-foreground">Week: {b.week_start} → {b.week_end}</p>
+                            <div className="grid grid-cols-3 gap-2 text-xs">
+                              <div><p className="text-muted-foreground">Billed</p><p className="font-mono font-medium">{formatCurrency(Number(b.amount_billed))}</p></div>
+                              <div><p className="text-muted-foreground">Paid</p><p className="font-mono font-medium text-green-600">{formatCurrency(Number(b.amount_paid))}</p></div>
+                              <div><p className="text-muted-foreground">Balance</p><p className={`font-mono font-medium ${Number(b.balance) > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>{Number(b.balance) > 0 ? formatCurrency(Number(b.balance)) : '—'}</p></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="px-3 py-2 border-t text-xs text-muted-foreground">
+                        {weeklyBills.length} weekly bill{weeklyBills.length !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4">

@@ -668,6 +668,20 @@ class FeeReportViewSet(viewsets.ViewSet):
         )['total'] or 0
         total_outstanding = max(0, float(total_outstanding))
 
+        # --- Weekly bill stats ---
+        weekly_collected = WeeklyBill.objects.filter(
+            school=school,
+        ).exclude(status='WAIVED').aggregate(total=Sum('amount_paid'))['total'] or 0
+
+        weekly_outstanding = WeeklyBill.objects.filter(
+            school=school,
+        ).exclude(status='WAIVED').aggregate(total=Sum('balance'))['total'] or 0
+        weekly_outstanding = max(0, float(weekly_outstanding))
+
+        weekly_total_billed = WeeklyBill.objects.filter(
+            school=school,
+        ).aggregate(total=Sum('amount_billed'))['total'] or 0
+
         # By fee type
         by_fee_type = FeePayment.objects.filter(
             school=school
@@ -700,6 +714,9 @@ class FeeReportViewSet(viewsets.ViewSet):
             'non_daily_collected': float(non_daily_collected),
             'non_daily_outstanding': float(non_daily_outstanding),
             'non_daily_payment_count': non_daily_payment_count,
+            'weekly_collected': float(weekly_collected),
+            'weekly_outstanding': float(weekly_outstanding),
+            'weekly_total_billed': float(weekly_total_billed),
             'by_fee_type': list(by_fee_type),
             'by_collector': list(by_collector)
         })

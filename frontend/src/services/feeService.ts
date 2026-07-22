@@ -119,6 +119,9 @@ export interface FeeCollectionSummary {
   daily_expected: number;
   non_daily_collected: number;
   non_daily_outstanding: number;
+  weekly_collected: number;
+  weekly_outstanding: number;
+  weekly_total_billed: number;
   by_fee_type: Array<{
     fee_type__name: string;
     total: number;
@@ -206,6 +209,24 @@ export interface GenerateWeeklyBillsInput {
   end_date: string;
   fee_type?: number | null;
   overwrite?: boolean;
+}
+
+export interface WeeklyBill {
+  id: number;
+  student_id: string;
+  student_name: string;
+  class_level: string;
+  fee_type: number;
+  fee_type_name: string;
+  week_start: string;
+  week_end: string;
+  amount_billed: number;
+  amount_paid: number;
+  balance: number;
+  status: BillStatus;
+  notes: string;
+  created_at: string;
+  updated_at: string;
 }
 
 class FeeService {
@@ -399,6 +420,9 @@ class FeeService {
           daily_expected: data.daily_expected ?? 0,
           non_daily_collected: data.non_daily_collected ?? 0,
           non_daily_outstanding: data.non_daily_outstanding ?? 0,
+          weekly_collected: data.weekly_collected ?? 0,
+          weekly_outstanding: data.weekly_outstanding ?? 0,
+          weekly_total_billed: data.weekly_total_billed ?? 0,
           by_fee_type: data.by_fee_type || [],
           by_collector: data.by_collector || [],
         }
@@ -575,6 +599,21 @@ class FeeService {
 
   async deleteTermBill(id: number): Promise<void> {
     return this.makeRequest(() => secureApiClient.delete(`/fees/term-bills/${id}/`));
+  }
+
+  // ----------------------------------------------------------------
+  // Weekly Bills
+  // ----------------------------------------------------------------
+  async getWeeklyBills(params?: {
+    fee_type?: number;
+    status?: string;
+    class_id?: number;
+    ordering?: string;
+  }): Promise<ApiResponse<WeeklyBill>> {
+    return this.makeRequest(async () => {
+      const response = await secureApiClient.get<any>('/fees/weekly-bills/', { params });
+      return { data: { results: response?.results || [], count: response?.count || 0 } };
+    });
   }
 
   // ----------------------------------------------------------------
