@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { secureApiClient } from '@/lib/secureApiClient';
 import { toast } from 'sonner';
 import {
@@ -63,11 +62,9 @@ const sanitizeRoomName = (value: string) =>
     .toLowerCase();
 
 const buildMeetingRoom = (className: string, slot: Slot) => {
-  const safeClass = sanitizeRoomName(className || 'class');
-  const safeSubject = sanitizeRoomName(slot.subject || 'lesson');
-  const safeDay = sanitizeRoomName(slot.day || 'day');
-  const safeTime = sanitizeRoomName(slot.start_time || 'time');
-  return `smartschool-${safeClass}-${safeSubject}-${safeDay}-${safeTime}`;
+  return sanitizeRoomName(
+    `SmartSchool-${className}-${slot.subject}-${slot.day}-${slot.start_time}`
+  );
 };
 
 const StudentLessons = () => {
@@ -167,21 +164,6 @@ const StudentLessons = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 pb-24 space-y-5">
-      <Dialog open={Boolean(activeMeetingSlot)} onOpenChange={(open) => !open && setActiveMeetingSlot(null)}>
-        <DialogContent className="max-w-6xl h-[90vh] p-0 overflow-hidden">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Live lesson room</DialogTitle>
-          </DialogHeader>
-          {activeMeetingSlot && meetingUrl ? (
-            <iframe
-              title="Live Lesson Meeting"
-              src={meetingUrl}
-              className="h-full w-full"
-              allow="camera; microphone; fullscreen; display-capture"
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center">
@@ -244,7 +226,7 @@ const StudentLessons = () => {
               <div>
                 <p className="text-sm font-semibold text-foreground">Live lesson session</p>
                 <p className="text-sm text-muted-foreground">
-                  Select a lesson and join the live Jitsi room right inside the app.
+                  Select a lesson below and join the live Jitsi room.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -256,11 +238,51 @@ const StudentLessons = () => {
                 </Button>
               </div>
             </div>
+
+            {lessonSlots.length > 0 && (
+              <div className="mt-4">
+                <label className="text-xs text-muted-foreground mb-1 block">Select lesson</label>
+                <select
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground"
+                  value={activeMeetingSlot?.id ?? ''}
+                  onChange={(e) => {
+                    const slot = lessonSlots.find((s) => s.id === Number(e.target.value)) ?? null;
+                    setActiveMeetingSlot(slot);
+                  }}
+                >
+                  <option value="">— pick a lesson —</option>
+                  {lessonSlots.map((slot) => (
+                    <option key={slot.id} value={slot.id}>
+                      {slot.day_label} · {slot.start_time} — {slot.subject}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {activeMeetingSlot ? (
-            <div className="rounded-3xl border border-border bg-card p-4 text-sm text-muted-foreground">
-              Your lesson room is ready. Open it in the modal to join the live session.
+            <div className="space-y-4">
+              <div className="rounded-3xl border border-border bg-card p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{activeMeetingSlot.subject} — {activeMeetingSlot.day} {activeMeetingSlot.start_time}</p>
+                    <p className="text-xs text-muted-foreground">Room: {buildMeetingRoom(className, activeMeetingSlot)}</p>
+                  </div>
+                  <Button size="sm" variant="ghost" className="gap-2" onClick={() => setActiveMeetingSlot(null)}>
+                    Leave in-app meeting
+                  </Button>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-3xl border border-border bg-black">
+                <iframe
+                  title="Live Lesson Meeting"
+                  src={meetingUrl || ''}
+                  className="h-[560px] w-full"
+                  allow="camera; microphone; fullscreen; display-capture"
+                />
+              </div>
             </div>
           ) : (
             <div className="rounded-3xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
