@@ -22,7 +22,7 @@ def _get_student_and_term(student_id, term_id, school):
     except Student.DoesNotExist:
         raise ValueError('Student not found')
     try:
-        term = Term.objects.get(id=term_id, school=school)
+        term = Term.objects.get(id=term_id, academic_year__school=school)
     except Term.DoesNotExist:
         raise ValueError('Term not found')
     return student, term
@@ -77,7 +77,7 @@ def class_risk_summary(request, class_id):
 
     try:
         class_obj = Class.objects.get(id=class_id, school=request.user.school)
-        term = Term.objects.get(id=term_id, school=request.user.school)
+        term = Term.objects.get(id=term_id, academic_year__school=request.user.school)
     except (Class.DoesNotExist, Term.DoesNotExist):
         return Response({'error': 'Class or Term not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -322,7 +322,7 @@ def generate_class_insights(request, class_id):
 
     try:
         class_obj = Class.objects.get(id=class_id, school=request.user.school)
-        term = Term.objects.get(id=term_id, school=request.user.school)
+        term = Term.objects.get(id=term_id, academic_year__school=request.user.school)
     except (Class.DoesNotExist, Term.DoesNotExist):
         return Response({'error': 'Class or Term not found'}, status=status.HTTP_404_NOT_FOUND)
 
