@@ -197,6 +197,100 @@ def fee_default_risk(request, student_id):
 # Smart SMS
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _enrich_sms_data(student, term, alert_type, data):
+    """
+    Auto-populate missing SMS data fields from the database so the
+    generated message always contains real values.
+    """
+    data = dict(data)  # don't mutate the original
+
+    if alert_type == 'FEE_REMINDER':
+        from fees.models import TermBill, StudentFee
+        from datetime import date
+
+        # Total outstanding balance across all term bills for this term
+        if 'balance' not in data or not data['balance']:
+            bills = TermBill.objects.filter(
+                student=student, term=term, status__in=['UNPAID', 'PARTIAL']
+            )
+            total_balance = sum(float(b.balance) for b in bills)
+            if not total_balance:
+                # Fall back to the global StudentFee balance
+                try:
+                    sf = StudentFee.objects.get(student=student, school=student.school)
+                    total_balance = float(sf.balance)
+                except StudentFee.DoesNotExist:
+                    total_balance = 0.0
+            data['balance'] = total_balance
+
+        # Nearest upcoming due date
+        if 'due_date' not in data or not data['due_date']:
+            upcoming = (
+                TermBill.objects.filter(
+                    student=student, term=term,
+                    status__in=['UNPAID', 'PARTIAL'],
+                    due_date__isnull=False,
+                )
+                .order_by('due_date')
+                .values_list('due_date', flat=True)
+                .first()
+            )
+            data['due_date'] = str(upcoming) if upcoming else 'end of term'
+
+        # MoMo number from school settings
+        if 'momo_number' not in data or not data['momo_number']:
+            data['momo_number'] = getattr(student.school, 'phone_number', '') or ''
+
+    elif alert_type == 'EXAM_POOR':
+        from scores.models import TermResult, SubjectResult
+        if 'average' not in data or not data['average']:
+            try:
+                tr = TermResult.objects.get(student=student, term=term)
+                data['average'] = float(tr.average_score)
+            except TermResult.DoesNotExist:
+                pass
+        if 'worst_subject' not in data or not data['worst_subject']:
+            worst = (
+                SubjectResult.objects.filter(student=student, term=term)
+                .select_related('class_subject__subject')
+                .order_by('total_score')
+                .first()
+            )
+            if worst:
+                data['worst_subject'] = worst.class_subject.subject.name
+
+    elif alert_type == 'ATTENDANCE_LOW':
+        from students.models import Attendance
+        if 'attendance' not in data or not data['attendance']:
+            try:
+                att = Attendance.objects.get(student=student, term=term)
+                data['attendance'] = float(att.attendance_percentage)
+            except Attendance.DoesNotExist:
+                pass
+        if 'school_phone' not in data or not data['school_phone']:
+            data['school_phone'] = getattr(student.school, 'phone_number', '') or ''
+
+    elif alert_type == 'POSITIVE_FEEDBACK':
+        from scores.models import TermResult, SubjectResult
+        if 'average' not in data or not data['average']:
+            try:
+                tr = TermResult.objects.get(student=student, term=term)
+                data['average'] = float(tr.average_score)
+            except TermResult.DoesNotExist:
+                pass
+        if 'best_subject' not in data or not data['best_subject']:
+            best = (
+                SubjectResult.objects.filter(student=student, term=term)
+                .select_related('class_subject__subject')
+                .order_by('-total_score')
+                .first()
+            )
+            if best:
+                data['best_subject'] = best.class_subject.subject.name
+
+    return data
+
+
 @api_view(['POST'])
 @permission_classes([IsSuperAdminOrSchoolAdmin])
 def send_smart_sms(request, student_id):
@@ -220,6 +314,7 @@ def send_smart_sms(request, student_id):
     except ValueError as e:
         return Response({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
 
+    sms_data = _enrich_sms_data(student, term, alert_type, sms_data)
     message = ai_service.generate_smart_sms(student, alert_type, sms_data)
     phone = student.guardian_phone
 
