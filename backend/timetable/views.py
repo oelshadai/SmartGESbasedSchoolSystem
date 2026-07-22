@@ -10,12 +10,18 @@ from .models import LessonSlot
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 def _slot_data(slot):
+    from datetime import time as time_type
+    def fmt_time(t):
+        if isinstance(t, time_type):
+            return t.strftime('%H:%M')
+        # already a string like "09:00" or "09:00:00"
+        return str(t)[:5]
     return {
         'id':         slot.id,
         'day':        slot.day,
         'day_label':  slot.get_day_display(),
-        'start_time': slot.start_time.strftime('%H:%M'),
-        'end_time':   slot.end_time.strftime('%H:%M'),
+        'start_time': fmt_time(slot.start_time),
+        'end_time':   fmt_time(slot.end_time),
         'subject':    slot.class_subject.subject.name,
         'subject_id': slot.class_subject.subject.id,
         'teacher':    slot.class_subject.teacher.get_full_name() if slot.class_subject.teacher else None,
