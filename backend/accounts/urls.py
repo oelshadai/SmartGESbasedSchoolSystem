@@ -12,6 +12,7 @@ from .views import (
     CreateTeacherView,
     RegisterSchoolView,
     LogoutView,
+    who_is_online,
 )
 from .auth_views import (
     teacher_login, admin_login, superadmin_login, parent_login,
@@ -96,6 +97,7 @@ urlpatterns = [
     path('emergency-list-users/', emergency_list_users, name='emergency_list_users'),
     path('emergency-wipe-users/', emergency_wipe_users, name='emergency_wipe_users'),
     path('db-check/', db_check_view, name='db_check'),
+    path('who-is-online/', who_is_online, name='who_is_online'),
 
     # ── Super Admin SaaS Management ──────────────────────────────
     path('superadmin/schools/', superadmin_schools, name='superadmin_schools'),

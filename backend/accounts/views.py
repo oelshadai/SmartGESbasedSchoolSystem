@@ -9,7 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.core.cache import cache
 from django.contrib.auth.hashers import check_password, make_password
-from django.db import transaction, IntegrityError
+from django.db import transaction, IntegrityError, models
 from django.conf import settings
 from datetime import datetime, timedelta
 from django.contrib.auth.password_validation import validate_password
@@ -696,8 +696,105 @@ class LogoutView(APIView):
         return request.META.get('REMOTE_ADDR', '127.0.0.1')
 
 
+from rest_framework.decorators import api_view, permission_classes as drf_permission_classes
+from django.utils import timezone as tz
+from datetime import timedelta
+
+
+@api_view(['GET'])
+@drf_permission_classes([permissions.IsAuthenticated])
+def who_is_online(request):
+    """Return users from the same school who have been active in the last 5 minutes.
+
+    Visibility rules:
+    - STUDENT      → classmates (same current_class) + their class teacher
+    - TEACHER      → students in their assigned class(es) + all teachers in school
+    - ADMIN/PRINCIPAL → everyone in the school
+    """
+    ONLINE_WINDOW = 5  # minutes
+    user = request.user
+    school = getattr(user, 'school', None)
+
+    if not school:
+        return Response([], status=200)
+
+    cutoff = tz.now() - timedelta(minutes=ONLINE_WINDOW)
+
+    # Base queryset: same school, seen recently, exclude self
+    base_qs = User.objects.filter(
+        school=school,
+        last_seen__gte=cutoff,
+        is_active=True,
+    ).exclude(pk=user.pk)
+
+    role = getattr(user, 'role', '')
+
+    if role in ('SCHOOL_ADMIN', 'PRINCIPAL', 'SUPER_ADMIN'):
+        # Admins see everyone
+        online_users = base_qs
+
+    elif role == 'TEACHER':
+        # Teachers see: students in their class(es) + all teachers/admins in school
+        from schools.models import Class as SchoolClass
+        teacher_class_ids = list(
+            SchoolClass.objects.filter(school=school, class_teacher=user)
+            .values_list('id', flat=True)
+        )
+        # Students in teacher's class(es)
+        student_user_ids = list(
+            Student.objects.filter(
+                current_class_id__in=teacher_class_ids, is_active=True
+            ).exclude(user__isnull=True)
+            .values_list('user_id', flat=True)
+        )
+        online_users = base_qs.filter(
+            models.Q(id__in=student_user_ids) |
+            models.Q(role__in=['TEACHER', 'SCHOOL_ADMIN', 'PRINCIPAL'])
+        )
+
+    elif role == 'STUDENT':
+        # Students see: classmates + their class teacher
+        try:
+            student_profile = Student.objects.get(user=user, school=school)
+            current_class = student_profile.current_class
+        except Student.DoesNotExist:
+            return Response([], status=200)
+
+        if not current_class:
+            return Response([], status=200)
+
+        # Classmate user IDs
+        classmate_user_ids = list(
+            Student.objects.filter(
+                current_class=current_class, is_active=True
+            ).exclude(user__isnull=True).exclude(user=user)
+            .values_list('user_id', flat=True)
+        )
+        # Class teacher user ID
+        teacher_ids = []
+        if current_class.class_teacher_id:
+            teacher_ids = [current_class.class_teacher_id]
+
+        online_users = base_qs.filter(
+            id__in=classmate_user_ids + teacher_ids
+        )
+
+    else:
+        online_users = base_qs.none()
+
+    data = [
+        {
+            'id': u.id,
+            'name': u.get_full_name(),
+            'role': u.role,
+            'last_seen': u.last_seen.isoformat(),
+        }
+        for u in online_users.order_by('-last_seen')
+    ]
+    return Response(data, status=200)
+
+
 class RegisterSchoolView(APIView):
-    """Endpoint for a new school to self-register and obtain JWT tokens"""
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
 

@@ -48,6 +48,7 @@ class User(AbstractUser):
     # Use FileField to avoid Pillow dependency during initial setup
     profile_picture = models.FileField(upload_to='profiles/', null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    last_seen = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

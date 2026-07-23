@@ -13,6 +13,17 @@ from scores.models import SubjectResult, TermResult
 from schools.models import Term
 
 
+def get_report_template(school):
+    """Return the correct template path based on the school's report_template setting."""
+    mapping = {
+        'DETAILED': 'reports/terminal_report_detailed.html',
+        'COMPACT': 'reports/terminal_report_compact.html',
+        'GHANA_EDUCATION_SERVICE': 'reports/terminal_report_ges.html',
+    }
+    template_key = getattr(school, 'report_template', 'STANDARD') or 'STANDARD'
+    return mapping.get(template_key, 'reports/terminal_report.html')
+
+
 class ReportCardViewSet(viewsets.ModelViewSet):
     """Report Card management"""
     queryset = ReportCard.objects.all()
@@ -126,7 +137,19 @@ class ReportCardViewSet(viewsets.ModelViewSet):
         # Get media URL base for logo display
         from .utils import get_media_base_url
         media_url_base = get_media_base_url(request)
-        
+
+        # Fee arrears for this term
+        from fees.models import TermBill
+        _fee_bills = list(TermBill.objects.filter(
+            student=student, term=term
+        ).exclude(status='PAID').select_related('fee_type'))
+        fee_arrears = [
+            {'name': b.fee_type.name, 'billed': float(b.amount_billed),
+             'paid': float(b.amount_paid), 'balance': float(b.balance)}
+            for b in _fee_bills
+        ]
+        fee_arrears_total = sum(b['balance'] for b in fee_arrears)
+
         return {
             'school': student.school,
             'student': student,
@@ -146,6 +169,8 @@ class ReportCardViewSet(viewsets.ModelViewSet):
             'class_average_exam': class_average_exam,
             'class_average_total': class_average_total,
             'media_url_base': media_url_base,
+            'fee_arrears': fee_arrears,
+            'fee_arrears_total': fee_arrears_total,
         }
     
     def _get_sample_report_context(self, school, sample_data, request):
@@ -166,7 +191,7 @@ class ReportCardViewSet(viewsets.ModelViewSet):
         # Get media URL base for logo display
         from .utils import get_media_base_url
         media_url_base = get_media_base_url(request)
-        
+
         return {
             'school': school,
             'student': sample_data['student'],
@@ -188,6 +213,8 @@ class ReportCardViewSet(viewsets.ModelViewSet):
             'class_average_ca': 0,
             'class_average_exam': 0,
             'class_average_total': 0,
+            'fee_arrears': [],
+            'fee_arrears_total': 0,
         }
 
     @action(detail=False, methods=['get'])
@@ -223,7 +250,7 @@ class ReportCardViewSet(viewsets.ModelViewSet):
 
             context = self._get_report_context(student, term, request)
             from django.shortcuts import render
-            return render(request, 'reports/terminal_report.html', context)
+            return render(request, get_report_template(student.school), context)
 
         except Student.DoesNotExist:
             return Response({'error': 'Student not found'}, status=404)
@@ -272,7 +299,7 @@ class ReportCardViewSet(viewsets.ModelViewSet):
             from .pdf_generator import generate_terminal_report_pdf
             from django.http import HttpResponse
             
-            pdf_content = generate_terminal_report_pdf(context)
+            pdf_content = generate_terminal_report_pdf(context, template_name=get_report_template(student.school))
 
             # Guard against HTML/error payloads being downloaded as .pdf files in production.
             if not isinstance(pdf_content, (bytes, bytearray)) or not bytes(pdf_content).startswith(b'%PDF'):
@@ -440,6 +467,14 @@ class ReportCardViewSet(viewsets.ModelViewSet):
             if student.photo:
                 student_photo_absolute = get_absolute_media_url(student.photo, request)
             
+            # Fee arrears for this term
+            from fees.models import TermBill
+            _fee_bills = list(TermBill.objects.filter(
+                student=student, term=term
+            ).exclude(status='PAID').select_related('fee_type'))
+            fee_arrears = [{'name': b.fee_type.name, 'billed': float(b.amount_billed), 'paid': float(b.amount_paid), 'balance': float(b.balance)} for b in _fee_bills]
+            fee_arrears_total = sum(b['balance'] for b in fee_arrears)
+
             context = {
                 'school': student.school,
                 'student': student,
@@ -458,10 +493,12 @@ class ReportCardViewSet(viewsets.ModelViewSet):
                 'media_url_base': media_url_base,
                 'school_logo_absolute': school_logo_absolute,
                 'student_photo_absolute': student_photo_absolute,
+                'fee_arrears': fee_arrears,
+                'fee_arrears_total': fee_arrears_total,
             }
             
             # Render HTML template
-            html_content = render_to_string('reports/terminal_report.html', context)
+            html_content = render_to_string(get_report_template(student.school), context)
             
             # For now, return the HTML content (you can add HTML-to-PDF conversion here)
             # You can use libraries like weasyprint, wkhtmltopdf, or similar
@@ -630,7 +667,7 @@ class ReportCardViewSet(viewsets.ModelViewSet):
             }
             
             # Render HTML template
-            html_content = render_to_string('reports/terminal_report.html', context)
+            html_content = render_to_string(get_report_template(student.school), context)
             
             return Response({
                 "success": True,
@@ -972,7 +1009,7 @@ class ReportCardViewSet(viewsets.ModelViewSet):
             
             # Render HTML template
             from django.shortcuts import render
-            response = render(request, 'reports/terminal_report.html', context)
+            response = render(request, get_report_template(student.school), context)
             # Remove X-Frame-Options to allow iframe embedding from frontend
             return response
             
@@ -1014,7 +1051,7 @@ class ReportCardViewSet(viewsets.ModelViewSet):
             
             # Render SAME template as PDF
             from django.shortcuts import render
-            return render(request, 'reports/terminal_report.html', context)
+            return render(request, get_report_template(student.school), context)
             
         except TermResult.DoesNotExist:
             return Response(
@@ -1310,6 +1347,8 @@ class ReportCardViewSet(viewsets.ModelViewSet):
                 'empty_rows': range(max(0, 9 - len(sample_data['subject_results']))),
                 'is_preview': True,
                 'media_url_base': media_url_base,
+                'fee_arrears': [],
+                'fee_arrears_total': 0,
                 'total_marks_ca': sum(r.ca_score for r in sample_data['subject_results']),
                 'total_marks_exam': sum(r.exam_score for r in sample_data['subject_results']),
                 'total_marks_overall': sum(r.total_score for r in sample_data['subject_results']),
@@ -1318,14 +1357,14 @@ class ReportCardViewSet(viewsets.ModelViewSet):
             if request.GET.get('format') == 'pdf':
                 # Return HTML content for PDF conversion
                 from django.template.loader import render_to_string
-                html_content = render_to_string('reports/terminal_report.html', html_context)
+                html_content = render_to_string(get_report_template(school), html_context)
                 response = HttpResponse(html_content, content_type='text/html')
                 response['Content-Disposition'] = 'inline; filename="template_preview.html"'
                 return response
             else:
                 # Return HTML preview
                 from django.template.loader import render_to_string
-                html_content = render_to_string('reports/terminal_report.html', html_context)
+                html_content = render_to_string(get_report_template(school), html_context)
                 return HttpResponse(html_content, content_type='text/html')
             
         except Exception as e:
@@ -1459,18 +1498,15 @@ class ReportCardViewSet(viewsets.ModelViewSet):
                                 self.name = "Basic 9 A"
                                 self.id = 1
                                 self.level = "BASIC_9"
-                                if getattr(school, 'class_teacher_signature_required', False):
-                                    class MockTeacher:
-                                        def get_full_name(self):
-                                            return "Mr. John Doe"
-                                    self.class_teacher = MockTeacher()
-                                else:
-                                    self.class_teacher = None
-                                
+                                self.class_teacher = None
+
+                            def __str__(self):
+                                return self.name
+
                             class Students:
                                 def count(self):
                                     return 25
-                            
+
                             students = Students()
                         self.current_class = MockClass()
                     
@@ -1666,26 +1702,11 @@ def report_preview_iframe(request):
         
         # Reuse the existing sample data generation
         temp_vs = ReportCardViewSet()
+        temp_vs.request = request
         sample_data = temp_vs._create_sample_report_data(school)
-        
-        # Get media URL base for logo display
-        from .utils import get_media_base_url
-        media_url_base = get_media_base_url(request)
-        
-        context = {
-            'school': school,
-            'student': sample_data['student'],
-            'term': sample_data['term'],
-            'subject_results': sample_data['subject_results'],
-            'term_result': sample_data['term_result'],
-            'attendance': sample_data['attendance'],
-            'behaviour': sample_data['behaviour'],
-            'is_preview': True,
-            'media_url_base': media_url_base
-        }
-        
-        return render(request, 'reports/terminal_report.html', context)
-        
+        context = temp_vs._get_sample_report_context(school, sample_data, request)
+        return render(request, get_report_template(school), context)
+
     except Exception as e:
         return HttpResponse(
             f'<div style="padding: 20px; text-align: center; font-family: Arial;">'
@@ -1958,6 +1979,14 @@ def template_preview_public(request):
                 from .utils import get_media_base_url
                 media_url_base = get_media_base_url(request)
                 
+                # Fee arrears for this student/term
+                from fees.models import TermBill
+                _fee_bills_s = list(TermBill.objects.filter(
+                    student=student, term=term
+                ).exclude(status='PAID').select_related('fee_type'))
+                _fee_arrears_data = [{'name': b.fee_type.name, 'billed': float(b.amount_billed), 'paid': float(b.amount_paid), 'balance': float(b.balance)} for b in _fee_bills_s]
+                _fee_arrears_total_val = sum(b['balance'] for b in _fee_arrears_data)
+
                 context = {
                     'school': school,
                     'student': student,
@@ -1974,14 +2003,16 @@ def template_preview_public(request):
                     'total_marks_ca': sum(result.ca_score for result in subject_results),
                     'total_marks_exam': sum(result.exam_score for result in subject_results),
                     'total_marks_overall': sum(result.total_score for result in subject_results),
-                    'media_url_base': media_url_base
+                    'media_url_base': media_url_base,
+                    'fee_arrears': _fee_arrears_data,
+                    'fee_arrears_total': _fee_arrears_total_val,
                 }
                 
                 if wants_pdf:
                     filename_prefix = f"{student.student_id}_{term.name}_Report"
                     return _pdf_response_from_context(context, filename_prefix)
 
-                return render(request, 'reports/terminal_report.html', context)
+                return render(request, get_report_template(school), context)
                 
             except Exception as e:
                 return HttpResponse(
@@ -2002,9 +2033,10 @@ def template_preview_public(request):
             return _pdf_response_from_context(html_context, filename_prefix)
 
         # Default: return HTML preview
-        return render(request, 'reports/terminal_report.html', html_context)
+        return render(request, get_report_template(school), html_context)
 
     except Exception as e:
         import traceback
         return HttpResponse(f'<div style="padding:20px;">Preview error: {str(e)}<pre>{traceback.format_exc()}</pre></div>', status=500)
+
 

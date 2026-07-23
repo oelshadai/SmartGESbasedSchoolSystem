@@ -1,0 +1,242 @@
+{% load report_filters %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Terminal Report - {{ school.name }}</title>
+    <style>
+        html,body { margin:0; padding:0; box-sizing:border-box; }
+        *, *::before, *::after { box-sizing:inherit; }
+
+        body { font-family:"Times New Roman",Georgia,serif; background:#fff; color:#111; font-size:9pt; line-height:1.2; }
+
+        .page {
+            width:210mm; height:297mm;
+            margin:0 auto;
+            border:2.5pt solid #1a3a6b;
+            background:#fff;
+            display:flex; flex-direction:column;
+            overflow:hidden;
+            padding:5pt 8pt;
+            gap:2.5pt;
+        }
+
+        @media screen { body { background:#bbb; padding:8px; } .page { box-shadow:0 8px 28px rgba(0,0,0,.2); } }
+
+        /* Header */
+        .header { background:linear-gradient(135deg,#1a3a6b 0%,#2d5fa6 100%); color:#fff; padding:6pt 10pt 5pt; border-radius:2pt; flex-shrink:0; }
+        .header-inner { display:flex; align-items:center; gap:8pt; }
+        .logo { width:44pt; height:44pt; border-radius:50%; border:1.5pt solid rgba(255,255,255,.6); overflow:hidden; flex-shrink:0; background:#fff; display:flex; align-items:center; justify-content:center; }
+        .logo img { width:100%; height:100%; object-fit:contain; }
+        .hc { flex:1; text-align:center; }
+        .hc .ges  { font-size:7pt; letter-spacing:2pt; text-transform:uppercase; opacity:.85; }
+        .hc .name { font-size:12pt; font-weight:700; text-transform:uppercase; letter-spacing:.8pt; margin:1pt 0; }
+        .hc .motto { font-size:7pt; font-style:italic; opacity:.9; }
+        .hc .contact { font-size:6.5pt; opacity:.8; font-family:Arial,sans-serif; }
+
+        .title-bar { text-align:center; background:#f0f4ff; border:1.5pt solid #1a3a6b; border-radius:2pt; padding:3pt; font-size:9pt; font-weight:700; text-transform:uppercase; letter-spacing:2.5pt; color:#1a3a6b; flex-shrink:0; }
+
+        /* Student info */
+        .si { border:1.5pt solid #1a3a6b; border-radius:2pt; flex-shrink:0; }
+        .si table { width:100%; border-collapse:collapse; table-layout:fixed; }
+        .si td { padding:2pt 5pt; border:0.5pt solid #c8d4ee; }
+        .si .lbl { font-size:6pt; font-weight:700; text-transform:uppercase; color:#555; background:#f0f4ff; white-space:nowrap; font-family:Arial,sans-serif; }
+        .si .val { font-size:9pt; font-weight:700; color:#1a3a6b; }
+
+        /* Scores */
+        .scores-wrap { flex:1; min-height:0; border:1.5pt solid #1a3a6b; border-radius:2pt; overflow:hidden; }
+        .scores-table { width:100%; height:100%; border-collapse:collapse; font-size:8pt; table-layout:fixed; }
+        .scores-table th { background:#2d5fa6; color:#fff; padding:3pt 2pt; text-align:center; font-size:6.5pt; font-weight:700; text-transform:uppercase; border:0.5pt solid #1a3a6b; font-family:Arial,sans-serif; }
+        .scores-table th .sub { font-weight:400; font-size:5.5pt; display:block; opacity:.85; }
+        .scores-table td { padding:2pt 2pt; text-align:center; border:0.5pt solid #bbb; vertical-align:middle; }
+        .scores-table td.subj { text-align:left; padding-left:6pt; font-weight:600; }
+        .scores-table tbody tr:nth-child(even) { background:#f0f4ff; }
+        .total-row { background:#dce4f5 !important; font-weight:700; border-top:1.5pt solid #1a3a6b !important; }
+
+        /* Grade key */
+        .grade-key { display:flex; gap:5pt; flex-wrap:wrap; border:1pt solid #bbb; border-radius:2pt; padding:2pt 6pt; background:#fafbff; font-size:7pt; flex-shrink:0; }
+        .grade-key .t { font-weight:700; text-transform:uppercase; color:#555; font-family:Arial,sans-serif; font-size:6pt; }
+        .grade-key strong { color:#1a3a6b; }
+
+        /* Footer */
+        .footer { flex-shrink:0; display:flex; flex-direction:column; gap:2pt; }
+
+        .info-row { display:flex; gap:0; border:1pt solid #bbb; border-radius:2pt; font-size:7pt; background:#fafbff; }
+        .info-cell { flex:1; padding:2pt 5pt; border-right:0.5pt solid #ddd; }
+        .info-cell:last-child { border-right:none; }
+        .info-cell .lbl { font-size:5.5pt; font-weight:700; text-transform:uppercase; color:#666; font-family:Arial,sans-serif; }
+        .info-cell .val { font-weight:700; color:#1a3a6b; font-size:7pt; }
+
+        .fees-row { border:1pt solid #c0392b; border-radius:2pt; background:#fff5f5; padding:2pt 5pt; font-size:7pt; flex-shrink:0; }
+        .fees-row .fees-title { font-size:5.5pt; font-weight:700; text-transform:uppercase; color:#c0392b; font-family:Arial,sans-serif; margin-bottom:1pt; }
+        .fees-inner { display:flex; gap:8pt; flex-wrap:wrap; align-items:center; }
+        .fee-item .fn { font-weight:700; color:#333; }
+        .fee-item .fb { color:#c0392b; font-weight:700; }
+        .fees-total { margin-left:auto; font-weight:700; color:#c0392b; }
+
+        .remarks-row { display:flex; gap:4pt; }
+        .remarks-box { flex:1; border:1pt solid #aaa; border-radius:2pt; padding:2.5pt 5pt; min-height:22pt; }
+        .remarks-lbl { font-size:5.5pt; font-weight:700; text-transform:uppercase; color:#555; border-bottom:0.5pt solid #eee; padding-bottom:1pt; margin-bottom:1.5pt; font-family:Arial,sans-serif; }
+        .remarks-text { font-size:7.5pt; font-style:italic; color:#222; }
+
+        .sig-row { display:flex; gap:8pt; }
+        .sig-box { flex:1; text-align:center; }
+        .sig-line { border-bottom:1pt solid #333; height:15pt; margin-bottom:1pt; }
+        .sig-lbl { font-size:5.5pt; font-weight:700; text-transform:uppercase; color:#333; font-family:Arial,sans-serif; }
+        .sig-name { font-size:5pt; color:#666; font-style:italic; }
+
+        @page { size:A4; margin:0; }
+        @media print {
+            * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+            html,body { width:210mm; height:297mm; margin:0; padding:0; background:white !important; }
+            .page { box-shadow:none !important; page-break-after:avoid; page-break-inside:avoid; }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+
+    <div class="header">
+        <div class="header-inner">
+            <div class="logo">{% if school.logo %}<img src="{% if school_logo_absolute %}{{ school_logo_absolute }}{% else %}{{ media_url_base }}{{ school.logo.url }}{% endif %}" alt="Logo">{% else %}<span style="font-size:6pt;color:#aaa;">Logo</span>{% endif %}</div>
+            <div class="hc">
+                <div class="ges">Ghana Education Service</div>
+                <div class="name">{{ school.name }}</div>
+                {% if school.motto %}<div class="motto">&ldquo;{{ school.motto }}&rdquo;</div>{% endif %}
+                <div class="contact">{% if school.address %}{{ school.address }}{% endif %}{% if school.phone_number %} &bull; {{ school.phone_number }}{% endif %}{% if school.email %} &bull; {{ school.email }}{% endif %}</div>
+            </div>
+            <div class="logo">{% if school.logo %}<img src="{% if school_logo_absolute %}{{ school_logo_absolute }}{% else %}{{ media_url_base }}{{ school.logo.url }}{% endif %}" alt="Logo">{% else %}<span style="font-size:6pt;color:#aaa;">Logo</span>{% endif %}</div>
+        </div>
+    </div>
+
+    <div class="title-bar">Detailed Terminal Report Sheet</div>
+
+    <div class="si">
+        <table>
+            <colgroup><col style="width:13%"><col style="width:21%"><col style="width:11%"><col style="width:19%"><col style="width:11%"><col style="width:25%"></colgroup>
+            <tr>
+                <td class="lbl">Name of Pupil</td><td class="val" colspan="3">{{ student.get_full_name|upper|default:"&mdash;" }}</td>
+                <td class="lbl">Class</td><td class="val">{% if student.current_class %}{{ student.current_class }}{% else %}&mdash;{% endif %}</td>
+            </tr>
+            <tr>
+                <td class="lbl">Academic Year</td><td class="val">{{ term.academic_year.name|default:"&mdash;" }}</td>
+                <td class="lbl">Term</td><td class="val">{{ term.get_name_display|default:term.name|upper }}</td>
+                <td class="lbl">No. on Roll</td><td class="val">{% if term_result.total_students %}{{ term_result.total_students }}{% else %}&mdash;{% endif %}</td>
+            </tr>
+            <tr>
+                <td class="lbl">Class Teacher</td><td class="val">{{ class_teacher_name|default:"&mdash;" }}</td>
+                {% if school.show_position_in_class %}<td class="lbl">Position</td><td class="val">{% if term_result.class_position %}{{ term_result.class_position|ordinal }}{% else %}&mdash;{% endif %}</td>
+                {% else %}<td class="lbl">Closing</td><td class="val">{% if school.term_closing_date %}{{ school.term_closing_date }}{% else %}&mdash;{% endif %}</td>{% endif %}
+                <td class="lbl">Reopening</td><td class="val">{% if school.term_reopening_date %}{{ school.term_reopening_date }}{% else %}&mdash;{% endif %}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="scores-wrap">
+        <table class="scores-table">
+            <thead>
+                <tr>
+                    <th style="width:32%;text-align:left;padding-left:6pt;">Subject</th>
+                    <th style="width:12%;">Class Score<span class="sub">(50%)</span></th>
+                    <th style="width:12%;">Exam Score<span class="sub">(50%)</span></th>
+                    <th style="width:12%;">Total<span class="sub">(100%)</span></th>
+                    {% if school.show_position_in_class %}<th style="width:8%;">Pos.</th>{% endif %}
+                    <th>Grade</th>
+                    <th>Remark</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sr in subject_results %}
+                <tr>
+                    <td class="subj">{{ sr.class_subject.subject.name|safe }}</td>
+                    <td>{{ sr.ca_score|floatformat:0|default:"-" }}</td>
+                    <td>{{ sr.exam_score|floatformat:0|default:"-" }}</td>
+                    <td><strong>{{ sr.total_score|floatformat:0|default:"-" }}</strong></td>
+                    {% if school.show_position_in_class %}<td>{% if sr.position %}{{ sr.position|ordinal }}{% else %}-{% endif %}</td>{% endif %}
+                    <td>{{ sr.grade|default:"-" }}</td>
+                    <td style="font-size:7pt;">{% if sr.total_score >= 80 %}Excellent{% elif sr.total_score >= 70 %}Very Good{% elif sr.total_score >= 60 %}Good{% elif sr.total_score >= 50 %}Satisfactory{% else %}Needs Improvement{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td class="subj">English Language</td><td>42</td><td>38</td><td><strong>80</strong></td>{% if school.show_position_in_class %}<td>3rd</td>{% endif %}<td>A</td><td>Excellent</td></tr>
+                <tr><td class="subj">Mathematics</td><td>45</td><td>40</td><td><strong>85</strong></td>{% if school.show_position_in_class %}<td>2nd</td>{% endif %}<td>A</td><td>Excellent</td></tr>
+                {% endfor %}
+                {% for i in empty_rows %}<tr><td class="subj">&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>{% if school.show_position_in_class %}<td>&nbsp;</td>{% endif %}<td>&nbsp;</td><td>&nbsp;</td></tr>{% endfor %}
+                <tr class="total-row">
+                    <td class="subj" style="text-transform:uppercase;font-size:7.5pt;">Total / Aggregate</td>
+                    <td>{{ total_marks_ca|floatformat:0|default:"0" }}</td>
+                    <td>{{ total_marks_exam|floatformat:0|default:"0" }}</td>
+                    <td><strong>{{ total_marks_overall|floatformat:0|default:"0" }}</strong></td>
+                    {% if school.show_position_in_class %}<td>&mdash;</td>{% endif %}
+                    <td>{{ term_result.average_score|floatformat:1|default:"-" }}%</td>
+                    <td style="font-size:7pt;">{% if term_result.average_score >= 80 %}Excellent{% elif term_result.average_score >= 70 %}Very Good{% elif term_result.average_score >= 60 %}Good{% elif term_result.average_score >= 50 %}Satisfactory{% else %}Needs Improvement{% endif %}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="grade-key">
+        <span class="t">Grade Key:</span>
+        <span><strong>A</strong> 80&ndash;100 Excellent</span>
+        <span><strong>B</strong> 70&ndash;79 Very Good</span>
+        <span><strong>C</strong> 60&ndash;69 Good</span>
+        <span><strong>D</strong> 50&ndash;59 Satisfactory</span>
+        <span><strong>F</strong> 0&ndash;49 Needs Improvement</span>
+    </div>
+
+    <div class="footer">
+        {% if school.show_attendance or school.show_behavior_comments or school.show_promotion_on_terminal %}
+        <div class="info-row">
+            {% if school.show_attendance %}
+            <div class="info-cell"><div class="lbl">Days Present</div><div class="val">{% if attendance.days_present %}{{ attendance.days_present }}{% else %}&mdash;{% endif %} / {% if attendance.total_days %}{{ attendance.total_days }}{% else %}&mdash;{% endif %}</div></div>
+            <div class="info-cell"><div class="lbl">Days Absent</div><div class="val">{% if attendance.days_absent %}{{ attendance.days_absent }}{% else %}&mdash;{% endif %}</div></div>
+            {% endif %}
+            {% if school.show_behavior_comments %}
+            <div class="info-cell"><div class="lbl">Conduct</div><div class="val">{% if behaviour.conduct %}{{ behaviour.get_conduct_display }}{% else %}&mdash;{% endif %}</div></div>
+            <div class="info-cell"><div class="lbl">Attitude</div><div class="val">{% if behaviour.attitude %}{{ behaviour.get_attitude_display }}{% else %}&mdash;{% endif %}</div></div>
+            <div class="info-cell"><div class="lbl">Punctuality</div><div class="val">{% if behaviour.punctuality %}{{ behaviour.get_punctuality_display }}{% else %}&mdash;{% endif %}</div></div>
+            {% endif %}
+            {% if school.show_promotion_on_terminal %}
+            <div class="info-cell"><div class="lbl">Promoted</div><div class="val">{% if term_result.promoted %}Yes &mdash; Next Class{% else %}No &mdash; Repeat{% endif %}</div></div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if fee_arrears %}
+        <div class="fees-row">
+            <div class="fees-title">&#9888; Outstanding Fee Arrears for This Term</div>
+            <div class="fees-inner">
+                {% for fee in fee_arrears %}
+                <span class="fee-item"><span class="fn">{{ fee.name }}:</span> <span class="fb">GH&#8373; {{ fee.balance|floatformat:2 }}</span> <span style="color:#888;font-size:6pt;">(Billed: {{ fee.billed|floatformat:2 }} / Paid: {{ fee.paid|floatformat:2 }})</span></span>
+                {% endfor %}
+                <span class="fees-total">Total: GH&#8373; {{ fee_arrears_total|floatformat:2 }}</span>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="remarks-row">
+            <div class="remarks-box">
+                <div class="remarks-lbl">Class Teacher&rsquo;s Remarks{% if class_teacher_name %} &mdash; {{ class_teacher_name }}{% endif %}</div>
+                <div class="remarks-text">{% if behaviour.class_teacher_remarks %}{{ behaviour.class_teacher_remarks }}{% else %}&nbsp;{% endif %}</div>
+            </div>
+            {% if school.show_headteacher_signature %}
+            <div class="remarks-box">
+                <div class="remarks-lbl">Head Teacher&rsquo;s Remarks</div>
+                <div class="remarks-text">{% if behaviour.headmaster_remarks %}{{ behaviour.headmaster_remarks }}{% else %}&nbsp;{% endif %}</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="sig-row">
+            {% if school.class_teacher_signature_required %}
+            <div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">Class Teacher</div><div class="sig-name">{{ class_teacher_name|default:"" }}</div></div>
+            {% endif %}
+            {% if school.show_headteacher_signature %}
+            <div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">Head Teacher</div></div>
+            {% endif %}
+            <div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">Parent / Guardian</div>{% if school.term_reopening_date %}<div class="sig-name">Reopening: {{ school.term_reopening_date }}</div>{% endif %}</div>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

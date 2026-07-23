@@ -6,5 +6,4 @@ class FinancialConfig(AppConfig):
     name = 'financial'
 
     def ready(self):
-        # Load audit signal handlers when the financial app is ready
-        from . import signals  # noqa: F401
+        pass  # Audit signals are handled by schools/signals.py

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Edit, Trash2, Award, Search, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Award, Search, Loader2, Users } from 'lucide-react';
 import { secureApiClient } from '@/lib/secureApiClient';
 import { useToast } from '@/hooks/use-toast';
 
@@ -32,78 +32,41 @@ export default function StaffManagement() {
   const [typeFilter, setTypeFilter] = useState<'all' | 'staff' | 'teacher'>('all');
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
-    staff_id: '',
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: '',
-    position: '',
-    department: '',
-    hire_date: '',
-    status: 'ACTIVE'
+    staff_id: '', first_name: '', last_name: '', email: '',
+    phone: '', position: '', department: '', hire_date: '', status: 'ACTIVE',
   });
   const [editId, setEditId] = useState<number | null>(null);
 
-  useEffect(() => {
-    fetchAllStaff();
-  }, []);
+  useEffect(() => { fetchAllStaff(); }, []);
 
   const fetchAllStaff = async () => {
     setLoading(true);
     try {
-      // Fetch both Staff and Teachers in parallel
       const [staffResponse, teachersResponse] = await Promise.all([
         secureApiClient.get<any>('/schools/financial/staff/').catch(() => ({ results: [] })),
-        secureApiClient.get<any>('/schools/teachers/').catch(() => ({ results: [] }))
+        secureApiClient.get<any>('/teachers/').catch(() => ({ results: [] })),
       ]);
-
       const staffData = Array.isArray(staffResponse) ? staffResponse : staffResponse?.results || [];
       const teachersData = Array.isArray(teachersResponse) ? teachersResponse : teachersResponse?.results || [];
 
-      // Normalize staff data
       const normalizedStaff = staffData.map((item: any) => ({
-        id: item.id,
-        staff_id: item.staff_id,
-        first_name: item.first_name,
-        last_name: item.last_name,
-        email: item.email,
-        phone: item.phone,
-        position: item.position,
-        department: item.department,
-        hire_date: item.hire_date,
-        status: item.status,
-        type: 'staff' as const
+        id: item.id, staff_id: item.staff_id, first_name: item.first_name, last_name: item.last_name,
+        email: item.email, phone: item.phone, position: item.position, department: item.department,
+        hire_date: item.hire_date, status: item.status, type: 'staff' as const,
       }));
-
-      // Normalize teacher data
       const normalizedTeachers = teachersData.map((item: any) => ({
-        id: item.id,
-        employee_id: item.employee_id,
-        first_name: item.first_name,
-        last_name: item.last_name,
-        email: item.email,
-        phone_number: item.phone_number,
-        qualification: item.qualification,
-        hire_date: item.hire_date,
-        is_active: item.is_active,
-        type: 'teacher' as const
+        id: item.id, employee_id: item.employee_id, first_name: item.first_name, last_name: item.last_name,
+        email: item.email, phone_number: item.phone_number, qualification: item.qualification,
+        hire_date: item.hire_date, is_active: item.is_active, type: 'teacher' as const,
       }));
 
-      // Combine and sort
-      const combined = [...normalizedStaff, ...normalizedTeachers].sort((a, b) => {
-        const nameA = `${a.last_name} ${a.first_name}`;
-        const nameB = `${b.last_name} ${b.first_name}`;
-        return nameA.localeCompare(nameB);
-      });
-
-      setStaff(combined);
+      setStaff([...normalizedStaff, ...normalizedTeachers].sort((a, b) =>
+        `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`)
+      ));
     } catch (error: any) {
-      console.error('Failed to fetch staff:', error);
       toast({ title: 'Error loading staff', description: error.message || 'Please try again', variant: 'destructive' });
       setStaff([]);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -119,7 +82,6 @@ export default function StaffManagement() {
       fetchAllStaff();
       resetForm();
     } catch (error: any) {
-      console.error('Failed to save staff:', error);
       toast({ title: 'Error', description: error.message || 'Failed to save staff', variant: 'destructive' });
     }
   };
@@ -127,276 +89,238 @@ export default function StaffManagement() {
   const handleDelete = async (id: number, type: 'staff' | 'teacher') => {
     if (!confirm('Are you sure you want to delete this staff member?')) return;
     try {
-      const endpoint = type === 'staff' ? `/schools/financial/staff/${id}/` : `/schools/teachers/${id}/`;
-      await secureApiClient.delete(endpoint);
+      await secureApiClient.delete(type === 'staff' ? `/schools/financial/staff/${id}/` : `/teachers/${id}/`);
       toast({ title: 'Success', description: 'Staff member deleted successfully' });
       fetchAllStaff();
     } catch (error: any) {
-      console.error('Failed to delete staff:', error);
       toast({ title: 'Error', description: error.message || 'Failed to delete staff', variant: 'destructive' });
     }
   };
 
   const handleEdit = (item: Staff) => {
-    if (item.type === 'staff') {
-      setFormData({
-        staff_id: item.staff_id || '',
-        first_name: item.first_name,
-        last_name: item.last_name,
-        email: item.email,
-        phone: item.phone || '',
-        position: item.position || '',
-        department: item.department || '',
-        hire_date: item.hire_date,
-        status: item.status || 'ACTIVE'
-      });
-      setEditId(item.id);
-      setShowForm(true);
-    } else {
+    if (item.type !== 'staff') {
       alert('Teacher editing is not available from this view. Please use the Teachers Management section.');
+      return;
     }
+    setFormData({
+      staff_id: item.staff_id || '', first_name: item.first_name, last_name: item.last_name,
+      email: item.email, phone: item.phone || '', position: item.position || '',
+      department: item.department || '', hire_date: item.hire_date, status: item.status || 'ACTIVE',
+    });
+    setEditId(item.id);
+    setShowForm(true);
   };
 
   const resetForm = () => {
-    setFormData({
-      staff_id: '',
-      first_name: '',
-      last_name: '',
-      email: '',
-      phone: '',
-      position: '',
-      department: '',
-      hire_date: '',
-      status: 'ACTIVE'
-    });
+    setFormData({ staff_id: '', first_name: '', last_name: '', email: '', phone: '', position: '', department: '', hire_date: '', status: 'ACTIVE' });
     setEditId(null);
     setShowForm(false);
   };
 
+  const filtered = staff.filter((item) => {
+    const matchesSearch =
+      item.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.staff_id || item.employee_id || '').toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch && (typeFilter === 'all' || item.type === typeFilter);
+  });
+
+  const getStatusBadge = (item: Staff) => {
+    const active = item.type === 'teacher' ? item.is_active : item.status === 'ACTIVE';
+    const label = item.type === 'teacher' ? (item.is_active ? 'Active' : 'Inactive') : item.status;
+    return (
+      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${active ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-700/40 dark:text-foreground/60'}`}>
+        {label}
+      </span>
+    );
+  };
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="theme-page-title text-foreground">Staff Management</h1>
-        <Button onClick={() => setShowForm(!showForm)} className="theme-button bg-foreground/10 border-foreground/20 text-foreground hover:bg-foreground/15">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="theme-page-title">Staff Management</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Manage staff and teaching personnel</p>
+        </div>
+        <Button onClick={() => setShowForm(!showForm)} className="theme-button w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           Add Staff
         </Button>
       </div>
 
+      {/* Form */}
       {showForm && (
-        <Card className="border-border">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-foreground">{editId ? 'Edit Staff' : 'Add New Staff'}</CardTitle>
+            <CardTitle className="theme-card-title">{editId ? 'Edit Staff' : 'Add New Staff'}</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
-              <Input
-                placeholder="Staff ID"
-                value={formData.staff_id}
-                onChange={(e) => setFormData({ ...formData, staff_id: e.target.value })}
-                className="text-foreground placeholder:text-foreground/50"
-                required
-              />
-              <Input
-                placeholder="First Name"
-                value={formData.first_name}
-                onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                className="text-foreground placeholder:text-foreground/50"
-                required
-              />
-              <Input
-                placeholder="Last Name"
-                value={formData.last_name}
-                onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                className="text-foreground placeholder:text-foreground/50"
-                required
-              />
-              <Input
-                type="email"
-                placeholder="Email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="text-foreground placeholder:text-foreground/50"
-              />
-              <Input
-                placeholder="Phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="text-foreground placeholder:text-foreground/50"
-              />
-              <Input
-                placeholder="Position"
-                value={formData.position}
-                onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                className="text-foreground placeholder:text-foreground/50"
-                required
-              />
-              <Input
-                placeholder="Department"
-                value={formData.department}
-                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                className="text-foreground placeholder:text-foreground/50"
-              />
-              <Input
-                type="date"
-                placeholder="Hire Date"
-                value={formData.hire_date}
-                onChange={(e) => setFormData({ ...formData, hire_date: e.target.value })}
-                className="text-foreground placeholder:text-foreground/50"
-                required
-              />
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input placeholder="Staff ID" value={formData.staff_id} onChange={(e) => setFormData({ ...formData, staff_id: e.target.value })} className="theme-input" required />
+              <Input placeholder="First Name" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} className="theme-input" required />
+              <Input placeholder="Last Name" value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} className="theme-input" required />
+              <Input type="email" placeholder="Email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="theme-input" />
+              <Input placeholder="Phone" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="theme-input" />
+              <Input placeholder="Position" value={formData.position} onChange={(e) => setFormData({ ...formData, position: e.target.value })} className="theme-input" required />
+              <Input placeholder="Department" value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} className="theme-input" />
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Hire Date</label>
+                <Input type="date" value={formData.hire_date} onChange={(e) => setFormData({ ...formData, hire_date: e.target.value })} className="theme-input" required />
+              </div>
               <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder:text-foreground/50"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 theme-input"
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
               >
                 <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
                 <option value="ON_LEAVE">On Leave</option>
+                <option value="SUSPENDED">Suspended</option>
                 <option value="TERMINATED">Terminated</option>
               </select>
-              <div className="col-span-2 flex gap-2">
-                <Button type="submit" className="bg-foreground/10 border-foreground/20 text-foreground hover:bg-foreground/15">Save</Button>
-                <Button type="button" variant="outline" onClick={resetForm} className="bg-foreground/5 border-foreground/20 text-foreground hover:bg-foreground/10">Cancel</Button>
+              <div className="sm:col-span-2 flex flex-col sm:flex-row gap-2">
+                <Button type="submit" className="theme-button w-full sm:w-auto">Save</Button>
+                <Button type="button" variant="outline" onClick={resetForm} className="w-full sm:w-auto">Cancel</Button>
               </div>
             </form>
           </CardContent>
         </Card>
       )}
 
-      {/* Search and Filter Section */}
-      <Card className="border-border">
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            <div className="flex gap-2 items-end">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/60" />
-                <Input
-                  placeholder="Search by name, email, or ID..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 text-foreground placeholder:text-foreground/50"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
+      {/* Search + filter */}
+      <Card>
+        <CardContent className="pt-4 space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, email, or ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 theme-input"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(['all', 'staff', 'teacher'] as const).map((f) => (
               <Button
-                variant={typeFilter === 'all' ? 'default' : 'outline'}
-                onClick={() => setTypeFilter('all')}
-                className={typeFilter === 'all' ? 'bg-foreground text-background' : 'bg-foreground/5 border-foreground/20 text-foreground hover:bg-foreground/10'}
+                key={f}
+                size="sm"
+                variant={typeFilter === f ? 'default' : 'outline'}
+                onClick={() => setTypeFilter(f)}
+                className={typeFilter === f ? 'theme-button' : ''}
               >
-                All ({staff.length})
+                {f === 'all' ? `All (${staff.length})` : f === 'staff' ? `Staff (${staff.filter(s => s.type === 'staff').length})` : `Teachers (${staff.filter(s => s.type === 'teacher').length})`}
               </Button>
-              <Button
-                variant={typeFilter === 'staff' ? 'default' : 'outline'}
-                onClick={() => setTypeFilter('staff')}
-                className={typeFilter === 'staff' ? 'bg-purple-600 text-white' : 'bg-purple-100/20 border-purple-200/50 text-purple-700 hover:bg-purple-100/30'}
-              >
-                Staff ({staff.filter(s => s.type === 'staff').length})
-              </Button>
-              <Button
-                variant={typeFilter === 'teacher' ? 'default' : 'outline'}
-                onClick={() => setTypeFilter('teacher')}
-                className={typeFilter === 'teacher' ? 'bg-blue-600 text-white' : 'bg-blue-100/20 border-blue-200/50 text-blue-700 hover:bg-blue-100/30'}
-              >
-                Teachers ({staff.filter(s => s.type === 'teacher').length})
-              </Button>
-            </div>
+            ))}
           </div>
         </CardContent>
       </Card>
 
-      <Card className="border-border">
+      {/* Desktop table */}
+      <Card className="hidden md:block">
         <CardHeader>
-          <CardTitle className="text-foreground">
+          <CardTitle className="theme-card-title flex items-center gap-2">
+            <Users className="h-5 w-5 text-orange-500" />
             Staff & Teachers
-            {loading && <Loader2 className="h-4 w-4 animate-spin ml-2 inline-block text-foreground/60" />}
+            {loading && <Loader2 className="h-4 w-4 animate-spin ml-1 text-muted-foreground" />}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-foreground/60" />
-            </div>
-          ) : staff.length === 0 ? (
-            <p className="text-center text-foreground/60 py-8">No staff members found. Add one to get started.</p>
+            <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : filtered.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8 text-sm">No staff members found.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-foreground font-semibold text-left p-3 text-sm">ID</th>
-                    <th className="text-foreground font-semibold text-left p-3 text-sm">Name</th>
-                    <th className="text-foreground font-semibold text-left p-3 text-sm">Type</th>
-                    <th className="text-foreground font-semibold text-left p-3 text-sm">Position/Qualification</th>
-                    <th className="text-foreground font-semibold text-left p-3 text-sm">Email</th>
-                    <th className="text-foreground font-semibold text-left p-3 text-sm">Status</th>
-                    <th className="text-foreground font-semibold text-left p-3 text-sm">Actions</th>
+                  <tr className="border-b">
+                    <th className="theme-table-header text-left p-3 text-sm">ID</th>
+                    <th className="theme-table-header text-left p-3 text-sm">Name</th>
+                    <th className="theme-table-header text-left p-3 text-sm">Type</th>
+                    <th className="theme-table-header text-left p-3 text-sm">Position / Qualification</th>
+                    <th className="theme-table-header text-left p-3 text-sm">Email</th>
+                    <th className="theme-table-header text-left p-3 text-sm">Status</th>
+                    <th className="theme-table-header text-left p-3 text-sm">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {staff
-                    .filter(item => {
-                      const matchesSearch = 
-                        item.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        item.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        item.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        (item.staff_id || item.employee_id || '').toLowerCase().includes(searchTerm.toLowerCase());
-                      const matchesType = typeFilter === 'all' || item.type === typeFilter;
-                      return matchesSearch && matchesType;
-                    })
-                    .map((item) => (
-                      <tr key={`${item.type}-${item.id}`} className="border-b border-border hover:bg-foreground/5 transition-colors">
-                        <td className="text-foreground/80 p-3 text-sm font-medium">{item.staff_id || item.employee_id || '-'}</td>
-                        <td className="text-foreground p-3 font-medium">{item.first_name} {item.last_name}</td>
-                        <td className="p-3">
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 w-fit ${
-                            item.type === 'teacher' 
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' 
-                              : 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300'
-                          }`}>
-                            {item.type === 'teacher' && <Award className="h-3 w-3" />}
-                            {item.type === 'teacher' ? 'Teacher' : 'Staff'}
-                          </span>
-                        </td>
-                        <td className="text-foreground/80 p-3 text-sm">
-                          {item.type === 'staff' ? (item.position || '-') : (item.qualification || '-')}
-                        </td>
-                        <td className="text-foreground/80 p-3 text-sm">{item.email}</td>
-                        <td className="p-3">
-                          <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                            item.type === 'teacher' 
-                              ? (item.is_active ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300')
-                              : (item.status === 'ACTIVE' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-700/40 dark:text-foreground/50')
-                          }`}>
-                            {item.type === 'teacher' ? (item.is_active ? 'Active' : 'Inactive') : item.status}
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex gap-2">
-                            {item.type === 'staff' && (
-                              <Button size="sm" variant="outline" onClick={() => handleEdit(item)} className="bg-foreground/5 border-foreground/20 text-foreground hover:bg-foreground/10">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            )}
-                            <Button 
-                              size="sm" 
-                              variant="destructive" 
-                              onClick={() => handleDelete(item.id, item.type)} 
-                              className="bg-red-600/10 border-red-600/30 text-red-600 hover:bg-red-600/20"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                  {filtered.map((item) => (
+                    <tr key={`${item.type}-${item.id}`} className="border-b hover:bg-muted/30 transition-colors">
+                      <td className="p-3 text-sm font-medium text-muted-foreground">{item.staff_id || item.employee_id || '—'}</td>
+                      <td className="p-3 font-medium">{item.first_name} {item.last_name}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 w-fit ${item.type === 'teacher' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300'}`}>
+                          {item.type === 'teacher' && <Award className="h-3 w-3" />}
+                          {item.type === 'teacher' ? 'Teacher' : 'Staff'}
+                        </span>
+                      </td>
+                      <td className="p-3 text-sm text-muted-foreground">{item.type === 'staff' ? (item.position || '—') : (item.qualification || '—')}</td>
+                      <td className="p-3 text-sm text-muted-foreground">{item.email}</td>
+                      <td className="p-3">{getStatusBadge(item)}</td>
+                      <td className="p-3">
+                        <div className="flex gap-2">
+                          {item.type === 'staff' && (
+                            <Button size="sm" variant="outline" onClick={() => handleEdit(item)}><Edit className="h-4 w-4" /></Button>
+                          )}
+                          <Button size="sm" variant="destructive" onClick={() => handleDelete(item.id, item.type)} className="bg-red-600/10 border-red-600/30 text-red-600 hover:bg-red-600/20">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide px-1 flex items-center gap-2">
+          Staff & Teachers
+          {loading && <Loader2 className="h-3 w-3 animate-spin" />}
+        </h2>
+        {loading ? (
+          <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+        ) : filtered.length === 0 ? (
+          <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">No staff members found.</CardContent></Card>
+        ) : filtered.map((item) => (
+          <Card key={`${item.type}-${item.id}`}>
+            <CardContent className="pt-4 pb-3 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm">{item.first_name} {item.last_name}</p>
+                  <p className="text-xs text-muted-foreground">{item.staff_id || item.employee_id || '—'}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1 ${item.type === 'teacher' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300'}`}>
+                    {item.type === 'teacher' && <Award className="h-3 w-3" />}
+                    {item.type === 'teacher' ? 'Teacher' : 'Staff'}
+                  </span>
+                  {getStatusBadge(item)}
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-0.5">
+                <p>{item.type === 'staff' ? item.position : item.qualification}</p>
+                <p>{item.email}</p>
+              </div>
+              <div className="flex gap-2 pt-1">
+                {item.type === 'staff' && (
+                  <Button size="sm" variant="outline" onClick={() => handleEdit(item)} className="flex-1">
+                    <Edit className="h-4 w-4 mr-1" /> Edit
+                  </Button>
+                )}
+                <Button size="sm" variant="destructive" onClick={() => handleDelete(item.id, item.type)} className={`bg-red-600/10 border-red-600/30 text-red-600 hover:bg-red-600/20 ${item.type === 'staff' ? '' : 'flex-1'}`}>
+                  <Trash2 className="h-4 w-4 mr-1" /> Delete
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }

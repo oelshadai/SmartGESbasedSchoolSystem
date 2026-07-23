@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/authStore';
 import { SecureTokenStorage } from '@/services/authService';
 import { useToast } from '@/hooks/use-toast';
+import { getApiBaseUrl } from '@/lib/apiBase';
 
 interface ReportPreviewModalProps {
   isOpen: boolean;

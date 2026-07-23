@@ -9,7 +9,7 @@ from django.conf import settings
 from django.http import HttpResponse
 
 
-def generate_terminal_report_pdf(report_context):
+def generate_terminal_report_pdf(report_context, template_name='reports/terminal_report.html'):
     """Generate professional PDF using template's built-in print CSS
     
     Uses the same template as preview for 100% identical output.
@@ -19,7 +19,7 @@ def generate_terminal_report_pdf(report_context):
         _ensure_absolute_urls(report_context)
         
         # Render template - SAME as preview
-        html_content = render_to_string('reports/terminal_report.html', report_context)
+        html_content = render_to_string(template_name, report_context)
         
         # Generate PDF using template's own print CSS
         return _generate_professional_pdf(html_content)

@@ -3,9 +3,39 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import UntypedToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from django.conf import settings
+from django.utils import timezone
 import jwt
 
 User = get_user_model()
+
+
+class LastSeenMiddleware:
+    """Updates user.last_seen on every authenticated API request."""
+
+    # Only update DB at most once every 60 seconds per user to avoid hammering the DB
+    UPDATE_INTERVAL = 60
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        self._update_last_seen(request)
+        return response
+
+    def _update_last_seen(self, request):
+        try:
+            user = getattr(request, 'user', None)
+            if not user or not user.is_authenticated:
+                return
+            now = timezone.now()
+            # Throttle: skip if updated recently
+            if user.last_seen and (now - user.last_seen).total_seconds() < self.UPDATE_INTERVAL:
+                return
+            User.objects.filter(pk=user.pk).update(last_seen=now)
+        except Exception:
+            pass  # Never let this break a request
+
 
 class RoleBasedAccessMiddleware:
     """Strict role-based access control middleware"""

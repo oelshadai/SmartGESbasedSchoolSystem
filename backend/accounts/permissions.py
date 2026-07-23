@@ -30,14 +30,14 @@ class IsSchoolAdmin(permissions.BasePermission):
 
 
 class IsSuperAdminOrSchoolAdmin(permissions.BasePermission):
-    """Allow SUPER_ADMIN or SCHOOL_ADMIN/PRINCIPAL."""
-    message = 'Admin access required.'
+    """Allow SUPER_ADMIN, SCHOOL_ADMIN, PRINCIPAL, or TEACHER."""
+    message = 'Admin or teacher access required.'
 
     def has_permission(self, request, view):
         return (
             request.user
             and request.user.is_authenticated
-            and getattr(request.user, 'role', None) in ('SUPER_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL')
+            and getattr(request.user, 'role', None) in ('SUPER_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'TEACHER')
         )
 
 
