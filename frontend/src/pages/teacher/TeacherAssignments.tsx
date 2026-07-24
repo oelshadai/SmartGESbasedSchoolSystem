@@ -66,6 +66,7 @@ const TeacherAssignments = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [createdAssignmentId, setCreatedAssignmentId] = useState<number | null>(null);
   const [questions, setQuestions] = useState<any[]>([]);
+  const [aiGeneratedQuestions, setAiGeneratedQuestions] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -92,6 +93,7 @@ const TeacherAssignments = () => {
   const [aiFormData, setAiFormData] = useState({
     subject: '',
     topic: '',
+    class_instance: '',
     class_level: '',
     assignment_type: 'HOMEWORK',
     num_questions: 5,
@@ -147,12 +149,19 @@ const TeacherAssignments = () => {
   };
 
   const selectedClassDetails = classes.find((cls) => cls.class.id.toString() === formData.class_instance);
+  const aiSelectedClassDetails = classes.find((cls) => cls.class.id.toString() === aiFormData.class_instance);
 
   useEffect(() => {
     if (selectedClassDetails?.class.level && !aiFormData.class_level) {
       setAiFormData((prev) => ({ ...prev, class_level: selectedClassDetails.class.level }));
     }
   }, [selectedClassDetails?.class.level]);
+
+  useEffect(() => {
+    if (aiSelectedClassDetails?.class.level) {
+      setAiFormData((prev) => ({ ...prev, class_level: aiSelectedClassDetails.class.level }));
+    }
+  }, [aiSelectedClassDetails?.class.level]);
 
   const handleCreateAssignment = () => {
     setIsCreateDialogOpen(true);
@@ -161,6 +170,11 @@ const TeacherAssignments = () => {
   const handleGenerateAiAssignment = async () => {
     if (!aiFormData.subject.trim() || !aiFormData.topic.trim() || !aiFormData.class_level.trim()) {
       toast.error('Please enter subject, topic, and class level to generate an AI assignment.');
+      return;
+    }
+
+    if (!aiFormData.class_instance) {
+      toast.error('Please select a class assigned to you before generating the assignment.');
       return;
     }
 
@@ -173,10 +187,14 @@ const TeacherAssignments = () => {
         aiFormData.class_level,
         aiFormData.num_questions,
         aiFormData.duration_minutes,
+        formData.has_mcq_questions,
+        formData.has_short_answer_questions,
       );
 
       const generated = (response as any) || {};
       const questions = Array.isArray(generated.questions) ? generated.questions : [];
+      const hasMcq = questions.some((q: any) => q.question_type === 'mcq');
+      const hasShortAnswer = questions.some((q: any) => q.question_type === 'short_answer');
 
       setFormData((prev) => ({
         ...prev,
@@ -184,15 +202,19 @@ const TeacherAssignments = () => {
         description: generated.description || prev.description,
         instructions: generated.instructions || prev.instructions,
         assignment_type: aiFormData.assignment_type,
+        class_instance: aiFormData.class_instance,
         is_timed: aiFormData.assignment_type === 'QUIZ' || aiFormData.assignment_type === 'EXAM',
         auto_grade: aiFormData.assignment_type === 'QUIZ' || aiFormData.assignment_type === 'EXAM',
         max_attempts: aiFormData.assignment_type === 'EXAM' ? 1 : (aiFormData.assignment_type === 'QUIZ' ? 3 : 1),
         time_limit: aiFormData.assignment_type === 'QUIZ' || aiFormData.assignment_type === 'EXAM'
           ? Number(aiFormData.duration_minutes || 30)
           : null,
+        has_mcq_questions: hasMcq,
+        has_short_answer_questions: hasShortAnswer,
       }));
 
       setQuestions(questions);
+      setAiGeneratedQuestions(questions);
       setIsAiDialogOpen(false);
       toast.success('AI draft generated. Review the fields and save when ready.');
     } catch (error: any) {
@@ -201,6 +223,26 @@ const TeacherAssignments = () => {
       toast.error(errorMessage);
     } finally {
       setAiGenerating(false);
+    }
+  };
+
+  const saveAiGeneratedQuestions = async (assignmentId: number) => {
+    if (!aiGeneratedQuestions.length) return;
+
+    let savedCount = 0;
+    for (const question of aiGeneratedQuestions) {
+      try {
+        const response = await secureApiClient.post(`/assignments/teacher/${assignmentId}/add-question/`, question);
+        savedCount += 1;
+        setQuestions(prev => [...prev, { ...question, id: response.question_id }]);
+      } catch (error: any) {
+        console.error('Failed to save AI generated question:', error);
+        toast.error('Some AI-generated questions could not be saved automatically. You can add them manually.');
+      }
+    }
+
+    if (savedCount > 0) {
+      toast.success(`Saved ${savedCount} AI-generated question${savedCount > 1 ? 's' : ''} to the draft.`);
     }
   };
 
@@ -235,8 +277,8 @@ const TeacherAssignments = () => {
       
       // Handle different assignment types
       if (formData.assignment_type === 'QUIZ' || formData.assignment_type === 'EXAM') {
-        // Quiz/Exam: Go to questions step
-        toast.success(`${formData.assignment_type} draft created - Add questions to continue`);
+        await saveAiGeneratedQuestions(response.id);
+        toast.success(`${formData.assignment_type} draft created - ${questions.length || aiGeneratedQuestions.length} question${(questions.length || aiGeneratedQuestions.length) === 1 ? '' : 's'} ready for review`);
         setCurrentStep(2);
       } else if (formData.assignment_type === 'HOMEWORK' || formData.assignment_type === 'EXERCISE') {
         // Homework/Exercise: Publish immediately
@@ -352,6 +394,7 @@ const TeacherAssignments = () => {
     setCurrentStep(1);
     setCreatedAssignmentId(null);
     setQuestions([]);
+    setAiGeneratedQuestions([]);
   };
 
   const handleViewSubmissions = (assignmentId: number) => {
@@ -868,14 +911,39 @@ const TeacherAssignments = () => {
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
+                  <Label htmlFor="ai_class">Assigned Class</Label>
+                  <Select
+                    value={aiFormData.class_instance}
+                    onValueChange={(value) => setAiFormData({ ...aiFormData, class_instance: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your assigned class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classes.length === 0 ? (
+                        <SelectItem value="" disabled>No assigned classes</SelectItem>
+                      ) : (
+                        classes.map((cls) => (
+                          <SelectItem key={cls.id} value={cls.class.id.toString()}>
+                            {cls.class.name} {cls.subject ? `- ${cls.subject.name}` : '(Form Class)'}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
                   <Label htmlFor="ai_class_level">Class Level</Label>
                   <Input
                     id="ai_class_level"
                     value={aiFormData.class_level}
-                    onChange={(e) => setAiFormData({ ...aiFormData, class_level: e.target.value })}
-                    placeholder="e.g. JHS 2"
+                    readOnly
+                    placeholder="Auto-filled from selected class"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="ai_assignment_type">Assignment Type</Label>
                   <Select
@@ -907,6 +975,7 @@ const TeacherAssignments = () => {
                     value={aiFormData.num_questions}
                     onChange={(e) => setAiFormData({ ...aiFormData, num_questions: parseInt(e.target.value) || 1 })}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">For a hybrid quiz, the system will mix MCQ and short-answer questions.</p>
                 </div>
                 <div>
                   <Label htmlFor="ai_duration_minutes">Duration (minutes)</Label>

@@ -105,6 +105,8 @@ const ai = {
     classLevel: string,
     numQuestions: number,
     durationMinutes?: number,
+    hasMcqQuestions = false,
+    hasShortAnswerQuestions = false,
   ) =>
     secureApiClient.post<GeneratedAssignment>('/ai/generate-assignment/', {
       subject,
@@ -113,6 +115,8 @@ const ai = {
       class_level: classLevel,
       num_questions: numQuestions,
       duration_minutes: durationMinutes,
+      has_mcq_questions: hasMcqQuestions,
+      has_short_answer_questions: hasShortAnswerQuestions,
     }),
 
   generateQuestions: (

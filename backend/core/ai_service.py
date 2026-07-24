@@ -818,7 +818,8 @@ def generate_lesson_plan(subject, topic, class_level, duration_minutes):
         }
 
 
-def generate_assignment(subject, topic, assignment_type, class_level, num_questions, duration_minutes=None):
+def generate_assignment(subject, topic, assignment_type, class_level, num_questions, duration_minutes=None,
+                        has_mcq_questions=False, has_short_answer_questions=False):
     """
     Uses AI to generate a complete assignment with questions.
 
@@ -829,20 +830,49 @@ def generate_assignment(subject, topic, assignment_type, class_level, num_questi
 
     is_quiz = assignment_type in ('QUIZ', 'EXAM')
     q_count = max(1, min(int(num_questions), 20))
+    mcq_enabled = bool(has_mcq_questions)
+    short_enabled = bool(has_short_answer_questions)
 
     if is_quiz:
         time_note = f"Time limit: {duration_minutes} minutes. " if duration_minutes else ""
+
+        if mcq_enabled and short_enabled and q_count >= 2:
+            mcq_count = max(1, q_count // 2)
+            short_count = q_count - mcq_count
+            question_mix_note = (
+                f"Generate exactly {mcq_count} multiple-choice questions and exactly {short_count} short-answer questions. "
+                "Mix them in the final list so the quiz is hybrid. "
+            )
+            question_structure = (
+                f'{{ "title": "string", "description": "string (1 sentence)", '
+                f'"instructions": "string (2-3 sentences for students)", '
+                f'"questions": [ {{ "question_text": "string", "question_type": "mcq", "points": 1, '
+                f'"options": [ {{ "option_text": "string", "is_correct": false }} ] }}, '
+                f'{{ "question_text": "string", "question_type": "short_answer", "points": 2 }} ] }}. '
+            )
+        elif mcq_enabled:
+            question_mix_note = f"Generate exactly {q_count} multiple-choice questions. "
+            question_structure = (
+                f'{{ "title": "string", "description": "string (1 sentence)", '
+                f'"instructions": "string (2-3 sentences for students)", '
+                f'"questions": [ {{ "question_text": "string", "question_type": "mcq", "points": 1, '
+                f'"options": [ {{ "option_text": "string", "is_correct": false }} ] }} ] }}. '
+            )
+        else:
+            question_mix_note = f"Generate exactly {q_count} short-answer questions. "
+            question_structure = (
+                f'{{ "title": "string", "description": "string (1 sentence)", '
+                f'"instructions": "string (2-3 sentences for students)", '
+                f'"questions": [ {{ "question_text": "string", "question_type": "short_answer", "points": 2 }} ] }}. '
+            )
+
         prompt = (
             f"Create a {assignment_type.lower()} for a Ghana Basic School {class_level} class. "
             f"Subject: {subject}. Topic: {topic}. {time_note}"
-            f"Generate exactly {q_count} multiple-choice questions following Ghana Education Service curriculum. "
-            f"Return ONLY valid JSON with this exact structure: "
-            f'{{ "title": "string", "description": "string (1 sentence)", '
-            f'"instructions": "string (2-3 sentences for students)", '
-            f'"questions": [ {{ "question_text": "string", "question_type": "mcq", "points": 1, '
-            f'"options": [ {{ "option_text": "string", "is_correct": false }} ] }} ] }}. '
-            f"Each question must have exactly 4 options with exactly one is_correct=true. "
-            f"Make questions appropriate for {class_level} level. Use Ghana curriculum context."
+            f"{question_mix_note}"
+            f"Return ONLY valid JSON with this exact structure: {question_structure} "
+            f"Follow Ghana Education Service curriculum. Make questions appropriate for {class_level} level. "
+            f"Use Ghana curriculum context. For MCQ, each question must have exactly 4 options with exactly one is_correct=true. "
         )
     else:
         prompt = (
@@ -871,6 +901,17 @@ def generate_assignment(subject, topic, assignment_type, class_level, num_questi
             'questions': [],
             '_fallback': True,
         }
+
+    if is_quiz and isinstance(result.get('questions'), list):
+        result['questions'] = [
+            {
+                'question_text': question.get('question_text', ''),
+                'question_type': question.get('question_type', 'mcq'),
+                'points': question.get('points', 1),
+                'options': question.get('options', []),
+            }
+            for question in result['questions']
+        ]
 
     return result
 

@@ -392,12 +392,23 @@ def generate_assignment_ai(request):
     class_level = request.data.get('class_level', '').strip()
     num_questions = request.data.get('num_questions', 5)
     duration_minutes = request.data.get('duration_minutes')
+    has_mcq_questions = request.data.get('has_mcq_questions', False)
+    has_short_answer_questions = request.data.get('has_short_answer_questions', False)
 
     if not all([subject, topic, class_level]):
         return Response({'error': 'subject, topic, and class_level are required'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        result = ai_service.generate_assignment(subject, topic, assignment_type, class_level, num_questions, duration_minutes)
+        result = ai_service.generate_assignment(
+            subject,
+            topic,
+            assignment_type,
+            class_level,
+            num_questions,
+            duration_minutes,
+            has_mcq_questions=has_mcq_questions,
+            has_short_answer_questions=has_short_answer_questions,
+        )
     except (ImportError, ValueError) as e:
         return Response({'error': str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
     except Exception:
