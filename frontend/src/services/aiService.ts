@@ -48,6 +48,20 @@ export interface FeeRisk {
 
 export type AlertType = 'ATTENDANCE_LOW' | 'EXAM_POOR' | 'FEE_REMINDER' | 'RISK_ALERT' | 'POSITIVE_FEEDBACK';
 
+export interface GeneratedAssignmentQuestion {
+  question_text: string;
+  question_type: 'mcq' | 'short_answer';
+  points: number;
+  options?: Array<{ option_text: string; is_correct: boolean }>;
+}
+
+export interface GeneratedAssignment {
+  title: string;
+  description: string;
+  instructions: string;
+  questions?: GeneratedAssignmentQuestion[];
+}
+
 const ai = {
   getRiskProfile: (studentId: number, termId: number) =>
     secureApiClient.get<RiskProfile>(`/ai/students/${studentId}/risk/?term_id=${termId}`),
@@ -82,6 +96,38 @@ const ai = {
   generateLessonPlan: (subject: string, topic: string, classLevel: string, durationMinutes: number) =>
     secureApiClient.post<{ lesson_plan: Record<string, unknown> }>('/ai/lesson-plan/', {
       subject, topic, class_level: classLevel, duration_minutes: durationMinutes,
+    }),
+
+  generateAssignment: (
+    subject: string,
+    topic: string,
+    assignmentType: string,
+    classLevel: string,
+    numQuestions: number,
+    durationMinutes?: number,
+  ) =>
+    secureApiClient.post<GeneratedAssignment>('/ai/generate-assignment/', {
+      subject,
+      topic,
+      assignment_type: assignmentType,
+      class_level: classLevel,
+      num_questions: numQuestions,
+      duration_minutes: durationMinutes,
+    }),
+
+  generateQuestions: (
+    subject: string,
+    topic: string,
+    classLevel: string,
+    numQuestions: number,
+    questionType = 'mcq',
+  ) =>
+    secureApiClient.post<{ questions: GeneratedAssignmentQuestion[] }>('/ai/generate-questions/', {
+      subject,
+      topic,
+      class_level: classLevel,
+      num_questions: numQuestions,
+      question_type: questionType,
     }),
 
   generateClassInsights: (classId: number, termId: number) =>

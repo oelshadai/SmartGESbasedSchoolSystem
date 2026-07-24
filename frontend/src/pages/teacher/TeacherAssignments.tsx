@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Clock, FileText, Users, Calendar, Loader2, Eye, Edit, Trash2, Copy, MoreHorizontal } from 'lucide-react';
+import { Plus, Clock, FileText, Users, Calendar, Loader2, Eye, Edit, Trash2, Copy, MoreHorizontal, Sparkles } from 'lucide-react';
 import { secureApiClient } from '@/lib/secureApiClient';
 import { useNavigate } from 'react-router-dom';
+import ai from '@/services/aiService';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 
@@ -86,6 +87,16 @@ const TeacherAssignments = () => {
   });
   const [selectedAssignments, setSelectedAssignments] = useState<number[]>([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
+  const [isAiDialogOpen, setIsAiDialogOpen] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiFormData, setAiFormData] = useState({
+    subject: '',
+    topic: '',
+    class_level: '',
+    assignment_type: 'HOMEWORK',
+    num_questions: 5,
+    duration_minutes: 30,
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -135,8 +146,62 @@ const TeacherAssignments = () => {
     }
   };
 
+  const selectedClassDetails = classes.find((cls) => cls.class.id.toString() === formData.class_instance);
+
+  useEffect(() => {
+    if (selectedClassDetails?.class.level && !aiFormData.class_level) {
+      setAiFormData((prev) => ({ ...prev, class_level: selectedClassDetails.class.level }));
+    }
+  }, [selectedClassDetails?.class.level]);
+
   const handleCreateAssignment = () => {
     setIsCreateDialogOpen(true);
+  };
+
+  const handleGenerateAiAssignment = async () => {
+    if (!aiFormData.subject.trim() || !aiFormData.topic.trim() || !aiFormData.class_level.trim()) {
+      toast.error('Please enter subject, topic, and class level to generate an AI assignment.');
+      return;
+    }
+
+    try {
+      setAiGenerating(true);
+      const response = await ai.generateAssignment(
+        aiFormData.subject,
+        aiFormData.topic,
+        aiFormData.assignment_type,
+        aiFormData.class_level,
+        aiFormData.num_questions,
+        aiFormData.duration_minutes,
+      );
+
+      const generated = (response as any) || {};
+      const questions = Array.isArray(generated.questions) ? generated.questions : [];
+
+      setFormData((prev) => ({
+        ...prev,
+        title: generated.title || prev.title,
+        description: generated.description || prev.description,
+        instructions: generated.instructions || prev.instructions,
+        assignment_type: aiFormData.assignment_type,
+        is_timed: aiFormData.assignment_type === 'QUIZ' || aiFormData.assignment_type === 'EXAM',
+        auto_grade: aiFormData.assignment_type === 'QUIZ' || aiFormData.assignment_type === 'EXAM',
+        max_attempts: aiFormData.assignment_type === 'EXAM' ? 1 : (aiFormData.assignment_type === 'QUIZ' ? 3 : 1),
+        time_limit: aiFormData.assignment_type === 'QUIZ' || aiFormData.assignment_type === 'EXAM'
+          ? Number(aiFormData.duration_minutes || 30)
+          : null,
+      }));
+
+      setQuestions(questions);
+      setIsAiDialogOpen(false);
+      toast.success('AI draft generated. Review the fields and save when ready.');
+    } catch (error: any) {
+      console.error('Failed to generate AI assignment:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to generate assignment using AI';
+      toast.error(errorMessage);
+    } finally {
+      setAiGenerating(false);
+    }
   };
 
   const handleSubmitAssignment = async (e: React.FormEvent) => {
@@ -469,8 +534,14 @@ const TeacherAssignments = () => {
                   </div>
                 )}
                 
-                <div>
-                  <Label htmlFor="title">Title</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="title">Title</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setIsAiDialogOpen(true)}>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      AI Generate
+                    </Button>
+                  </div>
                   <Input
                     id="title"
                     value={formData.title}
@@ -764,6 +835,101 @@ const TeacherAssignments = () => {
                 assignmentType={formData.assignment_type}
               />
             )}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isAiDialogOpen} onOpenChange={setIsAiDialogOpen}>
+          <DialogContent className="max-w-lg w-[95vw] sm:w-full">
+            <DialogHeader>
+              <DialogTitle>Generate Assignment with AI</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="ai_subject">Subject</Label>
+                  <Input
+                    id="ai_subject"
+                    value={aiFormData.subject}
+                    onChange={(e) => setAiFormData({ ...aiFormData, subject: e.target.value })}
+                    placeholder="e.g. Mathematics"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ai_topic">Topic</Label>
+                  <Input
+                    id="ai_topic"
+                    value={aiFormData.topic}
+                    onChange={(e) => setAiFormData({ ...aiFormData, topic: e.target.value })}
+                    placeholder="e.g. Fractions"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="ai_class_level">Class Level</Label>
+                  <Input
+                    id="ai_class_level"
+                    value={aiFormData.class_level}
+                    onChange={(e) => setAiFormData({ ...aiFormData, class_level: e.target.value })}
+                    placeholder="e.g. JHS 2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ai_assignment_type">Assignment Type</Label>
+                  <Select
+                    value={aiFormData.assignment_type}
+                    onValueChange={(value) => setAiFormData({ ...aiFormData, assignment_type: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="HOMEWORK">Homework</SelectItem>
+                      <SelectItem value="QUIZ">Quiz</SelectItem>
+                      <SelectItem value="EXAM">Exam</SelectItem>
+                      <SelectItem value="EXERCISE">Exercise</SelectItem>
+                      <SelectItem value="PROJECT">Project</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="ai_num_questions">Question Count</Label>
+                  <Input
+                    id="ai_num_questions"
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={aiFormData.num_questions}
+                    onChange={(e) => setAiFormData({ ...aiFormData, num_questions: parseInt(e.target.value) || 1 })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ai_duration_minutes">Duration (minutes)</Label>
+                  <Input
+                    id="ai_duration_minutes"
+                    type="number"
+                    min="1"
+                    value={aiFormData.duration_minutes}
+                    onChange={(e) => setAiFormData({ ...aiFormData, duration_minutes: parseInt(e.target.value) || 30 })}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => setIsAiDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="button" onClick={handleGenerateAiAssignment} disabled={aiGenerating}>
+                  {aiGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                  {aiGenerating ? 'Generating...' : 'Generate'}
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

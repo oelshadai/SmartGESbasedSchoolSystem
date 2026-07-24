@@ -818,6 +818,108 @@ def generate_lesson_plan(subject, topic, class_level, duration_minutes):
         }
 
 
+def generate_assignment(subject, topic, assignment_type, class_level, num_questions, duration_minutes=None):
+    """
+    Uses AI to generate a complete assignment with questions.
+
+    Returns dict with keys: title, description, instructions, questions
+    Each question has: question_text, question_type, points, options (for mcq)
+    """
+    import json
+
+    is_quiz = assignment_type in ('QUIZ', 'EXAM')
+    q_count = max(1, min(int(num_questions), 20))
+
+    if is_quiz:
+        time_note = f"Time limit: {duration_minutes} minutes. " if duration_minutes else ""
+        prompt = (
+            f"Create a {assignment_type.lower()} for a Ghana Basic School {class_level} class. "
+            f"Subject: {subject}. Topic: {topic}. {time_note}"
+            f"Generate exactly {q_count} multiple-choice questions following Ghana Education Service curriculum. "
+            f"Return ONLY valid JSON with this exact structure: "
+            f'{{ "title": "string", "description": "string (1 sentence)", '
+            f'"instructions": "string (2-3 sentences for students)", '
+            f'"questions": [ {{ "question_text": "string", "question_type": "mcq", "points": 1, '
+            f'"options": [ {{ "option_text": "string", "is_correct": false }} ] }} ] }}. '
+            f"Each question must have exactly 4 options with exactly one is_correct=true. "
+            f"Make questions appropriate for {class_level} level. Use Ghana curriculum context."
+        )
+    else:
+        prompt = (
+            f"Create a {assignment_type.lower()} assignment for a Ghana Basic School {class_level} class. "
+            f"Subject: {subject}. Topic: {topic}. "
+            f"Return ONLY valid JSON with this exact structure: "
+            f'{{ "title": "string", "description": "string (1-2 sentences)", '
+            f'"instructions": "string (3-4 clear sentences telling students exactly what to do)" }}. '
+            f"Make it appropriate for {class_level} level. Use Ghana curriculum context."
+        )
+
+    text = _gemini_generate_text(prompt)
+
+    if text.startswith('```'):
+        text = text.split('```')[1]
+        if text.startswith('json'):
+            text = text[4:]
+
+    try:
+        result = json.loads(text.strip())
+    except json.JSONDecodeError:
+        result = {
+            'title': f'{subject} - {topic} ({assignment_type.title()})',
+            'description': f'{assignment_type.title()} on {topic} for {class_level}.',
+            'instructions': f'Complete this {assignment_type.lower()} on {topic}. Follow all instructions carefully.',
+            'questions': [],
+            '_fallback': True,
+        }
+
+    return result
+
+
+def generate_questions(subject, topic, class_level, num_questions, question_type='mcq'):
+    """
+    Uses AI to generate questions only (for adding to an existing assignment).
+
+    Returns list of question dicts.
+    """
+    import json
+
+    q_count = max(1, min(int(num_questions), 20))
+
+    if question_type == 'mcq':
+        prompt = (
+            f"Generate exactly {q_count} multiple-choice questions for a Ghana Basic School {class_level} class. "
+            f"Subject: {subject}. Topic: {topic}. "
+            f"Return ONLY a valid JSON array: "
+            f'[ {{ "question_text": "string", "question_type": "mcq", "points": 1, '
+            f'"options": [ {{ "option_text": "string", "is_correct": false }} ] }} ]. '
+            f"Each question must have exactly 4 options with exactly one is_correct=true. "
+            f"Follow Ghana Education Service curriculum."
+        )
+    else:
+        prompt = (
+            f"Generate exactly {q_count} short-answer questions for a Ghana Basic School {class_level} class. "
+            f"Subject: {subject}. Topic: {topic}. "
+            f"Return ONLY a valid JSON array: "
+            f'[ {{ "question_text": "string", "question_type": "short_answer", "points": 2 }} ]. '
+            f"Follow Ghana Education Service curriculum."
+        )
+
+    text = _gemini_generate_text(prompt)
+
+    if text.startswith('```'):
+        text = text.split('```')[1]
+        if text.startswith('json'):
+            text = text[4:]
+
+    try:
+        result = json.loads(text.strip())
+        if not isinstance(result, list):
+            raise ValueError('Expected array')
+        return result
+    except (json.JSONDecodeError, ValueError):
+        return []
+
+
 def generate_class_insights(class_obj, term):
     """
     Uses Gemini to analyse class performance and give teaching recommendations.

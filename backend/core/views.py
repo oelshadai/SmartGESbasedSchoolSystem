@@ -380,6 +380,63 @@ def generate_student_report(request, student_id):
 
 @api_view(['POST'])
 @permission_classes([IsTeacher | IsSuperAdminOrSchoolAdmin])
+def generate_assignment_ai(request):
+    """
+    POST /api/ai/generate-assignment/
+    Body: { subject, topic, assignment_type, class_level, num_questions, duration_minutes? }
+    Returns a full assignment JSON ready to pre-fill the create form.
+    """
+    subject = request.data.get('subject', '').strip()
+    topic = request.data.get('topic', '').strip()
+    assignment_type = request.data.get('assignment_type', 'HOMEWORK').upper()
+    class_level = request.data.get('class_level', '').strip()
+    num_questions = request.data.get('num_questions', 5)
+    duration_minutes = request.data.get('duration_minutes')
+
+    if not all([subject, topic, class_level]):
+        return Response({'error': 'subject, topic, and class_level are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        result = ai_service.generate_assignment(subject, topic, assignment_type, class_level, num_questions, duration_minutes)
+    except (ImportError, ValueError) as e:
+        return Response({'error': str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    except Exception:
+        logger.exception('AI generate_assignment failed')
+        return Response({'error': 'AI service error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return Response(result)
+
+
+@api_view(['POST'])
+@permission_classes([IsTeacher | IsSuperAdminOrSchoolAdmin])
+def generate_questions_ai(request):
+    """
+    POST /api/ai/generate-questions/
+    Body: { subject, topic, class_level, num_questions, question_type? }
+    Returns a list of question objects ready to add to an existing assignment.
+    """
+    subject = request.data.get('subject', '').strip()
+    topic = request.data.get('topic', '').strip()
+    class_level = request.data.get('class_level', '').strip()
+    num_questions = request.data.get('num_questions', 5)
+    question_type = request.data.get('question_type', 'mcq')
+
+    if not all([subject, topic, class_level]):
+        return Response({'error': 'subject, topic, and class_level are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        questions = ai_service.generate_questions(subject, topic, class_level, num_questions, question_type)
+    except (ImportError, ValueError) as e:
+        return Response({'error': str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    except Exception:
+        logger.exception('AI generate_questions failed')
+        return Response({'error': 'AI service error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return Response({'questions': questions})
+
+
+@api_view(['POST'])
+@permission_classes([IsTeacher | IsSuperAdminOrSchoolAdmin])
 def generate_lesson_plan(request):
     """
     POST /api/ai/lesson-plan/
