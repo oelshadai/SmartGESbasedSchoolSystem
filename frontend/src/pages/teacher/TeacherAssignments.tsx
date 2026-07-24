@@ -876,6 +876,9 @@ const TeacherAssignments = () => {
                 onPublish={handlePublishAssignment}
                 questions={questions}
                 assignmentType={formData.assignment_type}
+                subjectName={selectedClassDetails?.subject?.name || 'General Studies'}
+                classLevel={selectedClassDetails?.class.level || aiFormData.class_level || formData.class_instance}
+                topic={formData.title || formData.description || formData.instructions || 'General topic'}
               />
             )}
           </DialogContent>
@@ -1200,11 +1203,14 @@ const TeacherAssignments = () => {
 
 export default TeacherAssignments;
 
-const QuestionCreator = ({ onAddQuestion, onPublish, questions, assignmentType }: {
+const QuestionCreator = ({ onAddQuestion, onPublish, questions, assignmentType, subjectName, classLevel, topic }: {
   onAddQuestion: (question: any) => Promise<void>;
   onPublish: () => void;
   questions: any[];
   assignmentType: string;
+  subjectName?: string;
+  classLevel?: string;
+  topic?: string;
 }) => {
   const [questionData, setQuestionData] = useState({
     question_text: '',
@@ -1216,6 +1222,7 @@ const QuestionCreator = ({ onAddQuestion, onPublish, questions, assignmentType }
     ]
   });
   const [saving, setSaving] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const addOption = () => {
     setQuestionData({
@@ -1228,6 +1235,50 @@ const QuestionCreator = ({ onAddQuestion, onPublish, questions, assignmentType }
     const newOptions = [...questionData.options];
     newOptions[index] = { ...newOptions[index], [field]: value };
     setQuestionData({ ...questionData, options: newOptions });
+  };
+
+  const handleGenerateAiQuestion = async () => {
+    if (!subjectName || !classLevel || !topic?.trim()) {
+      toast.error('Select a class and provide an assignment topic before using AI for the next question.');
+      return;
+    }
+
+    try {
+      setAiLoading(true);
+      const response = await ai.generateQuestions(
+        subjectName,
+        topic,
+        classLevel,
+        1,
+        questionData.question_type,
+      );
+
+      const generated = (response as any)?.questions?.[0];
+      if (!generated) {
+        toast.error('AI did not return a question. Please try again.');
+        return;
+      }
+
+      const nextOptions = generated.options?.length
+        ? generated.options.map((opt: any) => ({ option_text: opt.option_text, is_correct: !!opt.is_correct }))
+        : questionData.options;
+
+      setQuestionData({
+        ...questionData,
+        question_text: generated.question_text || questionData.question_text,
+        question_type: generated.question_type || questionData.question_type,
+        points: generated.points || questionData.points,
+        options: nextOptions,
+      });
+
+      toast.success('AI filled the next question for you.');
+    } catch (error: any) {
+      console.error('Failed to generate AI question:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to generate the next question with AI';
+      toast.error(errorMessage);
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const handleAddQuestion = async () => {
@@ -1276,7 +1327,20 @@ const QuestionCreator = ({ onAddQuestion, onPublish, questions, assignmentType }
       </div>
       
       <div>
-        <Label htmlFor="question_text">Question</Label>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <Label htmlFor="question_text">Question</Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleGenerateAiQuestion}
+            disabled={aiLoading}
+            className="h-8 px-2"
+            title="Generate the next question with AI"
+          >
+            {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          </Button>
+        </div>
         <Textarea
           id="question_text"
           value={questionData.question_text}
@@ -1347,7 +1411,7 @@ const QuestionCreator = ({ onAddQuestion, onPublish, questions, assignmentType }
         </div>
       )}
       
-      <div className="flex gap-2 pt-4">
+      <div className="flex gap-2 pt-4 flex-wrap">
         <Button type="button" onClick={handleAddQuestion} disabled={saving}>
           {saving ? 'Saving...' : 'Add Question'}
         </Button>
