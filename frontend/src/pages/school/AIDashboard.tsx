@@ -12,6 +12,7 @@ import SmartSmsComposer from '@/components/ai/SmartSmsComposer';
 import LessonPlanGenerator from '@/components/ai/LessonPlanGenerator';
 import ai from '@/services/aiService';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuthStore } from '@/stores/authStore';
 
 export default function AIDashboard() {
   const [terms, setTerms] = useState<any[]>([]);
@@ -23,6 +24,8 @@ export default function AIDashboard() {
   const [classInsights, setClassInsights] = useState<string | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuthStore();
+  const isTeacher = user?.role === 'TEACHER';
 
   useEffect(() => {
     secureApiClient.get('/schools/terms/').then((r: any) => {
@@ -32,11 +35,25 @@ export default function AIDashboard() {
       if (current) setSelectedTerm(String(current.id));
     }).catch(() => {});
 
-    secureApiClient.get('/schools/classes/').then((r: any) => {
-      const list = Array.isArray(r) ? r : r.results || [];
-      setClasses(list);
-    }).catch(() => {});
-  }, []);
+    // Teachers only see their assigned classes; admins see all school classes
+    const classesUrl = isTeacher ? '/teachers/assignments/' : '/schools/classes/';
+    if (isTeacher) {
+      secureApiClient.get(classesUrl).then((r: any) => {
+        const list = Array.isArray(r) ? r : r.results || [];
+        // assignments returns {id, type, class: {id, name}} — deduplicate by class id
+        const seen = new Set<number>();
+        const deduped = list
+          .filter((a: any) => a.class)
+          .filter((a: any) => { if (seen.has(a.class.id)) return false; seen.add(a.class.id); return true; })
+          .map((a: any) => ({ id: a.class.id, full_name: a.class.name, level: a.class.level, section: a.class.section }));
+        setClasses(deduped);
+      }).catch(() => {});
+    } else {
+      secureApiClient.get(classesUrl).then((r: any) => {
+        setClasses(Array.isArray(r) ? r : r.results || []);
+      }).catch(() => {});
+    }
+  }, [isTeacher]);
 
   useEffect(() => {
     if (!selectedClass) { setStudents([]); setSelectedStudent(''); return; }

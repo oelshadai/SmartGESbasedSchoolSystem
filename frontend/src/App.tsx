@@ -254,7 +254,7 @@ const App = () => {
             <Route path="/teacher/profile" element={<TeacherProfile />} />
             <Route path="/teacher/timetable" element={<TimetableManagement />} />
             <Route path="/teacher/help" element={<HelpSupport />} />
-            <Route path="/school/ai" element={<AIDashboard />} />
+            <Route path="/teacher/ai" element={<AIDashboard />} />
           </Route>
 
           {/* Student */}

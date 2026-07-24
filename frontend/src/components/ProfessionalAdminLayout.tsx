@@ -297,7 +297,7 @@ const getNavItems = (role: UserRole) => {
       description: 'Support resources',
     },
     {
-      path: '/school/ai',
+      path: '/teacher/ai',
       label: 'AI Tools',
       icon: Sparkles,
       description: 'Lesson plans & insights',
