@@ -131,7 +131,7 @@ const StudentLessons = () => {
   }, [lessonSlots]);
 
   const meetingUrl = activeMeetingSlot
-    ? `https://meet.jit.si/${buildMeetingRoom(className, activeMeetingSlot)}#config.defaultLanguage="en"&config.lang="en"`
+    ? `https://meet.jit.si/${buildMeetingRoom(className, activeMeetingSlot)}#config.defaultLanguage="en"&config.overrides.preferredLanguage="en"&config.lang="en"&interfaceConfig.DEFAULT_LANGUAGE="en"`
     : null;
 
   const handleJoinVideo = (slot: Slot) => {
@@ -156,7 +156,7 @@ const StudentLessons = () => {
 
   const handleCopyLink = async (slot: Slot) => {
     const room = buildMeetingRoom(className, slot);
-    const url = `https://meet.jit.si/${room}#config.defaultLanguage="en"&config.lang="en"`;
+    const url = `https://meet.jit.si/${room}#config.defaultLanguage="en"&config.overrides.preferredLanguage="en"&config.lang="en"&interfaceConfig.DEFAULT_LANGUAGE="en"`;
     try {
       await navigator.clipboard.writeText(url);
       toast.success('Meeting link copied');
