@@ -47,11 +47,8 @@ requestAnimationFrame(() => {
 });
 
 // Service worker is opt-in to avoid stale cached bundles after deployments.
-// Set VITE_ENABLE_SW=true to enable registration in production.
-const enableServiceWorker =
-  import.meta.env.PROD &&
-  window.location.hostname !== 'localhost' &&
-  import.meta.env.VITE_ENABLE_SW === 'true';
+// Set VITE_ENABLE_SW=true to enable registration in production or local testing.
+const enableServiceWorker = import.meta.env.VITE_ENABLE_SW === 'true';
 
 if ('serviceWorker' in navigator && enableServiceWorker) {
   window.addEventListener('load', () => {

@@ -127,7 +127,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
 
 def create_notification(user, title, message, notification_type='general',
                        activity_type='', class_name='', teacher_name='',
-                       class_id=None, assignment_id=None):
+                       class_id=None, assignment_id=None, url='/'):
     notif = Notification.objects.create(
         user=user,
         title=title,
@@ -142,7 +142,7 @@ def create_notification(user, title, message, notification_type='general',
     # Fire web push (best-effort — never crash the caller)
     try:
         from .push_service import send_push_to_user
-        send_push_to_user(user, title, message)
+        send_push_to_user(user, title, message, url=url)
     except Exception:
         pass
     return notif

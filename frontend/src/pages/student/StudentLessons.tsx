@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { secureApiClient } from '@/lib/secureApiClient';
+import { getApiBaseUrl } from '@/lib/apiBase';
 import { toast } from 'sonner';
 import {
   BookOpen,
@@ -13,7 +14,23 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronUp,
+  Download,
+  Play,
 } from 'lucide-react';
+
+type ResourceType = 'video' | 'audio' | 'image' | 'document' | 'file';
+
+interface LessonResource {
+  id: number;
+  title: string;
+  description: string;
+  url: string;
+  original_filename: string;
+  content_type: string;
+  resource_type: ResourceType;
+  uploaded_at: string;
+  expires_at: string | null;
+}
 
 interface Slot {
   id: number;
@@ -25,6 +42,7 @@ interface Slot {
   teacher: string | null;
   room: string;
   notes: string;
+  resources?: LessonResource[];
 }
 
 interface DayGroup {
@@ -49,6 +67,7 @@ interface ClassInfo {
 interface ScheduleData {
   class: ClassInfo | null;
   timetable: DayGroup[];
+  class_resources: LessonResource[];
   subjects: Subject[];
 }
 
@@ -69,6 +88,8 @@ const buildMeetingRoom = (className: string, slot: Slot) => {
 
 const StudentLessons = () => {
   const [data, setData] = useState<ScheduleData | null>(null);
+  const [classResources, setClassResources] = useState<LessonResource[]>([]);
+  const [previewResource, setPreviewResource] = useState<LessonResource | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +104,7 @@ const StudentLessons = () => {
     try {
       const res = await secureApiClient.get('/timetable/student/');
       setData(res);
+      setClassResources(res?.class_resources ?? []);
       setError(null);
     } catch (err: any) {
       setError(err?.response?.data?.error || err?.message || 'Failed to load lessons');
@@ -143,6 +165,34 @@ const StudentLessons = () => {
     }
   };
 
+  const handlePreviewResource = (resource: LessonResource) => {
+    setPreviewResource(resource);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewResource(null);
+  };
+
+  const handleDownload = async (resourceId: number, filename: string) => {
+    try {
+      const response = await (secureApiClient as any).client.get(`/timetable/resource/${resourceId}/download/`, {
+        responseType: 'blob',
+      });
+      
+      const url = window.URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast.error('Failed to download file');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
@@ -191,21 +241,101 @@ const StudentLessons = () => {
       </div>
 
       {data?.class && (
-        <div className="bg-card border border-border rounded-2xl p-4 grid gap-4 sm:grid-cols-3">
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-[0.2em]">Class</p>
-            <p className="text-base font-semibold text-foreground">{data.class.name}</p>
+        <>
+          <div className="bg-card border border-border rounded-2xl p-4 grid gap-4 sm:grid-cols-3">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-[0.2em]">Class</p>
+              <p className="text-base font-semibold text-foreground">{data.class.name}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-[0.2em]">Teacher</p>
+              <p className="text-base font-semibold text-foreground">{data.class.class_teacher || 'Not assigned'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-[0.2em]">Lessons this week</p>
+              <p className="text-base font-semibold text-foreground">{totalSlots}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-[0.2em]">Teacher</p>
-            <p className="text-base font-semibold text-foreground">{data.class.class_teacher || 'Not assigned'}</p>
+          {classResources.length > 0 && (
+            <div className="rounded-3xl border border-border bg-card p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Class resources</p>
+                  <p className="text-sm text-muted-foreground">Files shared with the whole class.</p>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {classResources.map((resource) => (
+                  <div key={resource.id} className="rounded-2xl border border-border p-4 hover:bg-slate-800">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground truncate">{resource.title || resource.original_filename}</p>
+                        {resource.description ? (
+                          <p className="text-sm text-muted-foreground truncate">{resource.description}</p>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {(resource.resource_type === 'video' || resource.resource_type === 'audio' || resource.resource_type === 'image') && (
+                          <Button size="sm" variant="outline" className="gap-2" onClick={() => handlePreviewResource(resource)}>
+                            <Play className="h-4 w-4" /> Preview
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-2"
+                          onClick={() => handleDownload(resource.id, resource.original_filename)}
+                        >
+                          <Download className="h-4 w-4" />
+                          <span>Download</span>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {previewResource ? (
+        <div className="rounded-3xl border border-border bg-card p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-lg font-semibold text-foreground">Preview: {previewResource.title || previewResource.original_filename}</p>
+              {previewResource.description ? (
+                <p className="text-sm text-muted-foreground">{previewResource.description}</p>
+              ) : null}
+            </div>
+            <Button variant="ghost" size="sm" onClick={handleClosePreview}>
+              Close
+            </Button>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-[0.2em]">Lessons this week</p>
-            <p className="text-base font-semibold text-foreground">{totalSlots}</p>
+          <div className="mt-4 overflow-hidden rounded-3xl border border-border bg-black p-4">
+            {previewResource.resource_type === 'video' ? (
+              <video controls className="h-[420px] w-full bg-black">
+                <source src={previewResource.url} type={previewResource.content_type} />
+                Your browser does not support the video tag.
+              </video>
+            ) : previewResource.resource_type === 'audio' ? (
+              <audio controls className="w-full">
+                <source src={previewResource.url} type={previewResource.content_type} />
+                Your browser does not support the audio element.
+              </audio>
+            ) : previewResource.resource_type === 'image' ? (
+              <img src={previewResource.url} alt={previewResource.title || previewResource.original_filename} className="h-[420px] w-full object-contain" />
+            ) : (
+              <div className="rounded-2xl border border-border bg-slate-950 p-4 text-sm text-muted-foreground">
+                <p>Preview not available for this file type.</p>
+                <a href={previewResource.url} target="_blank" rel="noreferrer" className="text-primary underline">
+                  Open file in a new tab
+                </a>
+              </div>
+            )}
           </div>
         </div>
-      )}
+      ) : null}
 
       <div className="flex rounded-2xl bg-muted p-1 text-sm">
         {(['timetable', 'subjects', 'join'] as const).map((value) => (
@@ -343,6 +473,39 @@ const StudentLessons = () => {
                                 <p className="text-base font-semibold text-foreground">{slot.subject}</p>
                                 <p className="text-sm text-muted-foreground">{slot.teacher ?? 'Teacher not assigned'}</p>
                                 {slot.notes && <p className="mt-2 rounded-2xl bg-slate-900/80 p-3 text-sm text-slate-200">{slot.notes}</p>}
+                                {slot.resources && slot.resources.length > 0 && (
+                                  <div className="mt-4 rounded-2xl border border-border bg-slate-950/80 p-3">
+                                    <p className="text-sm font-semibold text-foreground mb-3">Lesson resources</p>
+                                    <div className="space-y-2">
+                                      {slot.resources.map((resource) => (
+                                        <div key={resource.id} className="flex flex-col gap-2 rounded-2xl border border-border bg-slate-900/80 p-3 sm:flex-row sm:items-center sm:justify-between">
+                                          <div className="min-w-0">
+                                            <p className="truncate font-medium text-foreground">{resource.title || resource.original_filename}</p>
+                                            {resource.description && (
+                                              <p className="text-xs text-muted-foreground">{resource.description}</p>
+                                            )}
+                                          </div>
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            {(resource.resource_type === 'video' || resource.resource_type === 'audio' || resource.resource_type === 'image') && (
+                                              <Button size="sm" variant="outline" className="gap-2" onClick={() => handlePreviewResource(resource)}>
+                                                <Play className="h-4 w-4" /> Preview
+                                              </Button>
+                                            )}
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="gap-2"
+                                              onClick={() => handleDownload(resource.id, resource.original_filename)}
+                                            >
+                                              <Download className="h-4 w-4" />
+                                              <span>Download</span>
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="flex flex-col gap-2 shrink-0 text-right">

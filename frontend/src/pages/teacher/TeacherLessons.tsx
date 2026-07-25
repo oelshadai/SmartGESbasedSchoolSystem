@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { secureApiClient } from '@/lib/secureApiClient';
@@ -27,6 +29,7 @@ interface Slot {
   teacher: string | null;
   room: string;
   notes: string;
+  resources: LessonResource[];
 }
 
 interface DayGroup {
@@ -38,6 +41,20 @@ interface DayGroup {
 interface ClassOption {
   id: number;
   name: string;
+}
+
+type ResourceType = 'video' | 'audio' | 'image' | 'document' | 'file';
+
+interface LessonResource {
+  id: number;
+  title: string;
+  description: string;
+  url: string;
+  original_filename: string;
+  content_type: string;
+  resource_type: ResourceType;
+  uploaded_at: string;
+  expires_at: string | null;
 }
 
 const sanitizeRoomName = (value: string) =>
@@ -57,12 +74,27 @@ const TeacherLessons = () => {
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [selectedClass, setSelectedClass] = useState<number | null>(null);
   const [timetable, setTimetable] = useState<DayGroup[]>([]);
+  const [classResources, setClassResources] = useState<LessonResource[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [noteDrafts, setNoteDrafts] = useState<Record<number, string>>({});
   const [expandedDay, setExpandedDay] = useState<string | null>('MON');
   const [activeMeetingSlot, setActiveMeetingSlot] = useState<Slot | null>(null);
+  const [previewResource, setPreviewResource] = useState<LessonResource | null>(null);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadDialogMode, setUploadDialogMode] = useState<'class' | 'slot'>('class');
+  const [uploadDialogSlot, setUploadDialogSlot] = useState<Slot | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadTitle, setUploadTitle] = useState('');
+  const [uploadDescription, setUploadDescription] = useState('');
 
+  const handlePreviewResource = (resource: LessonResource) => {
+    setPreviewResource(resource);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewResource(null);
+  };
 
   const fetchClasses = async () => {
     setLoading(true);
@@ -95,6 +127,7 @@ const TeacherLessons = () => {
           return acc;
         }, {})
       );
+      setClassResources(res?.class_resources ?? []);
     } catch {
       toast.error('Unable to load timetable for this class.');
     } finally {
@@ -137,6 +170,92 @@ const TeacherLessons = () => {
     setActiveMeetingSlot(slot);
   };
 
+  const handleFileUpload = async (slot: Slot, file: File, title = '', description = '') => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (title) formData.append('title', title);
+    if (description) formData.append('description', description);
+    try {
+      const res = await secureApiClient.post(`/timetable/teacher/${slot.id}/upload_resource/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      toast.success('Resource uploaded');
+      if (selectedClass) fetchTimetable(selectedClass, true);
+      return res;
+    } catch (err: any) {
+      toast.error(err?.message || err?.response?.data?.error || 'Upload failed');
+      throw err;
+    }
+  };
+
+  const handleClassUpload = async (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('class_id', String(selectedClass));
+    if (uploadTitle) form.append('title', uploadTitle);
+    if (uploadDescription) form.append('description', uploadDescription);
+    try {
+      await secureApiClient.post('/timetable/teacher/upload_to_class/', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      toast.success('Resource uploaded to class');
+      if (selectedClass) fetchTimetable(selectedClass, true);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || err?.message || 'Upload failed');
+      throw err;
+    }
+  };
+
+  const openUploadDialog = (mode: 'class' | 'slot', slot?: Slot) => {
+    setUploadDialogMode(mode);
+    setUploadDialogSlot(slot ?? null);
+    setUploadTitle('');
+    setUploadDescription('');
+    setUploadFile(null);
+    setUploadDialogOpen(true);
+  };
+
+  const closeUploadDialog = () => {
+    setUploadDialogOpen(false);
+    setUploadDialogSlot(null);
+    setUploadFile(null);
+    setUploadTitle('');
+    setUploadDescription('');
+  };
+
+  const handleUploadSubmit = async () => {
+    if (!uploadFile) {
+      toast.error('Please select a file to upload');
+      return;
+    }
+
+    try {
+      if (uploadDialogMode === 'class') {
+        await handleClassUpload(uploadFile);
+      } else if (uploadDialogMode === 'slot' && uploadDialogSlot) {
+        await handleFileUpload(uploadDialogSlot, uploadFile, uploadTitle, uploadDescription);
+      }
+      closeUploadDialog();
+    } catch {
+      // error is handled in the upload functions
+    }
+  };
+
+  const handleReplaceResource = async (resource: LessonResource, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      await secureApiClient.put(`/timetable/resource/${resource.id}/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      toast.success('Resource updated');
+      if (selectedClass) fetchTimetable(selectedClass, true);
+    } catch (err: any) {
+      toast.error(err?.message || err?.response?.data?.error || 'Update failed');
+      throw err;
+    }
+  };
+
   const handleOpenExternalMeeting = () => {
     if (!activeMeetingSlot) return;
     window.open(meetingUrl, '_blank', 'noopener,noreferrer');
@@ -177,13 +296,16 @@ const TeacherLessons = () => {
             <p className="text-xs text-muted-foreground">Review your lesson notes and start video sessions.</p>
           </div>
         </div>
-
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
           <Button variant="ghost" size="icon" onClick={() => selectedClass && fetchTimetable(selectedClass, true)} disabled={refreshing}>
             <Loader2 className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           </Button>
           <Button className="gap-2" onClick={() => setExpandedDay(null)}>
             <BookOpen className="h-4 w-4" /> Reset view
+          </Button>
+
+          <Button size="sm" variant="outline" onClick={() => openUploadDialog('class')}>
+            Upload resource
           </Button>
         </div>
       </div>
@@ -221,6 +343,171 @@ const TeacherLessons = () => {
           </div>
         </div>
       </div>
+
+      {classResources.length > 0 && (
+        <div className="rounded-3xl border border-border bg-card p-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Class resources</p>
+              <p className="text-sm text-muted-foreground">Uploaded resources available to the whole class.</p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {classResources.map((resource) => (
+              <div key={resource.id} className="rounded-2xl border border-border p-4 hover:bg-slate-800">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground truncate">{resource.title || resource.original_filename}</p>
+                    {resource.description ? (
+                      <p className="text-sm text-muted-foreground truncate">{resource.description}</p>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+        {({
+          video: 'Video',
+          audio: 'Audio',
+          image: 'Image',
+          document: 'Document',
+          file: 'File',
+        } as Record<ResourceType, string>)[resource.resource_type]}
+      </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handlePreviewResource(resource)}
+                    >
+                      Preview
+                    </Button>
+                    <input
+                      id={`resource-replace-${resource.id}`}
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        handleReplaceResource(resource, f).catch(() => {});
+                        e.currentTarget.value = '';
+                      }}
+                    />
+                    <Button size="sm" variant="outline" onClick={() => document.getElementById(`resource-replace-${resource.id}`)?.click()}>
+                      Replace
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{new Date(resource.uploaded_at).toLocaleDateString()}</span>
+                  {resource.expires_at ? <span>Expires {new Date(resource.expires_at).toLocaleDateString()}</span> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {previewResource ? (
+        <div className="rounded-3xl border border-border bg-card p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-lg font-semibold text-foreground">Preview: {previewResource.title || previewResource.original_filename}</p>
+              {previewResource.description ? (
+                <p className="text-sm text-muted-foreground">{previewResource.description}</p>
+              ) : null}
+            </div>
+            <Button variant="ghost" size="sm" onClick={handleClosePreview}>
+              Close
+            </Button>
+          </div>
+          <div className="mt-4 overflow-hidden rounded-3xl border border-border bg-black p-4">
+            {previewResource.resource_type === 'video' ? (
+              <video controls className="h-[420px] w-full bg-black">
+                <source src={previewResource.url} type={previewResource.content_type} />
+                Your browser does not support the video tag.
+              </video>
+            ) : previewResource.resource_type === 'audio' ? (
+              <audio controls className="w-full">
+                <source src={previewResource.url} type={previewResource.content_type} />
+                Your browser does not support the audio element.
+              </audio>
+            ) : previewResource.resource_type === 'image' ? (
+              <img src={previewResource.url} alt={previewResource.title || previewResource.original_filename} className="h-[420px] w-full object-contain" />
+            ) : (
+              <div className="rounded-2xl border border-border bg-slate-950 p-4 text-sm text-muted-foreground">
+                <p>Preview not available for this file type.</p>
+                <a href={previewResource.url} target="_blank" rel="noreferrer" className="text-primary underline">
+                  Open file in a new tab
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      <Dialog open={uploadDialogOpen} onOpenChange={(open) => !open && closeUploadDialog()}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>
+              {uploadDialogMode === 'class'
+                ? 'Upload class resource'
+                : `Upload lesson resource for ${uploadDialogSlot?.subject || 'lesson'}`}
+            </DialogTitle>
+            <DialogDescription>
+              Select a file and add optional metadata before uploading it for students.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div>
+              <Label htmlFor="upload-file" className="mb-2 block text-sm font-medium text-foreground">
+                File
+              </Label>
+              <Input
+                id="upload-file"
+                type="file"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0] ?? null;
+                  setUploadFile(file);
+                }}
+              />
+              {uploadFile ? (
+                <p className="mt-2 text-sm text-muted-foreground">Selected: {uploadFile.name}</p>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">Choose the file you want to upload.</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="upload-title" className="mb-2 block text-sm font-medium text-foreground">
+                Title
+              </Label>
+              <Input
+                id="upload-title"
+                value={uploadTitle}
+                onChange={(event) => setUploadTitle(event.target.value)}
+                placeholder="Optional title for students"
+              />
+            </div>
+            <div>
+              <Label htmlFor="upload-description" className="mb-2 block text-sm font-medium text-foreground">
+                Description
+              </Label>
+              <Textarea
+                id="upload-description"
+                value={uploadDescription}
+                onChange={(event) => setUploadDescription(event.target.value)}
+                placeholder="Optional description to help students understand the resource"
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={closeUploadDialog}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleUploadSubmit} disabled={!uploadFile}>
+              Upload
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="rounded-3xl border border-border bg-card p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -351,6 +638,56 @@ const TeacherLessons = () => {
                             >
                               <Trash2 className="h-4 w-4" /> Reset
                             </Button>
+                            <div className="mt-2 flex items-center justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openUploadDialog('slot', slot)}
+                              >
+                                Upload resource
+                              </Button>
+                            </div>
+                            {slot.resources && slot.resources.length > 0 && (
+                              <div className="w-full mt-2">
+                                <p className="text-xs text-muted-foreground mb-1">Resources</p>
+                                <div className="flex flex-col gap-2">
+                                  {slot.resources.map((r: any) => (
+                                    <div key={r.id} className="inline-flex flex-col gap-2 rounded-xl border border-border p-3 hover:bg-slate-800">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <a
+                                          href={r.url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="truncate text-sm"
+                                        >
+                                          {r.title || r.original_filename}
+                                        </a>
+                                        <span className="text-[10px] text-muted-foreground">{r.resource_type}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="text-xs text-muted-foreground">{new Date(r.uploaded_at).toLocaleDateString()}</span>
+                                        <div className="flex items-center gap-2">
+                                          <input
+                                            id={`resource-replace-${r.id}`}
+                                            type="file"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                              const f = e.target.files?.[0];
+                                              if (!f) return;
+                                              handleReplaceResource(r, f).catch(() => {});
+                                              e.currentTarget.value = '';
+                                            }}
+                                          />
+                                          <Button size="sm" variant="outline" onClick={() => document.getElementById(`resource-replace-${r.id}`)?.click()}>
+                                            Replace
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
