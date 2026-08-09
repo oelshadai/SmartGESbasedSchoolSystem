@@ -8,6 +8,7 @@ import { secureApiClient } from '@/lib/secureApiClient';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import QuickLogin from '@/components/QuickLogin';
+import NotificationCarousel from '@/components/NotificationCarousel';
 
 interface TeacherDashboardData {
   teacher: {
@@ -250,9 +251,21 @@ const TeacherDashboard = () => {
         <p className="text-sm text-foreground/70 mt-1">Welcome, {safeData.teacher.first_name || 'Teacher'}! Manage your classes and assignments</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* Notification carousel — mobile only */}
+      <div className="sm:hidden">
+        <NotificationCarousel autoFetch />
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         {stats.map((s) => (
-          <StatCard key={s.label} label={s.label} value={s.value} icon={s.icon} color={s.color} trend={s.sub} />
+          <div key={s.label} className="rounded-xl border bg-card p-2.5 sm:p-4 flex flex-col gap-1 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">{s.label}</span>
+              <span className={`${s.color} opacity-70`}>{s.icon}</span>
+            </div>
+            <p className="text-lg sm:text-2xl font-bold text-foreground leading-none">{s.value}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">{s.sub}</p>
+          </div>
         ))}
       </div>
 

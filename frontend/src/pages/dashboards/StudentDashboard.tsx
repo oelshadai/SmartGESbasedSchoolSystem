@@ -6,6 +6,7 @@ import {
   UserCheck, UserX, Timer, X, FileText, BookOpenCheck,
   DollarSign, TrendingDown, ArrowRight,
 } from 'lucide-react';
+import NotificationCarousel from '@/components/NotificationCarousel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { secureApiClient } from '@/lib/secureApiClient';
@@ -274,6 +275,11 @@ const StudentDashboard = () => {
         </div>
       )}
 
+      {/* Notification carousel — mobile only */}
+      <div className="sm:hidden">
+        <NotificationCarousel notifications={notifications} />
+      </div>
+
       {/* Welcome header */}
       <div className="flex items-center gap-3 sm:gap-4">
         {student.photo ? (
@@ -291,19 +297,17 @@ const StudentDashboard = () => {
 
       {/* Assignment stat cards */}
       <div>
-        <p className="text-xs font-semibold text-foreground/60 uppercase tracking-wide mb-3">Assignments</p>
-        <div className="grid grid-cols-2 gap-3">
+        <p className="text-xs font-semibold text-foreground/60 uppercase tracking-wide mb-2">Assignments</p>
+        <div className="grid grid-cols-2 gap-2">
           {assignmentCards.map((s) => (
-            <div key={s.label} className={`relative group rounded-xl border ${s.bg.replace('/10', '/20').replace('bg-', 'border-')} ${s.bg.replace('bg-', 'bg-').replace('/10', '/5')} backdrop-blur-sm p-3 shadow-lg transition-all duration-200 overflow-hidden`}>
+            <div key={s.label} className={`relative rounded-xl border ${s.bg.replace('/10', '/20').replace('bg-', 'border-')} ${s.bg.replace('bg-', 'bg-').replace('/10', '/5')} p-2.5 sm:p-3 overflow-hidden`}>
               <div className={`absolute top-0 left-0 right-0 h-0.5 ${s.bg.replace('bg-', 'bg-gradient-to-r from-').replace('/10', '')} opacity-70`} />
-              <div className="relative">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-medium text-muted-foreground">{s.label}</span>
-                  <div className={`p-1 rounded-lg ${s.bg} ${s.color}`}>{s.icon}</div>
-                </div>
-                <p className="text-xl font-bold text-foreground leading-none">{s.value}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">{s.sub}</p>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-medium text-muted-foreground">{s.label}</span>
+                <div className={`p-0.5 rounded-md ${s.bg} ${s.color}`}>{s.icon}</div>
               </div>
+              <p className="text-lg sm:text-xl font-bold text-foreground leading-none">{s.value}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{s.sub}</p>
             </div>
           ))}
         </div>
@@ -311,19 +315,17 @@ const StudentDashboard = () => {
 
       {/* Attendance stat cards */}
       <div>
-        <p className="text-xs font-semibold text-foreground/60 uppercase tracking-wide mb-3">Attendance (Last 90 Days)</p>
-        <div className="grid grid-cols-2 gap-3">
+        <p className="text-xs font-semibold text-foreground/60 uppercase tracking-wide mb-2">Attendance (Last 90 Days)</p>
+        <div className="grid grid-cols-2 gap-2">
           {attendanceCards.map((s) => (
-            <div key={s.label} className={`relative group rounded-xl border ${s.bg.replace('/10', '/20').replace('bg-', 'border-')} ${s.bg.replace('bg-', 'bg-').replace('/10', '/5')} backdrop-blur-sm p-3 shadow-lg transition-all duration-200 overflow-hidden`}>
+            <div key={s.label} className={`relative rounded-xl border ${s.bg.replace('/10', '/20').replace('bg-', 'border-')} ${s.bg.replace('bg-', 'bg-').replace('/10', '/5')} p-2.5 sm:p-3 overflow-hidden`}>
               <div className={`absolute top-0 left-0 right-0 h-0.5 ${s.bg.replace('bg-', 'bg-gradient-to-r from-').replace('/10', '')} opacity-70`} />
-              <div className="relative">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-medium text-muted-foreground">{s.label}</span>
-                  <div className={`p-1 rounded-lg ${s.bg} ${s.color}`}>{s.icon}</div>
-                </div>
-                <p className="text-xl font-bold text-foreground leading-none">{s.value}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">{s.sub}</p>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-medium text-muted-foreground">{s.label}</span>
+                <div className={`p-0.5 rounded-md ${s.bg} ${s.color}`}>{s.icon}</div>
               </div>
+              <p className="text-lg sm:text-xl font-bold text-foreground leading-none">{s.value}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{s.sub}</p>
             </div>
           ))}
         </div>
