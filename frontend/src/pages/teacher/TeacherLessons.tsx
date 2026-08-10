@@ -463,6 +463,7 @@ const TeacherLessons = () => {
               <Input
                 id="upload-file"
                 type="file"
+                accept="video/*,audio/*,image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
                 onChange={(event) => {
                   const file = event.currentTarget.files?.[0] ?? null;
                   setUploadFile(file);
