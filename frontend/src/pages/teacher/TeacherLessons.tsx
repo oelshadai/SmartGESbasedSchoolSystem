@@ -237,6 +237,17 @@ const TeacherLessons = () => {
     }
   };
 
+  const handleDeleteResource = async (resourceId: number) => {
+    if (!confirm('Delete this resource? This cannot be undone.')) return;
+    try {
+      await secureApiClient.delete(`/timetable/resource/${resourceId}/`);
+      toast.success('Resource deleted');
+      if (selectedClass) fetchTimetable(selectedClass, true);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to delete resource');
+    }
+  };
+
   const handleReplaceResource = async (resource: LessonResource, file: File) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -375,6 +386,8 @@ const TeacherLessons = () => {
                     >
                       Preview
                     </Button>
+                    <input
+                      id={`resource-replace-${resource.id}`}
                       type="file"
                       className="hidden"
                       onChange={(e) => {
@@ -386,6 +399,9 @@ const TeacherLessons = () => {
                     />
                     <Button size="sm" variant="outline" onClick={() => document.getElementById(`resource-replace-${resource.id}`)?.click()}>
                       Replace
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => handleDeleteResource(resource.id)}>
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -641,6 +657,9 @@ const TeacherLessons = () => {
                                           />
                                           <Button size="sm" variant="outline" onClick={() => document.getElementById(`resource-replace-${r.id}`)?.click()}>
                                             Replace
+                                          </Button>
+                                          <Button size="sm" variant="destructive" onClick={() => handleDeleteResource(r.id)}>
+                                            <Trash2 className="h-4 w-4" />
                                           </Button>
                                         </div>
                                       </div>

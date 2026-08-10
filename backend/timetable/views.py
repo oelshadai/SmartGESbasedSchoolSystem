@@ -428,6 +428,24 @@ class LessonResourceViewSet(viewsets.ViewSet):
 
         return Response(_resource_data(resource, request=request))
 
+    def destroy(self, request, pk=None):
+        try:
+            resource = LessonResource.objects.select_related('class_instance', 'slot__class_instance').get(pk=pk)
+        except LessonResource.DoesNotExist:
+            return Response({'error': 'Resource not found'}, status=404)
+
+        if not _user_can_manage_resource(request.user, resource):
+            return Response({'error': 'Permission denied'}, status=403)
+
+        try:
+            if resource.file and default_storage.exists(resource.file.name):
+                default_storage.delete(resource.file.name)
+        except Exception:
+            pass
+
+        resource.delete()
+        return Response(status=204)
+
     def update(self, request, pk=None):
         try:
             resource = LessonResource.objects.select_related('class_instance', 'slot__class_instance').get(pk=pk)
