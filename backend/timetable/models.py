@@ -7,6 +7,37 @@ from django.utils import timezone
 from schools.models import Class, ClassSubject
 
 
+def _lesson_resource_storage():
+    """Return RawMediaCloudinaryStorage in production so that arbitrary file
+    types (pptx, zip, docx, pdf …) are accepted.  Falls back to the default
+    storage in local/DEBUG mode where Cloudinary is not configured."""
+    try:
+        from cloudinary_storage.storage import RawMediaCloudinaryStorage
+        import cloudinary
+        # Only use Cloudinary if it is actually configured
+        if cloudinary.config().cloud_name:
+            return RawMediaCloudinaryStorage()
+    except Exception:
+        pass
+    from django.core.files.storage import default_storage
+    return default_storage
+
+
+def _get_lesson_resource_field():
+    """Return the correct FileField storage at class-definition time."""
+    try:
+        from cloudinary_storage.storage import RawMediaCloudinaryStorage
+        import cloudinary
+        if cloudinary.config().cloud_name:
+            return models.FileField(
+                upload_to='lesson_resources/%Y/%m/%d/',
+                storage=RawMediaCloudinaryStorage()
+            )
+    except Exception:
+        pass
+    return models.FileField(upload_to='lesson_resources/%Y/%m/%d/')
+
+
 class LessonSlot(models.Model):
     DAY_CHOICES = [
         ('MON', 'Monday'),
@@ -48,7 +79,7 @@ class LessonResource(models.Model):
     class_instance = models.ForeignKey(Class, on_delete=models.CASCADE, related_name='lesson_resources', null=True, blank=True)
     title = models.CharField(max_length=200, blank=True)
     description = models.CharField(max_length=255, blank=True)
-    file = models.FileField(upload_to='lesson_resources/%Y/%m/%d/')
+    file = _get_lesson_resource_field()
     original_filename = models.CharField(max_length=255, blank=True)
     content_type = models.CharField(max_length=100, blank=True)
     resource_type = models.CharField(max_length=20, choices=RESOURCE_TYPE_CHOICES, default='file')
