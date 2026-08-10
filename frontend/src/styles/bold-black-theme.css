@@ -1,187 +1,165 @@
-/* ── NAVY & GOLD THEME ─────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════
+   NAVY & GOLD THEME  —  single source of truth
+   Gold  = #f0c040   (headings, labels, icons accent)
+   White = #ffffff   (body text, messages, inputs in dark)
+   Navy  = #0f2a5e   (headings, labels in light mode)
+   ══════════════════════════════════════════════════════════════ */
 
-/* Base text — dark navy in light mode, near-white in dark mode */
-:not(.dark) body,
-:not(.dark) p,
-:not(.dark) span:not([class*="text-"]),
-:not(.dark) div:not([class*="text-"]) {
-  color: #1e3a5f;
-}
-
-/* ── Headings — navy bold in light, white bold in dark ── */
+/* ── ALL headings → gold in dark, navy in light ── */
 h1, h2, h3, h4, h5, h6,
 .card-title,
 .page-title,
 .section-title,
 .dialog-title,
-.modal-title {
+.modal-title,
+[class*="CardTitle"],
+[class*="card-title"] {
   font-weight: 700 !important;
   letter-spacing: -0.01em !important;
 }
 
-:not(.dark) h1,
-:not(.dark) h2,
-:not(.dark) h3,
-:not(.dark) h4,
-:not(.dark) h5,
-:not(.dark) h6,
-:not(.dark) .card-title,
-:not(.dark) .page-title,
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6,
+.dark .card-title, .dark .page-title, .dark .section-title,
+.dark .dialog-title, .dark .modal-title {
+  color: #f0c040 !important;
+}
+
+:not(.dark) h1, :not(.dark) h2, :not(.dark) h3,
+:not(.dark) h4, :not(.dark) h5, :not(.dark) h6,
+:not(.dark) .card-title, :not(.dark) .page-title,
 :not(.dark) .section-title {
   color: #0f2a5e !important;
 }
 
-.dark h1,
-.dark h2,
-.dark h3,
-.dark h4,
-.dark h5,
-.dark h6,
-.dark .card-title,
-.dark .page-title,
-.dark .section-title {
-  color: #ffffff !important;
-}
-
-/* ── Labels — gold accent ── */
+/* ── ALL labels → gold ── */
 label,
 .label,
 .form-label,
 .field-label,
-.input-label {
-  font-weight: 600 !important;
+.input-label,
+[class*="Label"] {
+  font-weight: 700 !important;
   font-size: 14px !important;
 }
 
-:not(.dark) label,
-:not(.dark) .label,
-:not(.dark) .form-label {
-  color: #b8860b !important;  /* dark gold */
+.dark label, .dark .label, .dark .form-label,
+.dark .field-label, .dark .input-label {
+  color: #f0c040 !important;
 }
 
-.dark label,
-.dark .label,
-.dark .form-label {
-  color: #f0c040 !important;  /* bright gold */
+:not(.dark) label, :not(.dark) .label,
+:not(.dark) .form-label, :not(.dark) .field-label {
+  color: #b8860b !important;
 }
 
-/* ── Inputs ── */
-:not(.dark) input[type="text"],
-:not(.dark) input[type="email"],
-:not(.dark) input[type="password"],
-:not(.dark) input[type="number"],
-:not(.dark) input[type="tel"],
-:not(.dark) input[type="url"],
-:not(.dark) input[type="search"],
-:not(.dark) input[type="date"],
-:not(.dark) input[type="time"],
-:not(.dark) textarea,
-:not(.dark) select {
+/* ── ALL body text / messages / paragraphs → bold white in dark ── */
+.dark p,
+.dark span,
+.dark li,
+.dark div,
+.dark td,
+.dark .text-foreground,
+.dark .text-card-foreground,
+.dark .text-muted-foreground {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+/* muted text slightly dimmer but still readable */
+.dark .text-muted-foreground {
+  color: #e2e8f0 !important;
+  font-weight: 500 !important;
+}
+
+/* light mode body text → navy */
+:not(.dark) p,
+:not(.dark) span,
+:not(.dark) li,
+:not(.dark) .text-foreground,
+:not(.dark) .text-card-foreground {
   color: #0f2a5e !important;
   font-weight: 500 !important;
 }
 
-.dark input[type="text"],
-.dark input[type="email"],
-.dark input[type="password"],
-.dark input[type="number"],
-.dark input[type="tel"],
-.dark input[type="url"],
-.dark input[type="search"],
-.dark input[type="date"],
-.dark input[type="time"],
+:not(.dark) .text-muted-foreground {
+  color: #3a5a8a !important;
+  font-weight: 500 !important;
+}
+
+/* ── Inputs & textareas → bold white in dark ── */
+.dark input,
 .dark textarea,
 .dark select {
   color: #ffffff !important;
-  font-weight: 500 !important;
+  font-weight: 600 !important;
+}
+
+:not(.dark) input,
+:not(.dark) textarea,
+:not(.dark) select {
+  color: #0f2a5e !important;
+  font-weight: 600 !important;
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: #6b7280 !important;
+  color: #9ca3af !important;
   font-weight: 400 !important;
+  opacity: 1 !important;
 }
 
 .dark input::placeholder,
 .dark textarea::placeholder {
-  color: #9ca3af !important;
+  color: #94a3b8 !important;
   font-weight: 400 !important;
 }
 
-/* ── Table ── */
-:not(.dark) th {
-  color: #0f2a5e !important;
-  font-weight: 700 !important;
-}
-:not(.dark) td {
-  color: #1e3a5f !important;
-  font-weight: 500 !important;
-}
+/* ── Table headers → gold in dark ── */
 .dark th {
   color: #f0c040 !important;
   font-weight: 700 !important;
 }
-.dark td {
-  color: #e2e8f0 !important;
-  font-weight: 500 !important;
+:not(.dark) th {
+  color: #0f2a5e !important;
+  font-weight: 700 !important;
 }
 
-/* ── Buttons ── */
-:not(.dark) button,
-:not(.dark) .btn {
-  font-weight: 600 !important;
-}
+/* ── Buttons → bold white in dark ── */
 .dark button,
 .dark .btn {
-  font-weight: 600 !important;
+  font-weight: 700 !important;
+}
+:not(.dark) button,
+:not(.dark) .btn {
+  font-weight: 700 !important;
 }
 
-/* ── Sidebar — always dark navy with gold accents ── */
-.sidebar *,
-[data-sidebar] * {
+/* ── Sidebar always dark navy — keep white text ── */
+.dark .sidebar *,
+.dark [data-sidebar] * {
   color: #e2e8f0 !important;
-}
-
-/* ── Muted foreground ── */
-:not(.dark) .text-muted-foreground {
-  color: #4a6080 !important;
-  font-weight: 500 !important;
-}
-.dark .text-muted-foreground {
-  color: #94a3b8 !important;
-  font-weight: 500 !important;
-}
-
-/* ── text-foreground utility ── */
-:not(.dark) .text-foreground {
-  color: #0f2a5e !important;
-}
-.dark .text-foreground {
-  color: #f1f5f9 !important;
 }
 
 /* ── Links ── */
-:not(.dark) a {
-  color: #1e40af !important;
-  font-weight: 500 !important;
-}
-:not(.dark) a:hover {
-  color: #b8860b !important;
-}
-.dark a {
-  color: #f0c040 !important;
-  font-weight: 500 !important;
-}
-.dark a:hover {
-  color: #fde68a !important;
-}
+.dark a { color: #f0c040 !important; font-weight: 600 !important; }
+.dark a:hover { color: #fde68a !important; }
+:not(.dark) a { color: #1e40af !important; font-weight: 600 !important; }
+:not(.dark) a:hover { color: #b8860b !important; }
 
 /* ── Badges ── */
-.badge,
-.status {
-  font-weight: 600 !important;
-}
+.badge, .status { font-weight: 700 !important; }
+
+/* ── text-white utility — keep white in dark, navy in light ── */
+.dark .text-white { color: #ffffff !important; }
+:not(.dark) .text-white { color: #0f2a5e !important; }
+
+/* ── Slate utility overrides for dark mode ── */
+.dark .text-slate-100,
+.dark .text-slate-200,
+.dark .text-slate-300 { color: #f1f5f9 !important; font-weight: 600 !important; }
+.dark .text-slate-400,
+.dark .text-slate-500 { color: #cbd5e1 !important; font-weight: 500 !important; }
 
 /* ── text-xs / text-sm base weight ── */
-.text-xs { font-weight: 500 !important; }
-.text-sm { font-weight: 450 !important; }
+.text-xs { font-weight: 600 !important; }
+.text-sm { font-weight: 600 !important; }

@@ -911,87 +911,73 @@
     font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
   }
 
-  /* Improved heading hierarchy */
+  /* Improved heading hierarchy — colors handled by bold-black-theme.css */
   h1 {
     @apply text-3xl font-bold tracking-tight;
-    color: hsl(var(--text-high-contrast));
     line-height: 1.2;
   }
 
   h2 {
     @apply text-2xl font-semibold tracking-tight;
-    color: hsl(var(--text-high-contrast));
     line-height: 1.3;
   }
 
   h3 {
     @apply text-xl font-semibold tracking-tight;
-    color: hsl(var(--primary)) !important;
     line-height: 1.4;
   }
 
   h4 {
     @apply text-lg font-medium tracking-tight;
-    color: hsl(var(--text-primary));
     line-height: 1.4;
   }
 
   h5 {
     @apply text-base font-medium;
-    color: hsl(var(--text-primary));
     line-height: 1.5;
   }
 
   h6 {
     @apply text-sm font-medium;
-    color: hsl(var(--text-secondary));
     line-height: 1.5;
   }
 
-  /* Enhanced paragraph text */
+  /* Body text — colors handled by bold-black-theme.css */
   p {
-    color: hsl(var(--text-primary));
     line-height: 1.6;
   }
 
-  /* Better link visibility */
+  /* Links — colors handled by bold-black-theme.css */
   a {
-    color: hsl(var(--primary));
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
   }
 
   a:hover {
-    color: hsl(var(--primary) / 0.8);
+    opacity: 0.85;
   }
 
-  /* Enhanced form labels */
+  /* Enhanced form labels — colors handled by bold-black-theme.css */
   label {
     @apply font-medium;
-    color: hsl(var(--text-primary));
   }
 
   :not(.dark) * {
     /* removed blanket color override — handled per-element in bold-black-theme.css */
   }
 
-  /* Better input text */
+  /* Better input text — colors handled by bold-black-theme.css */
   input, textarea, select {
-    color: hsl(var(--input-foreground));
+    font-size: 14px;
   }
 
   input::placeholder, textarea::placeholder {
     color: hsl(var(--text-muted));
   }
 
-  /* Enhanced table text */
+  /* Table text — colors handled by bold-black-theme.css */
   th {
     @apply font-semibold;
-    color: hsl(var(--text-primary));
-  }
-
-  td {
-    color: hsl(var(--text-primary));
   }
 }
 
