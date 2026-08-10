@@ -302,6 +302,8 @@
   border-radius: 1rem;
   padding: 3px;
   box-shadow: 0 0 15px rgba(var(--theme-animation-rgb), 0.3);
+  will-change: background-position;
+  contain: layout style;
 }
 
 .animated-border::before {
@@ -815,6 +817,28 @@
     border: 1px solid hsl(var(--border));
     box-shadow: 0 12px 30px rgba(16,24,40,0.06), inset 0 1px 0 rgba(255,255,255,0.6);
   }
+}
+
+/* Notification carousel keyframes */
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes slide-left-in {
+  from { transform: translateX(40px); opacity: 0; }
+  to   { transform: translateX(0);   opacity: 1; }
+}
+@keyframes slide-left-out {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(-40px); opacity: 0; }
+}
+@keyframes slide-right-in {
+  from { transform: translateX(-40px); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+@keyframes slide-right-out {
+  from { transform: translateX(0);   opacity: 1; }
+  to   { transform: translateX(40px); opacity: 0; }
 }
 
 /* Reduce motion for accessibility */

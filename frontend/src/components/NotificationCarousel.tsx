@@ -172,28 +172,7 @@ const NotificationCarousel = ({ notifications: externalNotifs, autoFetch = false
         <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" />
       )}
 
-      <style>{`
-        @keyframes marquee {
-          0%   { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        @keyframes slide-left-in {
-          from { transform: translateX(40px); opacity: 0; }
-          to   { transform: translateX(0);   opacity: 1; }
-        }
-        @keyframes slide-left-out {
-          from { transform: translateX(0);    opacity: 1; }
-          to   { transform: translateX(-40px); opacity: 0; }
-        }
-        @keyframes slide-right-in {
-          from { transform: translateX(-40px); opacity: 0; }
-          to   { transform: translateX(0);     opacity: 1; }
-        }
-        @keyframes slide-right-out {
-          from { transform: translateX(0);   opacity: 1; }
-          to   { transform: translateX(40px); opacity: 0; }
-        }
-      `}</style>
+
     </div>
   );
 };

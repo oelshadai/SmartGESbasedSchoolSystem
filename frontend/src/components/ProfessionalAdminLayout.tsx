@@ -687,7 +687,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
                 )}
 
                 {isActive && (
-                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-400/10 to-cyan-400/10 animate-pulse" />
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-400/10 to-cyan-400/10" />
                 )}
               </button>
             );
@@ -805,15 +805,11 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
         </div>
       </div>
 
-      {/* Background Elements */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl animate-pulse delay-1000" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/3 rounded-full blur-3xl" />
+      {/* Static background — no animation to avoid scroll jank */}
+      <div className="fixed inset-0 pointer-events-none -z-10">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl" />
       </div>
-
-      {/* Grid Pattern */}
-      <div className="fixed inset-0 pointer-events-none -z-10 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:24px_24px]" />
     </div>
   );
 };

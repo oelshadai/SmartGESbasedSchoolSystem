@@ -136,7 +136,14 @@ const ParentBillsPage = () => {
   return <StudentBills studentIdOverride={studentId} />;
 };
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 1,
+    },
+  },
+});
 
 const HomeRedirect = () => {
   const navigate = useNavigate();

@@ -1,13 +1,10 @@
 import { useState, useEffect } from 'react';
-import StatCard from '@/components/shared/StatCard';
-import { ClipboardList, Users, Award, Loader2, UserCheck, Bell, FileText, TrendingUp, AlertCircle } from 'lucide-react';
+import { ClipboardList, Users, Award, Loader2, UserCheck, Bell, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { secureApiClient } from '@/lib/secureApiClient';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
-import QuickLogin from '@/components/QuickLogin';
 import NotificationCarousel from '@/components/NotificationCarousel';
 
 interface TeacherDashboardData {
@@ -62,33 +59,24 @@ const TeacherDashboard = () => {
   const navigate = useNavigate();
   const { logout, isAuthenticated } = useAuthStore();
 
-  // Check authentication first
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
-      return;
     }
   }, [isAuthenticated, navigate]);
 
   useEffect(() => {
     const fetchDashboard = async () => {
       if (!isAuthenticated) return;
-      
       try {
         setLoading(true);
         setError(null);
-        
-        // Fetch dashboard data with proper error handling
         const [dashboardResponse, statsResponse] = await Promise.allSettled([
           secureApiClient.get<TeacherDashboardData>('/auth/teacher-dashboard/'),
           secureApiClient.get('/teachers/dashboard_stats/')
         ]);
-        
-        // Handle dashboard response
         if (dashboardResponse.status === 'fulfilled') {
           let updatedData = dashboardResponse.value;
-          
-          // Handle stats response if successful
           if (statsResponse.status === 'fulfilled') {
             updatedData = {
               ...dashboardResponse.value,
@@ -100,40 +88,27 @@ const TeacherDashboard = () => {
               }
             };
           }
-          
           setData(updatedData);
-          setError(null);
         } else {
-          // Dashboard request failed - handle 401 specifically
           const errorResponse = dashboardResponse.reason;
           if (errorResponse?.response?.status === 401) {
-            console.error('Authentication failed - redirecting to login');
             logout();
             navigate('/login');
             return;
           }
-          
-          console.error('Dashboard request failed:', errorResponse);
           setError(errorResponse?.message || 'Failed to load dashboard');
         }
-        
       } catch (err: any) {
-        console.error('Failed to load dashboard:', err);
-        
-        // Handle 401 errors
         if (err?.response?.status === 401) {
-          console.error('Authentication failed - redirecting to login');
           logout();
           navigate('/login');
           return;
         }
-        
         setError(err.message || 'Failed to load dashboard');
       } finally {
         setLoading(false);
       }
     };
-
     fetchDashboard();
   }, [navigate, logout, isAuthenticated]);
 
@@ -150,7 +125,7 @@ const TeacherDashboard = () => {
 
   if (error || !data) {
     return (
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-6 p-4">
         <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6">
           <div className="flex items-center gap-3 mb-3">
             <AlertCircle className="h-5 w-5 text-destructive" />
@@ -158,30 +133,14 @@ const TeacherDashboard = () => {
           </div>
           <p className="text-destructive mb-3">{error || 'Failed to load dashboard data'}</p>
           <div className="flex gap-3">
-            <Button 
-              onClick={() => window.location.reload()} 
-              variant="outline" 
-              size="sm"
-            >
-              Retry
-            </Button>
-            <Button 
-              onClick={() => {
-                logout();
-                navigate('/login');
-              }} 
-              variant="destructive" 
-              size="sm"
-            >
-              Re-login
-            </Button>
+            <Button onClick={() => window.location.reload()} variant="outline" size="sm">Retry</Button>
+            <Button onClick={() => { logout(); navigate('/login'); }} variant="destructive" size="sm">Re-login</Button>
           </div>
         </div>
       </div>
     );
   }
 
-  // Ensure data exists and has required properties
   const safeData = {
     teacher: {
       id: data?.teacher?.id || 0,
@@ -213,65 +172,40 @@ const TeacherDashboard = () => {
   };
 
   const stats = [
-    { 
-      label: 'Assignments', 
-      value: safeData.stats.total_assignments.toString(), 
-      icon: <ClipboardList className="h-5 w-5" />, 
-      color: 'text-secondary',
-      sub: 'total created',
-    },
-    { 
-      label: 'Classes', 
-      value: safeData.stats.total_classes.toString(), 
-      icon: <Users className="h-5 w-5" />, 
-      color: 'text-info',
-      sub: 'assigned to you',
-    },
-    { 
-      label: 'Subjects', 
-      value: safeData.stats.total_subjects.toString(), 
-      icon: <Award className="h-5 w-5" />, 
-      color: 'text-success',
-      sub: 'teaching',
-    },
-    { 
-      label: 'Attendance Today', 
-      value: safeData.stats.attendance_taken_today.toString(), 
-      icon: <UserCheck className="h-5 w-5" />, 
-      color: 'text-accent',
-      sub: 'records taken',
-    },
+    { label: 'Assignments', value: safeData.stats.total_assignments.toString(), icon: <ClipboardList className="h-5 w-5" />, color: 'text-secondary', sub: 'total created' },
+    { label: 'Classes', value: safeData.stats.total_classes.toString(), icon: <Users className="h-5 w-5" />, color: 'text-info', sub: 'assigned to you' },
+    { label: 'Subjects', value: safeData.stats.total_subjects.toString(), icon: <Award className="h-5 w-5" />, color: 'text-success', sub: 'teaching' },
+    { label: 'Attendance Today', value: safeData.stats.attendance_taken_today.toString(), icon: <UserCheck className="h-5 w-5" />, color: 'text-accent', sub: 'records taken' },
   ];
 
   return (
     <div className="w-full p-4 sm:p-6 overflow-y-auto">
-    <div className="space-y-5 sm:space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Teacher Dashboard</h1>
-        <p className="text-sm text-foreground/70 mt-1">Welcome, {safeData.teacher.first_name || 'Teacher'}! Manage your classes and assignments</p>
-      </div>
+      <div className="space-y-5 sm:space-y-6">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Teacher Dashboard</h1>
+          <p className="text-sm text-foreground/70 mt-1">Welcome, {safeData.teacher.first_name || 'Teacher'}! Manage your classes and assignments</p>
+        </div>
 
-      {/* Notification carousel — mobile only */}
-      <div className="sm:hidden">
-        <NotificationCarousel autoFetch />
-      </div>
+        {/* Notification carousel — mobile only */}
+        <div className="sm:hidden">
+          <NotificationCarousel autoFetch />
+        </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-        {stats.map((s) => (
-          <div key={s.label} className="rounded-xl border bg-card p-2.5 sm:p-4 flex flex-col gap-1 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">{s.label}</span>
-              <span className={`${s.color} opacity-70`}>{s.icon}</span>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+          {stats.map((s) => (
+            <div key={s.label} className="rounded-xl border bg-card p-2.5 sm:p-4 flex flex-col gap-1 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">{s.label}</span>
+                <span className={`${s.color} opacity-70`}>{s.icon}</span>
+              </div>
+              <p className="text-lg sm:text-2xl font-bold text-foreground leading-none">{s.value}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{s.sub}</p>
             </div>
-            <p className="text-lg sm:text-2xl font-bold text-foreground leading-none">{s.value}</p>
-            <p className="text-[10px] sm:text-xs text-muted-foreground">{s.sub}</p>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="animated-border">
-          <div className="animated-border-content p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="rounded-xl border bg-card shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-foreground">Assigned Classes</h3>
               <Badge variant="outline" className="text-xs">{safeData.assigned_classes.length} classes</Badge>
@@ -291,10 +225,8 @@ const TeacherDashboard = () => {
               )}
             </div>
           </div>
-        </div>
 
-        <div className="animated-border">
-          <div className="animated-border-content p-4 sm:p-6">
+          <div className="rounded-xl border bg-card shadow-sm p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-foreground">School Announcements</h3>
               <Bell className="h-4 w-4 text-blue-500" />
@@ -302,17 +234,15 @@ const TeacherDashboard = () => {
             <div className="space-y-3">
               {safeData.announcements.length > 0 ? (
                 safeData.announcements.map((announcement) => (
-                  <div key={announcement.id} className="animated-border-subtle">
-                    <div className="animated-border-subtle-content p-3">
-                      <div className="flex items-start justify-between mb-2">
-                        <h4 className="text-sm font-medium text-foreground">{announcement.title}</h4>
-                        <Badge variant={announcement.priority === 'high' ? 'destructive' : 'outline'} className="text-xs">
-                          {announcement.priority}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-foreground/60 mb-2">{announcement.content}</p>
-                      <p className="text-xs text-foreground/60">{new Date(announcement.created_at).toLocaleDateString()}</p>
+                  <div key={announcement.id} className="rounded-lg border bg-muted/30 p-3">
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 className="text-sm font-medium text-foreground">{announcement.title}</h4>
+                      <Badge variant={announcement.priority === 'high' ? 'destructive' : 'outline'} className="text-xs">
+                        {announcement.priority}
+                      </Badge>
                     </div>
+                    <p className="text-xs text-foreground/60 mb-2">{announcement.content}</p>
+                    <p className="text-xs text-foreground/60">{new Date(announcement.created_at).toLocaleDateString()}</p>
                   </div>
                 ))
               ) : (
@@ -321,11 +251,9 @@ const TeacherDashboard = () => {
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-        <div className="animated-border">
-          <div className="animated-border-content p-4 sm:p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          <div className="rounded-xl border bg-card shadow-sm p-4 sm:p-6">
             <h3 className="font-semibold text-foreground mb-4">Teaching Subjects</h3>
             <div className="space-y-3">
               {safeData.teaching_subjects.length > 0 ? (
@@ -342,44 +270,28 @@ const TeacherDashboard = () => {
               )}
             </div>
           </div>
-        </div>
-        <div className="animated-border pulse-glow">
-          <div className="animated-border-content p-4 sm:p-6">
+
+          <div className="rounded-xl border bg-card shadow-sm p-4 sm:p-6">
             <h3 className="font-semibold text-foreground mb-4">Teacher Profile</h3>
             <div className="space-y-2 text-sm">
-              <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2">
-                <span className="text-foreground/60">Name:</span>
-                <span className="text-foreground font-medium sm:font-normal truncate">{safeData.teacher.name}</span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-border pt-2">
-                <span className="text-foreground/60">Email:</span>
-                <span className="text-foreground font-medium sm:font-normal truncate">{safeData.teacher.email}</span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-border pt-2">
-                <span className="text-foreground/60">Employee ID:</span>
-                <span className="text-foreground font-medium sm:font-normal">{safeData.teacher.employee_id}</span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-border pt-2">
-                <span className="text-foreground/60">School:</span>
-                <span className="text-foreground font-medium sm:font-normal truncate">{safeData.teacher.school}</span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-border pt-2">
-                <span className="text-foreground/60">Qualification:</span>
-                <span className="text-foreground font-medium sm:font-normal">{safeData.teacher.qualification || 'N/A'}</span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-border pt-2">
-                <span className="text-foreground/60">Experience:</span>
-                <span className="text-foreground font-medium sm:font-normal">{safeData.teacher.experience_years} years</span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-border pt-2">
-                <span className="text-foreground/60">Hire Date:</span>
-                <span className="text-foreground font-medium sm:font-normal">{safeData.teacher.hire_date ? new Date(safeData.teacher.hire_date).toLocaleDateString() : 'N/A'}</span>
-              </div>
+              {[
+                { label: 'Name', value: safeData.teacher.name },
+                { label: 'Email', value: safeData.teacher.email },
+                { label: 'Employee ID', value: safeData.teacher.employee_id },
+                { label: 'School', value: safeData.teacher.school },
+                { label: 'Qualification', value: safeData.teacher.qualification || 'N/A' },
+                { label: 'Experience', value: `${safeData.teacher.experience_years} years` },
+                { label: 'Hire Date', value: safeData.teacher.hire_date ? new Date(safeData.teacher.hire_date).toLocaleDateString() : 'N/A' },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-border pt-2 first:border-0 first:pt-0">
+                  <span className="text-foreground/60">{label}:</span>
+                  <span className="text-foreground font-medium sm:font-normal truncate">{value}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
-    </div>
     </div>
   );
 };

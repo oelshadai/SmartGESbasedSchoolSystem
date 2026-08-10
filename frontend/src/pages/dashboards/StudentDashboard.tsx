@@ -379,8 +379,8 @@ const StudentDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
 
         {/* Recent assignments — 2 cols */}
-        <div className="md:col-span-2 animated-border">
-          <div className="animated-border-content p-4 sm:p-5">
+        <div className="md:col-span-2 rounded-xl border bg-card shadow-sm">
+          <div className="p-4 sm:p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-foreground flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-primary" /> Recent Assignments
@@ -428,8 +428,8 @@ const StudentDashboard = () => {
         </div>
 
         {/* Classmates */}
-        <div className="animated-border">
-          <div className="animated-border-content p-4 sm:p-5">
+        <div className="rounded-xl border bg-card shadow-sm">
+          <div className="p-4 sm:p-5">
             <h3 className="font-semibold text-foreground flex items-center gap-2 mb-4">
               <Users className="h-4 w-4 text-primary" /> Classmates
               <span className="ml-auto text-xs text-foreground/70 font-normal">{classmates.length}</span>
@@ -456,8 +456,8 @@ const StudentDashboard = () => {
       </div>
 
       {/* Announcements */}
-      <div className="animated-border">
-        <div className="animated-border-content p-4 sm:p-5">
+      <div className="rounded-xl border bg-card shadow-sm">
+        <div className="p-4 sm:p-5">
           <h3 className="font-semibold text-foreground flex items-center gap-2 mb-4">
             <Bell className="h-4 w-4 text-primary" /> Announcements
             <span className="ml-auto text-xs text-foreground/70 font-normal">{announcements.length} total</span>
@@ -490,8 +490,8 @@ const StudentDashboard = () => {
       </div>
 
       {/* Student profile */}
-      <div className="animated-border">
-        <div className="animated-border-content p-4 sm:p-5">
+      <div className="rounded-xl border bg-card shadow-sm">
+        <div className="p-4 sm:p-5">
           <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
             <GraduationCap className="h-4 w-4 text-primary" /> My Profile
           </h3>
