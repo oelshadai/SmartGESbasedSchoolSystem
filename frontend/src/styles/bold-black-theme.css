@@ -61,15 +61,21 @@ label,
   font-weight: 600 !important;
 }
 
+/* light mode bare elements → inherit (let Tailwind/component styles win) */
+:not(.dark) p,
+:not(.dark) span,
+:not(.dark) li,
+:not(.dark) div,
+:not(.dark) td {
+  color: inherit;
+}
+
 .dark .text-muted-foreground {
   color: #e2e8f0 !important;
   font-weight: 600 !important;
 }
 
-/* light mode body text → navy */
-:not(.dark) p,
-:not(.dark) span,
-:not(.dark) li,
+/* light mode body text → navy (only semantic/utility classes, not bare span/div/li) */
 :not(.dark) .text-foreground,
 :not(.dark) .text-card-foreground {
   color: #0f2a5e !important;
