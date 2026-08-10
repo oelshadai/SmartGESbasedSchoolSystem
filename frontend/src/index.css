@@ -8,97 +8,97 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 220 30% 12%;
+    --background: 214 60% 97%;
+    --foreground: 220 60% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 30% 12%;
+    --card-foreground: 220 60% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 30% 12%;
+    --popover-foreground: 220 60% 12%;
 
-    --primary: 220 65% 18%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 220 70% 20%;       /* navy blue */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 175 42% 46%;
+    --secondary: 214 50% 30%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 18% 93%;
-    --muted-foreground: 220 12% 46%;
+    --muted: 214 30% 93%;
+    --muted-foreground: 220 20% 45%;
 
-    --accent: 36 90% 55%;
-    --accent-foreground: 220 30% 12%;
+    --accent: 43 90% 50%;         /* gold */
+    --accent-foreground: 220 60% 12%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 20% 88%;
-    --input: 214 20% 88%;
-    --ring: 220 65% 18%;
+    --border: 214 25% 85%;
+    --input: 214 25% 85%;
+    --ring: 43 90% 50%;
 
     --radius: 0.625rem;
 
-    --sidebar-background: 220 65% 18%;
+    --sidebar-background: 220 70% 15%;
     --sidebar-foreground: 210 40% 92%;
-    --sidebar-primary: 175 42% 46%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 55% 24%;
+    --sidebar-primary: 43 90% 50%;
+    --sidebar-primary-foreground: 220 60% 12%;
+    --sidebar-accent: 220 60% 22%;
     --sidebar-accent-foreground: 210 40% 92%;
-    --sidebar-border: 220 50% 26%;
-    --sidebar-ring: 175 42% 46%;
+    --sidebar-border: 220 50% 24%;
+    --sidebar-ring: 43 90% 50%;
 
     --success: 152 60% 40%;
     --success-foreground: 0 0% 100%;
-    --warning: 36 90% 55%;
-    --warning-foreground: 220 30% 12%;
+    --warning: 43 90% 50%;
+    --warning-foreground: 220 60% 12%;
     --info: 205 80% 50%;
     --info-foreground: 0 0% 100%;
-    --theme-animation-rgb: 249, 115, 22;
-    --theme-animation-alt-rgb: 251, 191, 36;
+    --theme-animation-rgb: 30, 58, 138;     /* navy */
+    --theme-animation-alt-rgb: 202, 155, 36; /* gold */
   }
 
   .dark {
-    --background: 222 32% 7%;
-    --foreground: 210 40% 95%;
+    --background: 220 45% 8%;
+    --foreground: 210 40% 96%;
 
-    --card: 222 28% 11%;
-    --card-foreground: 210 40% 95%;
+    --card: 220 40% 12%;
+    --card-foreground: 210 40% 96%;
 
-    --popover: 222 28% 11%;
-    --popover-foreground: 210 40% 95%;
+    --popover: 220 40% 12%;
+    --popover-foreground: 210 40% 96%;
 
-    --primary: 25 95% 53%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 43 90% 50%;        /* gold as primary in dark */
+    --primary-foreground: 220 60% 10%;
 
-    --secondary: 222 25% 18%;
+    --secondary: 220 30% 20%;
     --secondary-foreground: 210 40% 92%;
 
-    --muted: 222 22% 16%;
-    --muted-foreground: 215 18% 65%;
+    --muted: 220 28% 18%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 25 95% 53%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 43 90% 50%;         /* gold */
+    --accent-foreground: 220 60% 10%;
 
     --destructive: 0 62% 40%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 222 20% 18%;
-    --input: 222 20% 18%;
-    --ring: 25 95% 53%;
+    --border: 220 25% 20%;
+    --input: 220 25% 20%;
+    --ring: 43 90% 50%;
 
-    --sidebar-background: 222 35% 5%;
+    --sidebar-background: 220 50% 6%;
     --sidebar-foreground: 210 40% 88%;
-    --sidebar-primary: 25 95% 53%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 28% 12%;
+    --sidebar-primary: 43 90% 50%;
+    --sidebar-primary-foreground: 220 60% 10%;
+    --sidebar-accent: 220 40% 14%;
     --sidebar-accent-foreground: 210 40% 88%;
-    --sidebar-border: 222 22% 14%;
-    --sidebar-ring: 25 95% 53%;
+    --sidebar-border: 220 30% 16%;
+    --sidebar-ring: 43 90% 50%;
 
     --success: 152 55% 35%;
     --success-foreground: 0 0% 100%;
-    --warning: 36 90% 55%;
-    --warning-foreground: 0 0% 100%;
+    --warning: 43 90% 50%;
+    --warning-foreground: 220 60% 10%;
     --info: 205 70% 45%;
     --info-foreground: 0 0% 100%;
   }
@@ -926,7 +926,7 @@
 
   h3 {
     @apply text-xl font-semibold tracking-tight;
-    color: #000000 !important;
+    color: hsl(var(--primary)) !important;
     line-height: 1.4;
   }
 
@@ -972,7 +972,7 @@
   }
 
   :not(.dark) * {
-    color: #e6dddd !important;
+    /* removed blanket color override — handled per-element in bold-black-theme.css */
   }
 
   /* Better input text */

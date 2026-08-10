@@ -518,7 +518,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
   }, [location.pathname, sidebarOpen]);
 
   return (
-    <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex">
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-950 via-[#0f2a5e] to-slate-950 flex">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -533,12 +533,12 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
         role="navigation"
         aria-label={`${subtitle} navigation`}
         onKeyDown={handleSidebarKeyDown}
-        className={`professional-sidebar app-sidebar-scrollbar fixed lg:static inset-y-0 left-0 z-50 ${collapsed ? 'w-20 lg:w-24' : 'w-72 lg:w-80'} h-full bg-slate-900/95 lg:bg-slate-900/50 backdrop-blur-xl border-r border-slate-800/50 flex flex-col transition-all duration-300 ease-in-out ${
+        className={`professional-sidebar app-sidebar-scrollbar fixed lg:static inset-y-0 left-0 z-50 ${collapsed ? 'w-20 lg:w-24' : 'w-72 lg:w-80'} h-full bg-[#0a1f4e]/95 lg:bg-[#0a1f4e]/90 backdrop-blur-xl border-r border-[#f0c040]/20 flex flex-col transition-all duration-300 ease-in-out ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
         {/* Logo & Header */}
-        <div className={`${collapsed ? 'p-2 border-b border-slate-800/30' : 'p-4 lg:p-6 border-b border-slate-800/50'}`}>
+        <div className={`${collapsed ? 'p-2 border-b border-[#f0c040]/20' : 'p-4 lg:p-6 border-b border-[#f0c040]/20'}`}>
           {/* Mobile close button */}
           <button
             onClick={() => setSidebarOpen(false)}
@@ -552,7 +552,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
             <div className="relative shrink-0">
               <div className={`relative ${
                 collapsed ? 'p-2 rounded-xl' : 'p-2.5 rounded-2xl'
-              } bg-gradient-to-br from-blue-500 via-cyan-500 to-indigo-600 shadow-lg shadow-blue-500/40 ring-1 ring-white/20 flex items-center justify-center`}>
+              } bg-gradient-to-br from-[#0f2a5e] via-[#1e3a8a] to-[#0f2a5e] shadow-lg shadow-[#f0c040]/20 ring-1 ring-[#f0c040]/30 flex items-center justify-center`}>
                 <img
                   src="/EliteTech logo with 3D cube design.png"
                   alt="SmartGES"
@@ -560,25 +560,25 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
                 />
               </div>
               {/* Glow dot */}
-              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-slate-900 shadow shadow-emerald-400/60" />
+              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[#f0c040] ring-2 ring-[#0a1f4e] shadow shadow-[#f0c040]/60" />
             </div>
 
             {!collapsed && (
               <div className="min-w-0">
-                <h1 className="text-base font-extrabold leading-tight tracking-tight bg-gradient-to-r from-white via-blue-100 to-cyan-300 bg-clip-text text-transparent">
+                <h1 className="text-base font-extrabold leading-tight tracking-tight bg-gradient-to-r from-white via-[#f0c040] to-yellow-200 bg-clip-text text-transparent">
                   SmartGES
                 </h1>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide uppercase ${
                     user?.role === 'SUPER_ADMIN'
-                      ? 'bg-red-500/20 text-red-300 ring-1 ring-red-500/30'
+                      ? 'bg-[#f0c040]/20 text-[#f0c040] ring-1 ring-[#f0c040]/40'
                       : user?.role === 'SCHOOL_ADMIN' || user?.role === 'PRINCIPAL'
-                      ? 'bg-blue-500/20 text-blue-300 ring-1 ring-blue-500/30'
+                      ? 'bg-blue-500/20 text-blue-200 ring-1 ring-blue-400/30'
                       : user?.role === 'TEACHER'
                       ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/30'
                       : user?.role === 'STUDENT'
                       ? 'bg-purple-500/20 text-purple-300 ring-1 ring-purple-500/30'
-                      : 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/30'
+                      : 'bg-[#f0c040]/20 text-[#f0c040] ring-1 ring-[#f0c040]/30'
                   }`}>
                     {subtitle}
                   </span>
@@ -591,7 +591,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
             <button
               onClick={() => setCollapsed(s => !s)}
               title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              className="hidden lg:inline-flex items-center justify-center h-8 w-8 rounded-md bg-slate-800/30 text-slate-200 hover:bg-slate-800/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              className="hidden lg:inline-flex items-center justify-center h-8 w-8 rounded-md bg-[#f0c040]/10 text-[#f0c040] hover:bg-[#f0c040]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f0c040]"
             >
               {collapsed ? (
                 <ChevronRight className="h-4 w-4" />
@@ -615,7 +615,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
               </div>
             </div>
           ) : (
-            <div className="bg-slate-800/40 rounded-xl p-3 ring-1 ring-slate-700/50">
+            <div className="bg-[#0f2a5e]/60 rounded-xl p-3 ring-1 ring-[#f0c040]/20">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-full ring-2 ring-offset-1 ring-offset-slate-800 flex items-center justify-center font-bold text-sm shrink-0 ${
                   user?.role === 'SUPER_ADMIN' ? 'bg-gradient-to-br from-red-500 to-orange-500 ring-red-500/40 text-white'
@@ -657,14 +657,14 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
                 data-active={isActive ? 'true' : 'false'}
                 className={`group relative flex w-full items-center rounded-2xl px-3 py-3 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${collapsed ? 'justify-center' : 'justify-start text-left'} ${
                   isActive
-                    ? 'bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-500/30'
-                    : 'hover:bg-slate-800/50 border border-transparent hover:border-slate-700/50'
+                    ? 'bg-gradient-to-r from-[#f0c040]/20 to-yellow-400/10 border border-[#f0c040]/40'
+                    : 'hover:bg-[#f0c040]/5 border border-transparent hover:border-[#f0c040]/20'
                 }`}
               >
                 <div className={`p-2 rounded-lg transition-colors ${
                   isActive
-                    ? 'bg-blue-500/20 text-blue-400'
-                    : 'bg-slate-700/50 text-slate-100 group-hover:text-slate-300'
+                    ? 'bg-[#f0c040]/20 text-[#f0c040]'
+                    : 'bg-white/5 text-slate-300 group-hover:text-[#f0c040]'
                 }`}>
                   <Icon className="h-4 w-4" />
                 </div>
@@ -672,7 +672,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
                 {!collapsed && (
                   <div className="flex-1 min-w-0">
                     <p className={`font-medium text-sm ${
-                      isActive ? 'text-white' : 'text-slate-300 group-hover:text-white'
+                      isActive ? 'text-[#f0c040] font-semibold' : 'text-slate-300 group-hover:text-[#f0c040]'
                     }`}>
                       {item.label}
                     </p>
@@ -683,7 +683,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
                 )}
 
                 {!collapsed && isActive && (
-                  <ChevronRight className="h-4 w-4 text-blue-400" />
+                  <ChevronRight className="h-4 w-4 text-[#f0c040]" />
                 )}
 
                 {isActive && (
@@ -695,7 +695,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
         </div>
 
         {/* Footer Actions */}
-        <div className="p-3 lg:p-4 border-t border-slate-800/50">
+        <div className="p-3 lg:p-4 border-t border-[#f0c040]/20">
           {collapsed ? (
             <div className="flex flex-col items-center gap-2">
               {user?.role !== 'TEACHER' && user?.role !== 'STUDENT' && <NotificationPanel />}
@@ -758,7 +758,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
-        <div className="bg-slate-900/30 backdrop-blur-xl border-b border-slate-800/50 p-3 sm:p-4">
+        <div className="bg-[#0a1f4e]/80 backdrop-blur-xl border-b border-[#f0c040]/20 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-4">
               <Button
@@ -787,7 +787,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
                 <input
                   type="text"
                   placeholder="Search..."
-                  className="pl-10 pr-4 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-white placeholder:text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 w-full sm:w-64"
+                  className="pl-10 pr-4 py-2 bg-[#0f2a5e]/60 border border-[#f0c040]/30 rounded-lg text-white placeholder:text-slate-400 focus:border-[#f0c040] focus:ring-1 focus:ring-[#f0c040]/30 w-full sm:w-64"
                 />
               </div>
 
