@@ -38,13 +38,15 @@ const timeAgo = (iso: string) => {
 };
 
 interface Props {
-  notifications?: Notification[]; // pass in if already fetched
-  autoFetch?: boolean;             // fetch internally if not passed
+  notifications?: Notification[];
+  autoFetch?: boolean;
 }
 
 const NotificationCarousel = ({ notifications: externalNotifs, autoFetch = false }: Props) => {
   const [notifications, setNotifications] = useState<Notification[]>(externalNotifs ?? []);
   const [current, setCurrent] = useState(0);
+  const [direction, setDirection] = useState<'left' | 'right'>('left');
+  const [animating, setAnimating] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchNotifications = useCallback(async () => {
@@ -65,23 +67,39 @@ const NotificationCarousel = ({ notifications: externalNotifs, autoFetch = false
     if (externalNotifs) setNotifications(externalNotifs);
   }, [externalNotifs]);
 
-  // Auto-advance every 4 seconds
-  useEffect(() => {
-    if (notifications.length <= 1) return;
+  const startTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
-      setCurrent(c => (c + 1) % notifications.length);
+      setDirection('left');
+      setAnimating(true);
+      setTimeout(() => {
+        setCurrent(c => (c + 1) % notifications.length);
+        setAnimating(false);
+      }, 300);
     }, 4000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [notifications.length]);
 
-  const prev = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    setCurrent(c => (c - 1 + notifications.length) % notifications.length);
-  };
+  useEffect(() => {
+    if (notifications.length <= 1) return;
+    startTimer();
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [notifications.length, startTimer]);
 
-  const next = () => {
+  const go = (dir: 'prev' | 'next') => {
+    if (animating || notifications.length <= 1) return;
     if (timerRef.current) clearInterval(timerRef.current);
-    setCurrent(c => (c + 1) % notifications.length);
+    const d = dir === 'next' ? 'left' : 'right';
+    setDirection(d);
+    setAnimating(true);
+    setTimeout(() => {
+      setCurrent(c =>
+        dir === 'next'
+          ? (c + 1) % notifications.length
+          : (c - 1 + notifications.length) % notifications.length
+      );
+      setAnimating(false);
+      startTimer();
+    }, 300);
   };
 
   const unread = notifications.filter(n => !n.read).length;
@@ -106,27 +124,44 @@ const NotificationCarousel = ({ notifications: externalNotifs, autoFetch = false
       {/* Type icon */}
       <div className="shrink-0">{TYPE_ICON[n.type] ?? TYPE_ICON.general}</div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <p className={`text-xs font-semibold truncate ${!n.read ? 'text-foreground' : 'text-foreground/70'}`}>
-          {n.title}
-        </p>
-        <p className="text-[10px] text-muted-foreground truncate">{n.message}</p>
+      {/* Sliding content */}
+      <div className="flex-1 min-w-0 overflow-hidden">
+        <div
+          key={n.id}
+          style={{
+            animation: animating
+              ? `slide-${direction}-out 0.3s ease forwards`
+              : `slide-${direction}-in 0.3s ease forwards`,
+          }}
+        >
+          <p className={`text-xs font-semibold truncate ${!n.read ? 'text-foreground' : 'text-foreground/70'}`}>
+            {n.title}
+          </p>
+          {/* Scrolling marquee for message */}
+          <div className="overflow-hidden relative">
+            <p
+              className="text-[10px] text-muted-foreground whitespace-nowrap"
+              style={{ animation: `marquee ${Math.max(8, n.message.length * 0.12)}s linear infinite` }}
+            >
+              {n.message}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{n.message}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Time */}
       <span className="text-[10px] text-muted-foreground shrink-0 hidden sm:block">{timeAgo(n.created_at)}</span>
 
-      {/* Nav arrows — only if more than 1 */}
+      {/* Nav arrows */}
       {notifications.length > 1 && (
         <div className="flex items-center gap-0.5 shrink-0">
-          <button onClick={prev} className="p-0.5 rounded hover:bg-black/10 transition-colors">
+          <button onClick={() => go('prev')} className="p-0.5 rounded hover:bg-black/10 transition-colors">
             <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground" />
           </button>
           <span className="text-[10px] text-muted-foreground w-8 text-center">
             {current + 1}/{notifications.length}
           </span>
-          <button onClick={next} className="p-0.5 rounded hover:bg-black/10 transition-colors">
+          <button onClick={() => go('next')} className="p-0.5 rounded hover:bg-black/10 transition-colors">
             <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
           </button>
         </div>
@@ -136,6 +171,29 @@ const NotificationCarousel = ({ notifications: externalNotifs, autoFetch = false
       {!n.read && (
         <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" />
       )}
+
+      <style>{`
+        @keyframes marquee {
+          0%   { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        @keyframes slide-left-in {
+          from { transform: translateX(40px); opacity: 0; }
+          to   { transform: translateX(0);   opacity: 1; }
+        }
+        @keyframes slide-left-out {
+          from { transform: translateX(0);    opacity: 1; }
+          to   { transform: translateX(-40px); opacity: 0; }
+        }
+        @keyframes slide-right-in {
+          from { transform: translateX(-40px); opacity: 0; }
+          to   { transform: translateX(0);     opacity: 1; }
+        }
+        @keyframes slide-right-out {
+          from { transform: translateX(0);   opacity: 1; }
+          to   { transform: translateX(40px); opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 };
