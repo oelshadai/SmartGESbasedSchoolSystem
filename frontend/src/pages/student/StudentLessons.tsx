@@ -17,6 +17,7 @@ import {
   Download,
   Play,
 } from 'lucide-react';
+import ResourcePreview from '@/components/ResourcePreview';
 
 type ResourceType = 'video' | 'audio' | 'image' | 'document' | 'file';
 
@@ -165,20 +166,11 @@ const StudentLessons = () => {
     }
   };
 
-  const handlePreviewResource = (resource: LessonResource) => {
-    setPreviewResource(resource);
-  };
-
-  const handleClosePreview = () => {
-    setPreviewResource(null);
-  };
-
   const handleDownload = async (resourceId: number, filename: string) => {
     try {
       const response = await (secureApiClient as any).client.get(`/timetable/resource/${resourceId}/download/`, {
         responseType: 'blob',
       });
-      
       const url = window.URL.createObjectURL(response.data);
       const link = document.createElement('a');
       link.href = url;
@@ -187,8 +179,7 @@ const StudentLessons = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Download failed:', error);
+    } catch {
       toast.error('Failed to download file');
     }
   };
@@ -256,15 +247,12 @@ const StudentLessons = () => {
               <p className="text-base font-semibold text-foreground">{totalSlots}</p>
             </div>
           </div>
+
           {classResources.length > 0 && (
             <div className="rounded-3xl border border-border bg-card p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-foreground">Class resources</p>
-                  <p className="text-sm text-muted-foreground">Files shared with the whole class.</p>
-                </div>
-              </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <p className="text-sm font-semibold text-foreground">Class resources</p>
+              <p className="text-sm text-muted-foreground mb-4">Files shared with the whole class.</p>
+              <div className="grid gap-3 sm:grid-cols-2">
                 {classResources.map((resource) => (
                   <div key={resource.id} className="rounded-2xl border border-border p-4 hover:bg-slate-800">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -275,19 +263,11 @@ const StudentLessons = () => {
                         ) : null}
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        {(resource.resource_type === 'video' || resource.resource_type === 'audio' || resource.resource_type === 'image') && (
-                          <Button size="sm" variant="outline" className="gap-2" onClick={() => handlePreviewResource(resource)}>
-                            <Play className="h-4 w-4" /> Preview
-                          </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="gap-2"
-                          onClick={() => handleDownload(resource.id, resource.original_filename)}
-                        >
-                          <Download className="h-4 w-4" />
-                          <span>Download</span>
+                        <Button size="sm" variant="outline" className="gap-2" onClick={() => setPreviewResource(resource)}>
+                          <Play className="h-4 w-4" /> Preview
+                        </Button>
+                        <Button size="sm" variant="outline" className="gap-2" onClick={() => handleDownload(resource.id, resource.original_filename)}>
+                          <Download className="h-4 w-4" /> Download
                         </Button>
                       </div>
                     </div>
@@ -299,43 +279,13 @@ const StudentLessons = () => {
         </>
       )}
 
-      {previewResource ? (
-        <div className="rounded-3xl border border-border bg-card p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-lg font-semibold text-foreground">Preview: {previewResource.title || previewResource.original_filename}</p>
-              {previewResource.description ? (
-                <p className="text-sm text-muted-foreground">{previewResource.description}</p>
-              ) : null}
-            </div>
-            <Button variant="ghost" size="sm" onClick={handleClosePreview}>
-              Close
-            </Button>
-          </div>
-          <div className="mt-4 overflow-hidden rounded-3xl border border-border bg-black p-4">
-            {previewResource.resource_type === 'video' ? (
-              <video controls className="h-[420px] w-full bg-black">
-                <source src={previewResource.url} type={previewResource.content_type} />
-                Your browser does not support the video tag.
-              </video>
-            ) : previewResource.resource_type === 'audio' ? (
-              <audio controls className="w-full">
-                <source src={previewResource.url} type={previewResource.content_type} />
-                Your browser does not support the audio element.
-              </audio>
-            ) : previewResource.resource_type === 'image' ? (
-              <img src={previewResource.url} alt={previewResource.title || previewResource.original_filename} className="h-[420px] w-full object-contain" />
-            ) : (
-              <div className="rounded-2xl border border-border bg-slate-950 p-4 text-sm text-muted-foreground">
-                <p>Preview not available for this file type.</p>
-                <a href={previewResource.url} target="_blank" rel="noreferrer" className="text-primary underline">
-                  Open file in a new tab
-                </a>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : null}
+      {previewResource && (
+        <ResourcePreview
+          resource={previewResource}
+          onClose={() => setPreviewResource(null)}
+          onDownload={handleDownload}
+        />
+      )}
 
       <div className="flex rounded-2xl bg-muted p-1 text-sm">
         {(['timetable', 'subjects', 'join'] as const).map((value) => (
@@ -357,9 +307,7 @@ const StudentLessons = () => {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-semibold text-foreground">Live lesson session</p>
-                <p className="text-sm text-muted-foreground">
-                  Select a lesson below and join the live Jitsi room.
-                </p>
+                <p className="text-sm text-muted-foreground">Select a lesson below and join the live Jitsi room.</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" className="gap-2" disabled={!activeMeetingSlot} onClick={handleOpenExternalMeeting}>
@@ -406,7 +354,6 @@ const StudentLessons = () => {
                   </Button>
                 </div>
               </div>
-
               <div className="overflow-hidden rounded-3xl border border-border bg-black">
                 <iframe
                   title="Live Lesson Meeting"
@@ -486,19 +433,11 @@ const StudentLessons = () => {
                                             )}
                                           </div>
                                           <div className="flex flex-wrap items-center gap-2">
-                                            {(resource.resource_type === 'video' || resource.resource_type === 'audio' || resource.resource_type === 'image') && (
-                                              <Button size="sm" variant="outline" className="gap-2" onClick={() => handlePreviewResource(resource)}>
-                                                <Play className="h-4 w-4" /> Preview
-                                              </Button>
-                                            )}
-                                            <Button
-                                              size="sm"
-                                              variant="outline"
-                                              className="gap-2"
-                                              onClick={() => handleDownload(resource.id, resource.original_filename)}
-                                            >
-                                              <Download className="h-4 w-4" />
-                                              <span>Download</span>
+                                            <Button size="sm" variant="outline" className="gap-2" onClick={() => setPreviewResource(resource)}>
+                                              <Play className="h-4 w-4" /> Preview
+                                            </Button>
+                                            <Button size="sm" variant="outline" className="gap-2" onClick={() => handleDownload(resource.id, resource.original_filename)}>
+                                              <Download className="h-4 w-4" /> Download
                                             </Button>
                                           </div>
                                         </div>

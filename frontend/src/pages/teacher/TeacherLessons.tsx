@@ -18,6 +18,7 @@ import {
   ChevronUp,
   Trash2,
 } from 'lucide-react';
+import ResourcePreview from '@/components/ResourcePreview';
 
 interface Slot {
   id: number;
@@ -88,13 +89,8 @@ const TeacherLessons = () => {
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadDescription, setUploadDescription] = useState('');
 
-  const handlePreviewResource = (resource: LessonResource) => {
-    setPreviewResource(resource);
-  };
-
-  const handleClosePreview = () => {
-    setPreviewResource(null);
-  };
+  const handlePreviewResource = (resource: LessonResource) => setPreviewResource(resource);
+  const handleClosePreview = () => setPreviewResource(null);
 
   const fetchClasses = async () => {
     setLoading(true);
@@ -379,8 +375,6 @@ const TeacherLessons = () => {
                     >
                       Preview
                     </Button>
-                    <input
-                      id={`resource-replace-${resource.id}`}
                       type="file"
                       className="hidden"
                       onChange={(e) => {
@@ -406,41 +400,7 @@ const TeacherLessons = () => {
       )}
 
       {previewResource ? (
-        <div className="rounded-3xl border border-border bg-card p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-lg font-semibold text-foreground">Preview: {previewResource.title || previewResource.original_filename}</p>
-              {previewResource.description ? (
-                <p className="text-sm text-muted-foreground">{previewResource.description}</p>
-              ) : null}
-            </div>
-            <Button variant="ghost" size="sm" onClick={handleClosePreview}>
-              Close
-            </Button>
-          </div>
-          <div className="mt-4 overflow-hidden rounded-3xl border border-border bg-black p-4">
-            {previewResource.resource_type === 'video' ? (
-              <video controls className="h-[420px] w-full bg-black">
-                <source src={previewResource.url} type={previewResource.content_type} />
-                Your browser does not support the video tag.
-              </video>
-            ) : previewResource.resource_type === 'audio' ? (
-              <audio controls className="w-full">
-                <source src={previewResource.url} type={previewResource.content_type} />
-                Your browser does not support the audio element.
-              </audio>
-            ) : previewResource.resource_type === 'image' ? (
-              <img src={previewResource.url} alt={previewResource.title || previewResource.original_filename} className="h-[420px] w-full object-contain" />
-            ) : (
-              <div className="rounded-2xl border border-border bg-slate-950 p-4 text-sm text-muted-foreground">
-                <p>Preview not available for this file type.</p>
-                <a href={previewResource.url} target="_blank" rel="noreferrer" className="text-primary underline">
-                  Open file in a new tab
-                </a>
-              </div>
-            )}
-          </div>
-        </div>
+        <ResourcePreview resource={previewResource} onClose={handleClosePreview} />
       ) : null}
 
       <Dialog open={uploadDialogOpen} onOpenChange={(open) => !open && closeUploadDialog()}>
