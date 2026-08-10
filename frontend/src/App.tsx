@@ -88,6 +88,7 @@ const ClassReports               = lazy(() => import("./pages/teacher/ClassRepor
 const TeacherProfile             = lazy(() => import("./pages/teacher/TeacherProfile"));
 const TimetableManagement        = lazy(() => import("./pages/teacher/TimetableManagement"));
 const HelpSupport                = lazy(() => import("./pages/teacher/HelpSupport"));
+const TeacherAITools             = lazy(() => import("./pages/teacher/TeacherAITools"));
 
 // Student
 const StudentAssignments         = lazy(() => import("./pages/student/StudentAssignments"));
@@ -254,7 +255,7 @@ const App = () => {
             <Route path="/teacher/profile" element={<TeacherProfile />} />
             <Route path="/teacher/timetable" element={<TimetableManagement />} />
             <Route path="/teacher/help" element={<HelpSupport />} />
-            <Route path="/teacher/ai" element={<AIDashboard />} />
+            <Route path="/teacher/ai" element={<TeacherAITools />} />
           </Route>
 
           {/* Student */}
