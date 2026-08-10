@@ -26,7 +26,7 @@ h1, h2, h3, h4, h5, h6,
 :not(.dark) h4, :not(.dark) h5, :not(.dark) h6,
 :not(.dark) .card-title, :not(.dark) .page-title,
 :not(.dark) .section-title {
-  color: #0f2a5e !important;
+  color: #e5b92f !important;
 }
 
 /* ── ALL labels → bold white in dark, navy in light ── */
@@ -78,12 +78,12 @@ label,
 /* light mode body text → navy (only semantic/utility classes, not bare span/div/li) */
 :not(.dark) .text-foreground,
 :not(.dark) .text-card-foreground {
-  color: #0f2a5e !important;
+  color: #e5b92f !important;
   font-weight: 600 !important;
 }
 
 :not(.dark) .text-muted-foreground {
-  color: #3a5a8a !important;
+  color: #ffffff !important;
   font-weight: 600 !important;
 }
 
@@ -143,7 +143,7 @@ textarea::placeholder {
 
 /* ── text-white utility ── */
 .dark .text-white { color: #ffffff !important; }
-:not(.dark) .text-white { color: #0f2a5e !important; }
+:not(.dark) .text-white { color: #ffffff !important; }
 
 /* ── Slate utility overrides for dark mode ── */
 .dark .text-slate-100,
