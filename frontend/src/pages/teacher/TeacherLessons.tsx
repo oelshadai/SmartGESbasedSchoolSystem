@@ -362,28 +362,24 @@ const TeacherLessons = () => {
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {classResources.map((resource) => (
               <div key={resource.id} className="rounded-2xl border border-border p-4 hover:bg-slate-800">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
                     <p className="font-semibold text-foreground truncate">{resource.title || resource.original_filename}</p>
                     {resource.description ? (
                       <p className="text-sm text-muted-foreground truncate">{resource.description}</p>
                     ) : null}
+                    <span className="mt-1 inline-block text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                      {({
+                        video: 'Video',
+                        audio: 'Audio',
+                        image: 'Image',
+                        document: 'Document',
+                        file: 'File',
+                      } as Record<ResourceType, string>)[resource.resource_type]}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-        {({
-          video: 'Video',
-          audio: 'Audio',
-          image: 'Image',
-          document: 'Document',
-          file: 'File',
-        } as Record<ResourceType, string>)[resource.resource_type]}
-      </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handlePreviewResource(resource)}
-                    >
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => handlePreviewResource(resource)}>
                       Preview
                     </Button>
                     <input
