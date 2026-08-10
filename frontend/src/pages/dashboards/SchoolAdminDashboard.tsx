@@ -299,24 +299,24 @@ const SchoolAdminDashboard = () => {
   }
 
   const stats = [
-    { label: 'Students', value: data.school_stats.total_students.toString(), icon: <GraduationCap className="h-5 w-5" />, color: 'text-blue-600' },
-    { label: 'Teachers', value: data.school_stats.total_teachers.toString(), icon: <Users className="h-5 w-5" />, color: 'text-purple-600' },
-    { label: 'Staff', value: data.school_stats.total_staff.toString(), icon: <Users className="h-5 w-5" />, color: 'text-indigo-600' },
-    { label: 'Classes', value: data.school_stats.total_classes.toString(), icon: <BookOpen className="h-5 w-5" />, color: 'text-green-600' },
+    { label: 'Students',    value: data.school_stats.total_students.toString(),  icon: <GraduationCap className="h-5 w-5" />, color: 'text-blue-600',   sub: 'enrolled' },
+    { label: 'Teachers',   value: data.school_stats.total_teachers.toString(),  icon: <Users className="h-5 w-5" />,         color: 'text-secondary', sub: 'on staff' },
+    { label: 'Classes',    value: data.school_stats.total_classes.toString(),   icon: <BookOpen className="h-5 w-5" />,      color: 'text-success',   sub: 'active' },
+    { label: 'Assignments',value: data.school_stats.total_assignments.toString(),icon: <FileText className="h-5 w-5" />,     color: 'text-accent',    sub: 'total' },
   ];
 
   const financialStats = [
-    { label: 'Total Income', value: `GH₵${data.financial_stats.total_income.toLocaleString()}`, icon: <TrendingUp className="h-5 w-5" />, color: 'text-green-600' },
-    { label: 'Total Expenses', value: `GH₵${data.financial_stats.total_expenses.toLocaleString()}`, icon: <TrendingUp className="h-5 w-5" />, color: 'text-red-600' },
-    { label: 'Net Balance', value: `GH₵${data.financial_stats.net_balance.toLocaleString()}`, icon: <Wallet className="h-5 w-5" />, color: data.financial_stats.net_balance >= 0 ? 'text-green-600' : 'text-red-600' },
-    { label: 'Pending Expenses', value: data.financial_stats.pending_expenses.toString(), icon: <AlertTriangle className="h-5 w-5" />, color: 'text-orange-600' },
+    { label: 'Total Income',      value: `GH₵${data.financial_stats.total_income.toLocaleString()}`,    icon: <TrendingUp className="h-5 w-5" />,    color: 'text-success' },
+    { label: 'Total Expenses',    value: `GH₵${data.financial_stats.total_expenses.toLocaleString()}`,  icon: <TrendingUp className="h-5 w-5" />,    color: 'text-red-600' },
+    { label: 'Net Balance',       value: `GH₵${data.financial_stats.net_balance.toLocaleString()}`,     icon: <Wallet className="h-5 w-5" />,        color: data.financial_stats.net_balance >= 0 ? 'text-success' : 'text-red-600' },
+    { label: 'Pending Expenses',  value: data.financial_stats.pending_expenses.toString(),              icon: <AlertTriangle className="h-5 w-5" />, color: 'text-orange-600' },
   ];
 
   const attendanceStats = [
-    { label: 'Present Today', value: data.attendance_stats.total_present_today.toString(), icon: <UserCheck className="h-5 w-5" />, color: 'text-green-600' },
-    { label: 'Absent Today', value: data.attendance_stats.total_absent_today.toString(), icon: <UserX className="h-5 w-5" />, color: 'text-red-600' },
-    { label: 'Attendance Rate', value: `${data.attendance_stats.attendance_rate}%`, icon: <TrendingUp className="h-5 w-5" />, color: 'text-blue-600' },
-    { label: 'Low Attendance Classes', value: data.attendance_stats.classes_with_low_attendance.toString(), icon: <AlertTriangle className="h-5 w-5" />, color: 'text-orange-600' }
+    { label: 'Present Today',         value: data.attendance_stats.total_present_today.toString(),        icon: <UserCheck className="h-5 w-5" />,     color: 'text-success' },
+    { label: 'Absent Today',          value: data.attendance_stats.total_absent_today.toString(),         icon: <UserX className="h-5 w-5" />,         color: 'text-red-600' },
+    { label: 'Attendance Rate',       value: `${data.attendance_stats.attendance_rate}%`,                 icon: <TrendingUp className="h-5 w-5" />,    color: 'text-info' },
+    { label: 'Low Attendance Classes',value: data.attendance_stats.classes_with_low_attendance.toString(),icon: <AlertTriangle className="h-5 w-5" />, color: 'text-orange-600' },
   ];
 
   return (
@@ -332,23 +332,23 @@ const SchoolAdminDashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         {stats.map((s) => <StatCard key={s.label} {...s} />)}
       </div>
 
       <div>
-        <h2 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4">Financial Overview</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <p className="text-xs font-semibold text-foreground/60 uppercase tracking-wide mb-2">Financial Overview</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           {financialStats.map((s) => <StatCard key={s.label} {...s} />)}
         </div>
       </div>
 
       {smsCredits !== null && (
         <div>
-          <h2 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4">Additional Metrics</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="SMS Credits" value={smsCredits.balance.toString()} icon={<MessageSquare className="h-5 w-5" />} color={smsCredits.balance < 20 ? 'text-red-600' : 'text-emerald-600'} />
-            <StatCard label="Fees Collected" value={`GH₵${data.fee_stats.total_fees_collected.toLocaleString()}`} icon={<DollarSign className="h-5 w-5" />} color="text-green-600" />
+          <p className="text-xs font-semibold text-foreground/60 uppercase tracking-wide mb-2">Additional Metrics</p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+            <StatCard label="SMS Credits" value={smsCredits.balance.toString()} icon={<MessageSquare className="h-5 w-5" />} color={smsCredits.balance < 20 ? 'text-red-600' : 'text-success'} />
+            <StatCard label="Fees Collected" value={`GH₵${data.fee_stats.total_fees_collected.toLocaleString()}`} icon={<DollarSign className="h-5 w-5" />} color="text-success" />
             <StatCard label="Fees Pending" value={`GH₵${data.fee_stats.total_fees_pending.toLocaleString()}`} icon={<AlertTriangle className="h-5 w-5" />} color="text-orange-600" />
             <StatCard label="Pending Payroll" value={`GH₵${data.payroll_stats.pending_payroll.toLocaleString()}`} icon={<Wallet className="h-5 w-5" />} color="text-orange-600" />
           </div>
@@ -356,8 +356,8 @@ const SchoolAdminDashboard = () => {
       )}
 
       <div>
-        <h2 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4">Attendance Overview</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <p className="text-xs font-semibold text-foreground/60 uppercase tracking-wide mb-2">Attendance Overview</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           {attendanceStats.map((s) => <StatCard key={s.label} {...s} />)}
         </div>
       </div>
@@ -481,22 +481,19 @@ const SchoolAdminDashboard = () => {
               <div className="space-y-4">
                 {data.class_stats.length > 0 ? (
                   data.class_stats.map((classItem) => (
-                    <div key={classItem.id} className="border rounded-lg p-4">
+                    <div key={classItem.id} className="border border-[#f0c040]/15 rounded-lg p-4 bg-[#f0c040]/5">
                       <div className="flex items-center justify-between mb-2">
                         <div>
-                          <h4 className="font-medium text-foreground">{classItem.name}</h4>
-                          <p className="text-sm text-muted-foreground">{classItem.class_teacher}</p>
+                          <h4 className="font-bold text-[#f0c040]">{classItem.name}</h4>
+                          <p className="text-sm font-bold text-white">{classItem.class_teacher}</p>
                         </div>
                         <Badge variant={classItem.attendance_rate >= 80 ? "default" : "destructive"}>
                           {classItem.attendance_rate}% attendance
                         </Badge>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">{classItem.student_count} students</span>
-                        <Progress 
-                          value={classItem.attendance_rate} 
-                          className="w-20 h-2" 
-                        />
+                        <span className="font-bold text-white">{classItem.student_count} students</span>
+                        <Progress value={classItem.attendance_rate} className="w-20 h-2" />
                       </div>
                     </div>
                   ))
@@ -508,25 +505,23 @@ const SchoolAdminDashboard = () => {
           </CardContent>
         </Card>
 
-        <div className="relative group rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 shadow-lg overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-orange-500 to-amber-400 opacity-60 group-hover:opacity-100 transition-opacity" />
-          <h3 className="font-semibold text-foreground mb-4">Admin Profile</h3>
+        <div className="relative group rounded-2xl border border-[#f0c040]/20 bg-[#f0c040]/5 p-4 shadow-lg overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#f0c040] to-yellow-300 opacity-60 group-hover:opacity-100 transition-opacity" />
+          <h3 className="font-bold text-[#f0c040] mb-4">Admin Profile</h3>
           <div className="space-y-2 text-sm">
-            <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2">
-              <span className="text-muted-foreground shrink-0">Name:</span>
-              <span className="text-foreground truncate">{data.admin.name}</span>
-            </div>
-            <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-border pt-2">
-              <span className="text-muted-foreground shrink-0">Email:</span>
-              <span className="text-foreground truncate">{data.admin.email}</span>
-            </div>
-            <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-border pt-2">
-              <span className="text-muted-foreground shrink-0">School:</span>
-              <span className="text-foreground truncate">{data.admin.school}</span>
-            </div>
-            <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-border pt-2">
-              <span className="text-muted-foreground shrink-0">Role:</span>
-              <Badge variant="outline">{data.admin.role}</Badge>
+            {[
+              { label: 'Name',   value: data.admin.name },
+              { label: 'Email',  value: data.admin.email },
+              { label: 'School', value: data.admin.school },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-[#f0c040]/10 pt-2 first:border-0 first:pt-0">
+                <span className="font-bold text-[#f0c040] shrink-0">{label}:</span>
+                <span className="font-bold text-white truncate">{value}</span>
+              </div>
+            ))}
+            <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-[#f0c040]/10 pt-2">
+              <span className="font-bold text-[#f0c040] shrink-0">Role:</span>
+              <Badge variant="outline" className="border-[#f0c040]/40 text-[#f0c040] font-bold w-fit">{data.admin.role}</Badge>
             </div>
           </div>
         </div>

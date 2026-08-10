@@ -271,21 +271,21 @@ const TeacherDashboard = () => {
             </div>
           </div>
 
-          <div className="rounded-xl border bg-card shadow-sm p-4 sm:p-6">
-            <h3 className="font-semibold text-foreground mb-4">Teacher Profile</h3>
+          <div className="rounded-xl border border-[#f0c040]/20 bg-[#f0c040]/5 shadow-sm p-4 sm:p-6">
+            <h3 className="font-bold text-[#f0c040] mb-4">Teacher Profile</h3>
             <div className="space-y-2 text-sm">
               {[
-                { label: 'Name', value: safeData.teacher.name },
-                { label: 'Email', value: safeData.teacher.email },
-                { label: 'Employee ID', value: safeData.teacher.employee_id },
-                { label: 'School', value: safeData.teacher.school },
-                { label: 'Qualification', value: safeData.teacher.qualification || 'N/A' },
-                { label: 'Experience', value: `${safeData.teacher.experience_years} years` },
-                { label: 'Hire Date', value: safeData.teacher.hire_date ? new Date(safeData.teacher.hire_date).toLocaleDateString() : 'N/A' },
+                { label: 'Name',         value: safeData.teacher.name },
+                { label: 'Email',        value: safeData.teacher.email },
+                { label: 'Employee ID',  value: safeData.teacher.employee_id },
+                { label: 'School',       value: safeData.teacher.school },
+                { label: 'Qualification',value: safeData.teacher.qualification || 'N/A' },
+                { label: 'Experience',   value: `${safeData.teacher.experience_years} years` },
+                { label: 'Hire Date',    value: safeData.teacher.hire_date ? new Date(safeData.teacher.hire_date).toLocaleDateString() : 'N/A' },
               ].map(({ label, value }) => (
-                <div key={label} className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-border pt-2 first:border-0 first:pt-0">
-                  <span className="text-foreground/60">{label}:</span>
-                  <span className="text-foreground font-medium sm:font-normal truncate">{value}</span>
+                <div key={label} className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 border-t border-[#f0c040]/10 pt-2 first:border-0 first:pt-0">
+                  <span className="font-bold text-[#f0c040] shrink-0">{label}:</span>
+                  <span className="font-bold text-white truncate">{value}</span>
                 </div>
               ))}
             </div>
