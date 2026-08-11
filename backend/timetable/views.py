@@ -302,8 +302,13 @@ class TeacherTimetableViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['post'], url_path='upload_to_class')
     def upload_to_class(self, request):
         """POST /api/timetable/teacher/upload_to_class/ — upload a resource directly to a class (no slot)"""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[UPLOAD] upload_to_class called by {request.user}. data keys: {list(request.data.keys())}. files: {list(request.FILES.keys())}")
+
         class_id = request.data.get('class_id')
         if not class_id:
+            logger.warning(f"[UPLOAD] Missing class_id. data={dict(request.data)}")
             return Response({'error': 'class_id is required'}, status=400)
 
         try:
@@ -475,43 +480,35 @@ class LessonResourceViewSet(viewsets.ViewSet):
 
     @action(detail=True, methods=['get'])
     def download(self, request, pk=None):
-        import os
         import logging
+        from django.shortcuts import redirect
         logger = logging.getLogger(__name__)
-        
+
         try:
             resource = LessonResource.objects.select_related('class_instance', 'slot__class_instance').get(pk=pk)
-            logger.info(f"[DOWNLOAD] Found resource {pk}: {resource.original_filename}")
         except LessonResource.DoesNotExist:
-            logger.error(f"[DOWNLOAD] Resource {pk} not found")
             return Response({'error': 'Resource not found'}, status=404)
 
-        # Check permissions
         if not _user_can_manage_resource(request.user, resource):
             if not _student_has_access(request.user, resource):
-                logger.warning(f"[DOWNLOAD] Permission denied for user {request.user.id} accessing resource {pk}")
                 return Response({'error': 'Permission denied'}, status=403)
 
         if not resource.file:
-            logger.error(f"[DOWNLOAD] No file attached to resource {pk}")
             return Response({'error': 'File not found'}, status=404)
 
         try:
-            file_path = resource.file.path if hasattr(resource.file, 'path') else None
-            logger.info(f"[DOWNLOAD] File path: {file_path}, File name in storage: {resource.file.name}")
-            
-            # Try to read file content
+            # For cloud storage (Cloudinary etc.) redirect to the file URL directly
+            url = getattr(resource.file, 'url', None)
+            if url:
+                return redirect(url)
+            # Fallback: stream file content (local storage)
             file_content = resource.file.read()
-            logger.info(f"[DOWNLOAD] Successfully read file, size: {len(file_content)} bytes")
-            
-            # Create HTTP response with file content
             response = HttpResponse(
                 file_content,
                 content_type=resource.content_type or 'application/octet-stream'
             )
             filename = resource.original_filename.replace('"', '')
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
-            logger.info(f"[DOWNLOAD] Sending file as download: {filename}")
             return response
         except Exception as e:
             logger.exception(f"[DOWNLOAD] Error downloading resource {pk}: {str(e)}")

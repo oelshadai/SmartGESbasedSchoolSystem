@@ -101,3 +101,4 @@ whitenoise==6.12.0
 xlsxwriter==3.2.9
 yarl==1.24.2
 zopfli==0.4.3
+gevent>=23.9.1
