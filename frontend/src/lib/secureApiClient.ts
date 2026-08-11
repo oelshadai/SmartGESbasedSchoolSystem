@@ -128,12 +128,15 @@ class SecureApiClient {
 
         // Handle 401 Unauthorized - try token refresh first, then logout
         // Skip refresh only for login/token endpoints (not protected /auth/* routes)
+        // Also skip if the body is FormData — FormData cannot be replayed after being consumed;
+        // a 401 on a FormData upload means the token was genuinely missing/expired before
+        // the upload started, so redirect to login immediately.
         const isAuthEndpoint = isPublicAuthPath(originalRequest?.url);
-        if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+        const isFormData = originalRequest?.data instanceof FormData;
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint && !isFormData) {
           originalRequest._retry = true;
           try {
             await this.refreshAuthToken();
-            // Update the Authorization header with the new token
             const newToken = this.getStoredToken();
             if (newToken) {
               originalRequest.headers.Authorization = `Bearer ${newToken}`;
@@ -143,6 +146,17 @@ class SecureApiClient {
             this.handleAuthFailure();
             return Promise.reject(new Error('Session expired. Please login again.'));
           }
+        }
+
+        // For FormData 401s: refresh token silently then reject so the caller can retry
+        if (error.response?.status === 401 && isFormData && !originalRequest._retry) {
+          originalRequest._retry = true;
+          try {
+            await this.refreshAuthToken();
+          } catch {
+            this.handleAuthFailure();
+          }
+          return Promise.reject(this.enhanceError(error));
         }
 
         // Handle rate limiting

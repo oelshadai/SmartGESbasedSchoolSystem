@@ -169,32 +169,62 @@ const TeacherLessons = () => {
   };
 
   const handleFileUpload = async (slot: Slot, file: File, title = '', description = '') => {
-    const formData = new FormData();
-    formData.append('file', file);
-    if (title) formData.append('title', title);
-    if (description) formData.append('description', description);
+    const buildForm = () => {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (title) formData.append('title', title);
+      if (description) formData.append('description', description);
+      return formData;
+    };
     try {
-      const res = await secureApiClient.post(`/timetable/teacher/${slot.id}/upload_resource/`, formData);
+      const res = await secureApiClient.post(`/timetable/teacher/${slot.id}/upload_resource/`, buildForm());
       toast.success('Resource uploaded');
       if (selectedClass) fetchTimetable(selectedClass, true);
       return res;
     } catch (err: any) {
+      // Token was stale — interceptor refreshed it, retry once with a fresh FormData
+      if (err?.response?.status === 401) {
+        try {
+          const res = await secureApiClient.post(`/timetable/teacher/${slot.id}/upload_resource/`, buildForm());
+          toast.success('Resource uploaded');
+          if (selectedClass) fetchTimetable(selectedClass, true);
+          return res;
+        } catch (retryErr: any) {
+          toast.error(retryErr?.message || 'Upload failed — please log in again');
+          throw retryErr;
+        }
+      }
       toast.error(err?.message || err?.response?.data?.error || 'Upload failed');
       throw err;
     }
   };
 
   const handleClassUpload = async (file: File) => {
-    const form = new FormData();
-    form.append('file', file);
-    form.append('class_id', String(selectedClass));
-    if (uploadTitle) form.append('title', uploadTitle);
-    if (uploadDescription) form.append('description', uploadDescription);
+    const buildForm = () => {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('class_id', String(selectedClass));
+      if (uploadTitle) form.append('title', uploadTitle);
+      if (uploadDescription) form.append('description', uploadDescription);
+      return form;
+    };
     try {
-      await secureApiClient.post('/timetable/teacher/upload_to_class/', form);
+      await secureApiClient.post('/timetable/teacher/upload_to_class/', buildForm());
       toast.success('Resource uploaded to class');
       if (selectedClass) fetchTimetable(selectedClass, true);
     } catch (err: any) {
+      // Token was stale — interceptor refreshed it, retry once with a fresh FormData
+      if (err?.response?.status === 401) {
+        try {
+          await secureApiClient.post('/timetable/teacher/upload_to_class/', buildForm());
+          toast.success('Resource uploaded to class');
+          if (selectedClass) fetchTimetable(selectedClass, true);
+          return;
+        } catch (retryErr: any) {
+          toast.error(retryErr?.message || 'Upload failed — please log in again');
+          throw retryErr;
+        }
+      }
       toast.error(err?.response?.data?.error || err?.message || 'Upload failed');
       throw err;
     }
