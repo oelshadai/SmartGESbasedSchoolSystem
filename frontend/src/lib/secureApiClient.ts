@@ -6,6 +6,7 @@ import { getApiBaseUrl } from '@/lib/apiBase';
 const SECURITY_CONFIG = {
   MAX_RETRIES: 2,
   REQUEST_TIMEOUT: 30000, // 30 seconds for login requests
+  FILE_UPLOAD_TIMEOUT: 300000, // 5 minutes for file uploads
   RATE_LIMIT_WINDOW: 60000,
   MAX_REQUESTS_PER_WINDOW: 100,
 };
@@ -106,8 +107,12 @@ class SecureApiClient {
         }
 
         // Ensure Content-Type is set for POST/PUT/PATCH
+        // For FormData, let axios set Content-Type automatically (includes multipart boundary)
         if (['post', 'put', 'patch'].includes(config.method?.toLowerCase() || '')) {
-          if (!config.headers['Content-Type']) {
+          if (config.data instanceof FormData) {
+            delete config.headers['Content-Type'];
+            config.timeout = SECURITY_CONFIG.FILE_UPLOAD_TIMEOUT;
+          } else if (!config.headers['Content-Type']) {
             config.headers['Content-Type'] = 'application/json';
           }
         }
@@ -124,8 +129,8 @@ class SecureApiClient {
         const originalRequest = error.config;
 
         // Handle 401 Unauthorized - try token refresh first, then logout
-        // Skip refresh logic for auth endpoints (login, token obtain/refresh)
-        const isAuthEndpoint = originalRequest?.url?.includes('/auth/');
+        // Skip refresh only for login/token endpoints (not protected /auth/* routes)
+        const isAuthEndpoint = isPublicAuthPath(originalRequest?.url);
         if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
           originalRequest._retry = true;
           try {

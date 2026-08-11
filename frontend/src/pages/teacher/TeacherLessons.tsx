@@ -172,9 +172,7 @@ const TeacherLessons = () => {
     if (title) formData.append('title', title);
     if (description) formData.append('description', description);
     try {
-      const res = await secureApiClient.post(`/timetable/teacher/${slot.id}/upload_resource/`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const res = await secureApiClient.post(`/timetable/teacher/${slot.id}/upload_resource/`, formData);
       toast.success('Resource uploaded');
       if (selectedClass) fetchTimetable(selectedClass, true);
       return res;
@@ -191,9 +189,7 @@ const TeacherLessons = () => {
     if (uploadTitle) form.append('title', uploadTitle);
     if (uploadDescription) form.append('description', uploadDescription);
     try {
-      await secureApiClient.post('/timetable/teacher/upload_to_class/', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      await secureApiClient.post('/timetable/teacher/upload_to_class/', form);
       toast.success('Resource uploaded to class');
       if (selectedClass) fetchTimetable(selectedClass, true);
     } catch (err: any) {
@@ -252,9 +248,7 @@ const TeacherLessons = () => {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      await secureApiClient.put(`/timetable/resource/${resource.id}/`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      await secureApiClient.put(`/timetable/resource/${resource.id}/`, formData);
       toast.success('Resource updated');
       if (selectedClass) fetchTimetable(selectedClass, true);
     } catch (err: any) {
