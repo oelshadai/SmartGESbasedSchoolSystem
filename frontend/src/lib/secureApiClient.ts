@@ -97,13 +97,11 @@ class SecureApiClient {
         // Add authentication token (skip on public auth paths to avoid stale-token 401s)
         const token = this.getStoredToken();
         if (!isPublicAuthPath(config.url)) {
-          if (!token) {
-            if (import.meta.env.DEV) {
-              console.warn('SecureApiClient: missing auth token for request', config.url);
-            }
-            throw new Error('Not authenticated. Please login before using the AI tutor.');
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
           }
-          config.headers.Authorization = `Bearer ${token}`;
+          // No token: let the request go — the 401 response interceptor will
+          // attempt a refresh. Only hard-fail if refresh also fails.
         }
 
         // Ensure Content-Type is set for POST/PUT/PATCH
