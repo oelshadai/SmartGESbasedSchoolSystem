@@ -10,7 +10,6 @@ import { toast } from 'sonner';
 import {
   CalendarDays,
   BookOpen,
-  Clock,
   Link2,
   Loader2,
   Save,
@@ -19,6 +18,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import ResourcePreview from '@/components/ResourcePreview';
+import VideoTrimmer from '@/components/VideoTrimmer';
 
 interface Slot {
   id: number;
@@ -88,6 +88,8 @@ const TeacherLessons = () => {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadDescription, setUploadDescription] = useState('');
+  const [trimmedBlob, setTrimmedBlob] = useState<{ blob: Blob; name: string } | null>(null);
+  const [showTrimmer, setShowTrimmer] = useState(false);
 
   const handlePreviewResource = (resource: LessonResource) => setPreviewResource(resource);
   const handleClosePreview = () => setPreviewResource(null);
@@ -213,6 +215,8 @@ const TeacherLessons = () => {
     setUploadFile(null);
     setUploadTitle('');
     setUploadDescription('');
+    setTrimmedBlob(null);
+    setShowTrimmer(false);
   };
 
   const handleUploadSubmit = async () => {
@@ -221,11 +225,16 @@ const TeacherLessons = () => {
       return;
     }
 
+    // Use trimmed blob if teacher trimmed the video, otherwise use original file
+    const fileToUpload = trimmedBlob
+      ? new File([trimmedBlob.blob], trimmedBlob.name, { type: trimmedBlob.blob.type })
+      : uploadFile;
+
     try {
       if (uploadDialogMode === 'class') {
-        await handleClassUpload(uploadFile);
+        await handleClassUpload(fileToUpload);
       } else if (uploadDialogMode === 'slot' && uploadDialogSlot) {
-        await handleFileUpload(uploadDialogSlot, uploadFile, uploadTitle, uploadDescription);
+        await handleFileUpload(uploadDialogSlot, fileToUpload, uploadTitle, uploadDescription);
       }
       closeUploadDialog();
     } catch {
@@ -433,14 +442,30 @@ const TeacherLessons = () => {
                 onChange={(event) => {
                   const file = event.currentTarget.files?.[0] ?? null;
                   setUploadFile(file);
+                  setTrimmedBlob(null);
+                  setShowTrimmer(file?.type.startsWith('video/') ?? false);
                 }}
               />
-              {uploadFile ? (
-                <p className="mt-2 text-sm text-muted-foreground">Selected: {uploadFile.name}</p>
-              ) : (
+              {uploadFile && !showTrimmer && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {trimmedBlob ? `Trimmed: ${trimmedBlob.name}` : `Selected: ${uploadFile.name}`}
+                </p>
+              )}
+              {!uploadFile && (
                 <p className="mt-2 text-sm text-muted-foreground">Choose the file you want to upload.</p>
               )}
             </div>
+
+            {showTrimmer && uploadFile && (
+              <VideoTrimmer
+                file={uploadFile}
+                onTrimmed={(blob, name) => {
+                  setTrimmedBlob({ blob, name });
+                  setShowTrimmer(false);
+                }}
+                onCancel={() => setShowTrimmer(false)}
+              />
+            )}
             <div>
               <Label htmlFor="upload-title" className="mb-2 block text-sm font-medium text-foreground">
                 Title
