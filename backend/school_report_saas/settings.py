@@ -14,7 +14,8 @@ load_dotenv(BASE_DIR / '.env')
 
 # Security
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-development-key-change-in-production')
-DEBUG = config('DEBUG', default=False, cast=bool)
+_debug_value = os.environ.get('DEBUG', config('DEBUG', default=False))
+DEBUG = str(_debug_value).strip().lower() in ('1', 'true', 'yes', 'on')
 ALLOWED_HOSTS = [h.strip() for h in config(
     'ALLOWED_HOSTS',
     default='localhost,127.0.0.1,*.railway.app,*.up.railway.app,refreshing-harmony-production-e9f5.up.railway.app,*.onrender.com,testserver'
@@ -198,7 +199,7 @@ else:
     CORS_ALLOW_ALL_ORIGINS = False
     CORS_ALLOWED_ORIGINS = [h.strip() for h in config(
         'CORS_ALLOWED_ORIGINS',
-        default=''  # Set this in Railway to your production frontend origin(s)
+        default='https://smartgessms.up.railway.app'
     ).split(',') if h.strip()]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -242,11 +243,13 @@ EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER or 'noreply@schoolreport.com')
 
-FRONTEND_URL = config('FRONTEND_URL', default='https://your-frontend.railway.app')
+FRONTEND_URL = config('FRONTEND_URL', default='https://smartgessms.up.railway.app')
 
 # Ensure production CORS allows the configured frontend URL
 if not DEBUG:
     _frontend_origins = [h.strip() for h in config('CORS_ALLOWED_ORIGINS', default='').split(',') if h.strip()]
+    if 'https://smartgessms.up.railway.app' not in _frontend_origins:
+        _frontend_origins.append('https://smartgessms.up.railway.app')
     if FRONTEND_URL and FRONTEND_URL not in _frontend_origins:
         _frontend_origins.append(FRONTEND_URL)
     CORS_ALLOWED_ORIGINS = _frontend_origins
@@ -262,6 +265,8 @@ if DEBUG:
     ]
 else:
     CSRF_TRUSTED_ORIGINS = [h.strip() for h in config('CSRF_TRUSTED_ORIGINS', default='').split(',') if h.strip()]
+    if 'https://smartgessms.up.railway.app' not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append('https://smartgessms.up.railway.app')
     if FRONTEND_URL and FRONTEND_URL not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(FRONTEND_URL)
 

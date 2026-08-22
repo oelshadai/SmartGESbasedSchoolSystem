@@ -21,6 +21,8 @@ interface Staff {
   hire_date: string;
   status?: string;
   is_active?: boolean;
+  salary?: number;
+  salary_id?: number;
   type: 'staff' | 'teacher';
 }
 
@@ -34,25 +36,35 @@ export default function StaffManagement() {
   const [formData, setFormData] = useState({
     staff_id: '', first_name: '', last_name: '', email: '',
     phone: '', position: '', department: '', hire_date: '', status: 'ACTIVE',
+    basic_salary: '', effective_date: new Date().toISOString().split('T')[0],
   });
   const [editId, setEditId] = useState<number | null>(null);
+  const [salaryRecords, setSalaryRecords] = useState<Record<number, { id: number; basic_salary: number; effective_date: string }>>({});
 
   useEffect(() => { fetchAllStaff(); }, []);
 
   const fetchAllStaff = async () => {
     setLoading(true);
     try {
-      const [staffResponse, teachersResponse] = await Promise.all([
+      const [staffResponse, teachersResponse, salariesResponse] = await Promise.all([
         secureApiClient.get<any>('/schools/financial/staff/').catch(() => ({ results: [] })),
         secureApiClient.get<any>('/teachers/').catch(() => ({ results: [] })),
+        secureApiClient.get<any>('/schools/financial/salaries/').catch(() => ({ results: [] })),
       ]);
       const staffData = Array.isArray(staffResponse) ? staffResponse : staffResponse?.results || [];
       const teachersData = Array.isArray(teachersResponse) ? teachersResponse : teachersResponse?.results || [];
+      const salariesData = Array.isArray(salariesResponse) ? salariesResponse : salariesResponse?.results || [];
+      const salaryMap = salariesData.reduce((result: Record<number, { id: number; basic_salary: number; effective_date: string }>, salary: any) => {
+        if (!result[salary.staff]) result[salary.staff] = { id: salary.id, basic_salary: Number(salary.basic_salary), effective_date: salary.effective_date };
+        return result;
+      }, {});
+      setSalaryRecords(salaryMap);
 
       const normalizedStaff = staffData.map((item: any) => ({
         id: item.id, staff_id: item.staff_id, first_name: item.first_name, last_name: item.last_name,
         email: item.email, phone: item.phone, position: item.position, department: item.department,
         hire_date: item.hire_date, status: item.status, type: 'staff' as const,
+        salary: salaryMap[item.id]?.basic_salary, salary_id: salaryMap[item.id]?.id,
       }));
       const normalizedTeachers = teachersData.map((item: any) => ({
         id: item.id, employee_id: item.employee_id, first_name: item.first_name, last_name: item.last_name,
@@ -72,11 +84,26 @@ export default function StaffManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const { basic_salary, effective_date, ...staffData } = formData;
       if (editId) {
-        await secureApiClient.put(`/schools/financial/staff/${editId}/`, formData);
+        await secureApiClient.put(`/schools/financial/staff/${editId}/`, staffData);
+        const salaryPayload = { staff: editId, basic_salary: basic_salary || '0', effective_date };
+        if (salaryRecords[editId]) {
+          await secureApiClient.put(`/schools/financial/salaries/${salaryRecords[editId].id}/`, salaryPayload);
+        } else {
+          await secureApiClient.post('/schools/financial/salaries/', salaryPayload);
+        }
         toast({ title: 'Success', description: 'Staff member updated successfully' });
       } else {
-        await secureApiClient.post('/schools/financial/staff/', formData);
+        const created = await secureApiClient.post<any>('/schools/financial/staff/', staffData);
+        const createdStaff = created?.data || created;
+        if (createdStaff?.id) {
+          await secureApiClient.post('/schools/financial/salaries/', {
+            staff: createdStaff.id,
+            basic_salary: basic_salary || '0',
+            effective_date,
+          });
+        }
         toast({ title: 'Success', description: 'Staff member added successfully' });
       }
       fetchAllStaff();
@@ -106,13 +133,14 @@ export default function StaffManagement() {
       staff_id: item.staff_id || '', first_name: item.first_name, last_name: item.last_name,
       email: item.email, phone: item.phone || '', position: item.position || '',
       department: item.department || '', hire_date: item.hire_date, status: item.status || 'ACTIVE',
+      basic_salary: item.salary?.toString() || '', effective_date: item.salary_id ? (salaryRecords[item.id]?.effective_date || new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
     });
     setEditId(item.id);
     setShowForm(true);
   };
 
   const resetForm = () => {
-    setFormData({ staff_id: '', first_name: '', last_name: '', email: '', phone: '', position: '', department: '', hire_date: '', status: 'ACTIVE' });
+    setFormData({ staff_id: '', first_name: '', last_name: '', email: '', phone: '', position: '', department: '', hire_date: '', status: 'ACTIVE', basic_salary: '', effective_date: new Date().toISOString().split('T')[0] });
     setEditId(null);
     setShowForm(false);
   };
@@ -166,8 +194,16 @@ export default function StaffManagement() {
               <Input placeholder="Position" value={formData.position} onChange={(e) => setFormData({ ...formData, position: e.target.value })} className="theme-input" required />
               <Input placeholder="Department" value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} className="theme-input" />
               <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Basic Salary (GH₵)</label>
+                <Input type="number" min="0" step="0.01" placeholder="Enter salary amount" value={formData.basic_salary} onChange={(e) => setFormData({ ...formData, basic_salary: e.target.value })} className="theme-input" required />
+              </div>
+              <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Hire Date</label>
                 <Input type="date" value={formData.hire_date} onChange={(e) => setFormData({ ...formData, hire_date: e.target.value })} className="theme-input" required />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Salary Effective Date</label>
+                <Input type="date" value={formData.effective_date} onChange={(e) => setFormData({ ...formData, effective_date: e.target.value })} className="theme-input" required />
               </div>
               <select
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 theme-input"
@@ -239,6 +275,7 @@ export default function StaffManagement() {
                     <th className="theme-table-header text-left p-3 text-sm">Name</th>
                     <th className="theme-table-header text-left p-3 text-sm">Type</th>
                     <th className="theme-table-header text-left p-3 text-sm">Position / Qualification</th>
+                    <th className="theme-table-header text-left p-3 text-sm">Basic Salary</th>
                     <th className="theme-table-header text-left p-3 text-sm">Email</th>
                     <th className="theme-table-header text-left p-3 text-sm">Status</th>
                     <th className="theme-table-header text-left p-3 text-sm">Actions</th>
@@ -256,12 +293,13 @@ export default function StaffManagement() {
                         </span>
                       </td>
                       <td className="p-3 text-sm text-muted-foreground">{item.type === 'staff' ? (item.position || '—') : (item.qualification || '—')}</td>
+                      <td className="p-3 text-sm font-semibold text-foreground">{item.type === 'staff' && item.salary !== undefined ? `GH₵${item.salary.toLocaleString()}` : '—'}</td>
                       <td className="p-3 text-sm text-muted-foreground">{item.email}</td>
                       <td className="p-3">{getStatusBadge(item)}</td>
                       <td className="p-3">
                         <div className="flex gap-2">
                           {item.type === 'staff' && (
-                            <Button size="sm" variant="outline" onClick={() => handleEdit(item)}><Edit className="h-4 w-4" /></Button>
+                            <Button size="sm" variant="outline" onClick={() => handleEdit(item)} title="Edit staff data and salary"><Edit className="h-4 w-4" /></Button>
                           )}
                           <Button size="sm" variant="destructive" onClick={() => handleDelete(item.id, item.type)} className="bg-red-600/10 border-red-600/30 text-red-600 hover:bg-red-600/20">
                             <Trash2 className="h-4 w-4" />
@@ -306,6 +344,7 @@ export default function StaffManagement() {
               <div className="text-xs text-muted-foreground space-y-0.5">
                 <p>{item.type === 'staff' ? item.position : item.qualification}</p>
                 <p>{item.email}</p>
+                {item.type === 'staff' && <p className="font-semibold text-foreground">Basic salary: {item.salary !== undefined ? `GH₵${item.salary.toLocaleString()}` : 'Not set'}</p>}
               </div>
               <div className="flex gap-2 pt-1">
                 {item.type === 'staff' && (

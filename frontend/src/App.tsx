@@ -104,7 +104,6 @@ const StudentProfile             = lazy(() => import("./pages/student/StudentPro
 const StudentReports             = lazy(() => import("./pages/student/StudentReports"));
 const StudentBills               = lazy(() => import("./pages/student/StudentBills"));
 const StudentPaymentPage         = lazy(() => import("./pages/student/StudentPaymentPage"));
-const StudentEvents              = lazy(() => import("./pages/student/StudentEvents"));
 const MySubmissions              = lazy(() => import("./pages/student/MySubmissions"));
 const StudentAIHub               = lazy(() => import("./pages/student/StudentAIHub"));
 
@@ -281,7 +280,6 @@ const App = () => {
             <Route path="/student/reports" element={<StudentReports />} />
             <Route path="/student/bills" element={<StudentBills />} />
             <Route path="/student/payments" element={<StudentPaymentPage />} />
-            <Route path="/student/events" element={<StudentEvents />} />
             <Route path="/student/submissions" element={<MySubmissions />} />
             <Route path="/student/profile" element={<StudentProfile />} />
             <Route path="/student/ai" element={<StudentAIHub />} />

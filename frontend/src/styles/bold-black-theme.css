@@ -75,6 +75,49 @@ label,
   font-weight: 600 !important;
 }
 
+.dark .professional-sidebar p,
+.dark .professional-sidebar span {
+  color: #ffffff !important;
+}
+
+.dark .professional-sidebar p.text-slate-900,
+.dark .professional-sidebar p.text-slate-700 {
+  color: #ffffff !important;
+}
+
+.dark .professional-sidebar p.text-slate-900 {
+  color: #0f172a !important;
+}
+
+.dark .professional-sidebar p.text-slate-700 {
+  color: #334155 !important;
+}
+
+.professional-sidebar p.font-bold {
+  font-weight: 800 !important;
+}
+
+.professional-sidebar svg {
+  color: #d97706 !important;
+}
+
+.professional-sidebar h1 {
+  color: #ffffff !important;
+}
+
+.dark .professional-topbar span {
+  color: #ffffff !important;
+}
+
+.dark .professional-topbar svg {
+  color: #d97706 !important;
+}
+
+.dark .professional-topbar input {
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+}
+
 /* light mode body text → navy (only semantic/utility classes, not bare span/div/li) */
 :not(.dark) .text-foreground,
 :not(.dark) .text-card-foreground {
@@ -155,3 +198,203 @@ textarea::placeholder {
 /* ── text-xs / text-sm base weight ── */
 .text-xs { font-weight: 600 !important; }
 .text-sm { font-weight: 600 !important; }
+.login-page h2 {
+  font-weight: 800 !important;
+}
+
+.teacher-dashboard-title {
+  color: #0f172a !important;
+  letter-spacing: 0.02em !important;
+}
+
+.dark .teacher-dashboard-title,
+:not(.dark) .teacher-dashboard-title {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.02em !important;
+}
+
+.teacher-dashboard-stat-card p,
+.teacher-dashboard-stat-card span {
+  color: #334155 !important;
+}
+
+.teacher-dashboard-stat-card p.text-lg,
+.teacher-dashboard-stat-card p.text-2xl {
+  color: #0f172a !important;
+}
+
+.teacher-dashboard-stat-card svg {
+  color: #0f2a5e !important;
+}
+
+.dark .teacher-dashboard-stat-card span.text-muted-foreground,
+.dark .teacher-dashboard-stat-card p.text-muted-foreground {
+  color: #334155 !important;
+}
+
+.teacher-dashboard-stat-card p.text-muted-foreground {
+  color: #0f2a5e !important;
+}
+
+.teacher-dashboard-panel h3,
+.teacher-dashboard-panel h4,
+.teacher-dashboard-panel p,
+.teacher-dashboard-panel span {
+  color: #0f172a !important;
+}
+
+.dark .teacher-dashboard-panel span.text-white,
+.dark .teacher-dashboard-panel span.font-bold {
+  color: #0f172a !important;
+}
+
+.dark .teacher-dashboard-panel h3,
+:not(.dark) .teacher-dashboard-panel h3,
+.dark .teacher-dashboard-panel h4,
+:not(.dark) .teacher-dashboard-panel h4 {
+  color: #0f172a !important;
+}
+
+.dark .teacher-dashboard-panel p.text-foreground,
+:not(.dark) .teacher-dashboard-panel p.text-foreground {
+  color: #0f172a !important;
+}
+
+/* Shared dashboard surface for parent, teacher, admin, and student pages. */
+.professional-theme-content .bg-card,
+.professional-theme-content .bg-card\/60,
+.professional-theme-content .bg-card\/100,
+.professional-theme-content .bg-muted,
+.professional-theme-content .bg-muted\/30 {
+  background-color: #f1f5f9 !important;
+}
+
+.professional-theme-content .bg-background {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.professional-theme-content .border-border,
+.professional-theme-content .border {
+  border-color: #cbd5e1 !important;
+}
+
+.professional-theme-content h1,
+.professional-theme-content h2,
+.professional-theme-content h3,
+.professional-theme-content h4,
+.professional-theme-content h5,
+.professional-theme-content h6,
+.professional-theme-content .text-foreground,
+.professional-theme-content .text-card-foreground {
+  color: #0f172a !important;
+}
+
+.professional-theme-content h1,
+.professional-theme-content h2,
+.professional-theme-content h3,
+.professional-theme-content h4,
+.professional-theme-content h5,
+.professional-theme-content h6 {
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.professional-theme-content .text-muted-foreground {
+  color: #0f2a5e !important;
+}
+
+.professional-theme-content p.text-foreground {
+  color: #0f2a5e !important;
+}
+
+.professional-theme-content p.font-bold {
+  color: #0f172a !important;
+}
+
+.professional-theme-content .font-bold {
+  font-weight: 800 !important;
+}
+
+.professional-theme-content div.text-blue-700 {
+  color: #0f2a5e !important;
+}
+
+.professional-theme-content div.text-purple-700,
+.professional-theme-content div.text-emerald-700,
+.professional-theme-content div.text-orange-700,
+.professional-theme-content div.text-pink-700 {
+  color: #0f2a5e !important;
+}
+
+.professional-theme-content input,
+.professional-theme-content textarea,
+.professional-theme-content select {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.professional-theme-content input:disabled,
+.professional-theme-content textarea:disabled,
+.professional-theme-content select:disabled {
+  background-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+.professional-theme-content [role="combobox"] {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.professional-theme-content [role="combobox"] span {
+  color: #0f172a !important;
+}
+
+.professional-theme-content [role="combobox"] svg {
+  color: #334155 !important;
+}
+
+.professional-theme-content .animated-border,
+.professional-theme-content .animated-border-subtle {
+  background: #f1f5f9 !important;
+  animation: none !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1) !important;
+}
+
+.professional-theme-content .animated-border::before,
+.professional-theme-content .animated-border-subtle::before {
+  display: none !important;
+}
+
+.professional-theme-content .animated-border-content,
+.professional-theme-content .animated-border-subtle-content,
+.professional-theme-content .animated-quick-action-content,
+.professional-theme-content .stat-card,
+.professional-theme-content [class*="bg-slate-800/40"] {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+.professional-theme-content p,
+.professional-theme-content span,
+.professional-theme-content li,
+.professional-theme-content div,
+.professional-theme-content td,
+.professional-theme-content strong {
+  color: #0f172a !important;
+}
+
+.professional-theme-content .text-muted-foreground {
+  color: #334155 !important;
+}
+
+.professional-theme-content svg {
+  color: #0f2a5e;
+}

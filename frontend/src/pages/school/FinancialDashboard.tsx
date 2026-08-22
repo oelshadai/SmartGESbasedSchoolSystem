@@ -149,11 +149,11 @@ export default function FinancialDashboard() {
 
   return (
     <div className="min-h-full w-full max-w-full overflow-x-hidden">
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 bg-gradient-to-br from-background to-muted/20">
+    <div className="financial-dashboard-theme p-4 sm:p-6 space-y-4 sm:space-y-6 bg-gradient-to-br from-background to-muted/20">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="theme-page-title bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">Financial Dashboard</h1>
+          <h1 className="theme-page-title">Financial Dashboard</h1>
           <p className="theme-text-secondary mt-1">Real-time financial overview and analytics</p>
         </div>
         <div className="text-right">

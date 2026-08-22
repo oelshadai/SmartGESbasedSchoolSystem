@@ -366,12 +366,6 @@ const getNavItems = (role: UserRole) => {
       description: 'Pay school fees',
     },
     {
-      path: '/student/events',
-      label: 'Events',
-      icon: CalendarDays,
-      description: 'Upcoming events',
-    },
-    {
       path: '/student/submissions',
       label: 'Submissions',
       icon: CheckCheck,
@@ -518,7 +512,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
   }, [location.pathname, sidebarOpen]);
 
   return (
-    <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-950 via-[#0f2a5e] to-slate-950 flex">
+    <div className="h-screen overflow-hidden bg-white flex">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -533,7 +527,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
         role="navigation"
         aria-label={`${subtitle} navigation`}
         onKeyDown={handleSidebarKeyDown}
-        className={`professional-sidebar app-sidebar-scrollbar fixed lg:static inset-y-0 left-0 z-50 ${collapsed ? 'w-20 lg:w-24' : 'w-72 lg:w-80'} h-full bg-[#0a1f4e]/95 lg:bg-[#0a1f4e]/90 backdrop-blur-xl border-r border-[#f0c040]/20 flex flex-col transition-all duration-300 ease-in-out ${
+        className={`professional-sidebar app-sidebar-scrollbar fixed lg:static inset-y-0 left-0 z-50 ${collapsed ? 'w-20 lg:w-24' : 'w-72 lg:w-80'} h-full bg-[#0a1f4e] border-t border-[#f0c040]/20 flex flex-col transition-all duration-300 ease-in-out ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
@@ -552,7 +546,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
             <div className="relative shrink-0">
               <div className={`relative ${
                 collapsed ? 'p-2 rounded-xl' : 'p-2.5 rounded-2xl'
-              } bg-gradient-to-br from-[#0f2a5e] via-[#1e3a8a] to-[#0f2a5e] shadow-lg shadow-[#f0c040]/20 ring-1 ring-[#f0c040]/30 flex items-center justify-center`}>
+              } bg-[#0f2a5e] shadow-lg shadow-[#f0c040]/20 ring-1 ring-[#f0c040]/30 flex items-center justify-center`}>
                 <img
                   src="/EliteTech logo with 3D cube design.png"
                   alt="SmartGES"
@@ -565,8 +559,8 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
 
             {!collapsed && (
               <div className="min-w-0">
-                <h1 className="text-base font-extrabold leading-tight tracking-tight bg-gradient-to-r from-white via-[#f0c040] to-yellow-200 bg-clip-text text-transparent">
-                  SmartGES
+                <h1 className="text-base font-bold leading-tight tracking-tight text-slate-900 truncate">
+                  {user?.school?.name || 'SmartGES'}
                 </h1>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide uppercase ${
@@ -615,7 +609,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
               </div>
             </div>
           ) : (
-            <div className="bg-[#0f2a5e]/60 rounded-xl p-3 ring-1 ring-[#f0c040]/20">
+            <div className="bg-[#0f2a5e] rounded-xl p-3 ring-1 ring-[#f0c040]/20">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-full ring-2 ring-offset-1 ring-offset-slate-800 flex items-center justify-center font-bold text-sm shrink-0 ${
                   user?.role === 'SUPER_ADMIN' ? 'bg-gradient-to-br from-red-500 to-orange-500 ring-red-500/40 text-white'
@@ -641,7 +635,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
         </div>
 
         {/* Navigation */}
-        <div className="flex-1 overflow-y-auto px-2 py-3 space-y-2">
+        <div className="app-sidebar-scrollbar flex-1 overflow-y-auto px-2 py-3 space-y-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = isActivePath(item.path);
@@ -655,28 +649,30 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
                   setSidebarOpen(false);
                 }}
                 data-active={isActive ? 'true' : 'false'}
-                className={`group relative flex w-full items-center rounded-2xl px-3 py-3 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${collapsed ? 'justify-center' : 'justify-start text-left'} ${
+                className={`group relative flex w-full items-center gap-3 rounded-2xl px-3 py-3 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${collapsed ? 'justify-center' : 'justify-start text-left'} ${
                   isActive
-                    ? 'bg-gradient-to-r from-[#f0c040]/20 to-yellow-400/10 border border-[#f0c040]/40'
-                    : 'hover:bg-[#f0c040]/5 border border-transparent hover:border-[#f0c040]/20'
+                    ? 'bg-amber-50 border border-amber-300'
+                    : 'hover:bg-white/10 border border-transparent hover:border-[#f0c040]/30'
                 }`}
               >
                 <div className={`p-2 rounded-lg transition-colors ${
                   isActive
-                    ? 'bg-[#f0c040]/20 text-[#f0c040]'
-                    : 'bg-white/5 text-slate-300 group-hover:text-[#f0c040]'
+                    ? 'bg-amber-100 text-amber-700'
+                    : 'bg-amber-50 text-amber-600 group-hover:text-amber-700'
                 }`}>
                   <Icon className="h-4 w-4" />
                 </div>
 
                 {!collapsed && (
                   <div className="flex-1 min-w-0">
-                    <p className={`font-medium text-sm ${
-                      isActive ? 'text-[#f0c040] font-semibold' : 'text-slate-300 group-hover:text-[#f0c040]'
+                    <p className={`font-bold text-sm tracking-wide ${
+                      isActive ? 'text-slate-900 font-semibold' : 'text-white group-hover:text-[#f0c040]'
                     }`}>
                       {item.label}
                     </p>
-                    <p className="text-xs text-slate-500 group-hover:text-slate-400">
+                    <p className={`text-xs tracking-wide ${
+                      isActive ? 'text-slate-700' : 'text-slate-300 group-hover:text-slate-200'
+                    }`}>
                       {item.description}
                     </p>
                   </div>
@@ -731,7 +727,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
                 <AlertDialogTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/50"
+                    className="w-full justify-start bg-red-600 border-red-600 text-white font-bold hover:bg-red-700 hover:text-white hover:border-red-700"
                   >
                     <LogOut className="h-4 w-4 mr-2" />
                     Sign Out
@@ -758,13 +754,13 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
-        <div className="bg-[#0a1f4e]/80 backdrop-blur-xl border-b border-[#f0c040]/20 p-3 sm:p-4">
+        <div className="professional-topbar bg-[#0a1f4e] border-b border-[#f0c040]/20 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-4">
               <Button
                 variant="ghost"
                 size="icon"
-                className="lg:hidden text-slate-300 hover:text-white hover:bg-slate-800"
+                className="lg:hidden text-white hover:text-white hover:bg-white/10"
                 onClick={() => setSidebarOpen(true)}
               >
                 <Menu className="h-5 w-5" />
@@ -772,8 +768,8 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
               
               {/* Breadcrumb */}
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-slate-400 text-xs">{user?.role ? roleLabel[user.role] : 'Admin'}</span>
-                <ChevronRight className="h-3 w-3 text-slate-600" />
+                <span className="text-slate-300 text-xs">{user?.role ? roleLabel[user.role] : 'Admin'}</span>
+                <ChevronRight className="h-3 w-3 text-[#f0c040]" />
                 <span className="text-white font-semibold">
                   {navItems.find(item => isActivePath(item.path))?.label || 'Dashboard'}
                 </span>
@@ -781,16 +777,6 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Search */}
-              <div className="relative hidden sm:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-100" />
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className="pl-10 pr-4 py-2 bg-[#0f2a5e]/60 border border-[#f0c040]/30 rounded-lg text-white placeholder:text-slate-400 focus:border-[#f0c040] focus:ring-1 focus:ring-[#f0c040]/30 w-full sm:w-64"
-                />
-              </div>
-
               {/* Notifications — hidden for teacher/student (they use carousel on dashboard) */}
               {user?.role !== 'TEACHER' && user?.role !== 'STUDENT' && (
                 <NotificationPanel />
@@ -800,7 +786,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
         </div>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-auto min-w-0">
+        <div className="professional-theme-content flex-1 overflow-auto min-w-0 bg-white p-4 sm:p-6 lg:p-8">
           <Outlet />
         </div>
       </div>

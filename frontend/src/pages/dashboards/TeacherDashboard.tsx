@@ -182,7 +182,7 @@ const TeacherDashboard = () => {
     <div className="w-full p-4 sm:p-6 overflow-y-auto">
       <div className="space-y-5 sm:space-y-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Teacher Dashboard</h1>
+          <h1 className="teacher-dashboard-title text-xl sm:text-2xl font-bold tracking-wide">Teacher Dashboard</h1>
           <p className="text-sm text-foreground/70 mt-1">Welcome, {safeData.teacher.first_name || 'Teacher'}! Manage your classes and assignments</p>
         </div>
 
@@ -193,7 +193,7 @@ const TeacherDashboard = () => {
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           {stats.map((s) => (
-            <div key={s.label} className="rounded-xl border bg-card p-2.5 sm:p-4 flex flex-col gap-1 shadow-sm">
+            <div key={s.label} className="teacher-dashboard-stat-card rounded-xl border border-slate-200 bg-slate-100 p-2.5 sm:p-4 flex flex-col gap-1 shadow-md">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">{s.label}</span>
                 <span className={`${s.color} opacity-70`}>{s.icon}</span>
@@ -205,7 +205,7 @@ const TeacherDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="rounded-xl border bg-card shadow-sm p-6">
+          <div className="teacher-dashboard-panel rounded-xl border border-slate-200 bg-slate-100 shadow-md p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-foreground">Assigned Classes</h3>
               <Badge variant="outline" className="text-xs">{safeData.assigned_classes.length} classes</Badge>
@@ -226,7 +226,7 @@ const TeacherDashboard = () => {
             </div>
           </div>
 
-          <div className="rounded-xl border bg-card shadow-sm p-4 sm:p-6">
+          <div className="teacher-dashboard-panel rounded-xl border border-slate-200 bg-slate-100 shadow-md p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-foreground">School Announcements</h3>
               <Bell className="h-4 w-4 text-blue-500" />
@@ -253,7 +253,7 @@ const TeacherDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          <div className="rounded-xl border bg-card shadow-sm p-4 sm:p-6">
+          <div className="teacher-dashboard-panel rounded-xl border border-slate-200 bg-slate-100 shadow-md p-4 sm:p-6">
             <h3 className="font-semibold text-foreground mb-4">Teaching Subjects</h3>
             <div className="space-y-3">
               {safeData.teaching_subjects.length > 0 ? (
@@ -271,7 +271,7 @@ const TeacherDashboard = () => {
             </div>
           </div>
 
-          <div className="rounded-xl border border-[#f0c040]/20 bg-[#f0c040]/5 shadow-sm p-4 sm:p-6">
+          <div className="teacher-dashboard-panel rounded-xl border border-slate-200 bg-slate-100 shadow-md p-4 sm:p-6">
             <h3 className="font-bold text-[#f0c040] mb-4">Teacher Profile</h3>
             <div className="space-y-2 text-sm">
               {[

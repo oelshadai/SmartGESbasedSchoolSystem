@@ -131,7 +131,6 @@ const getNavItems = (role: UserRole): NavItem[] => {
       { label: 'Pay Fees', path: '/student/payments', icon: <CreditCard className="h-5 w-5" /> },
       { label: 'Schedule', path: '/student/schedule', icon: <Clock className="h-5 w-5" /> },
       { label: 'Announcements', path: '/student/announcements', icon: <Bell className="h-5 w-5" /> },
-      { label: 'Events', path: '/student/events', icon: <CalendarDays className="h-5 w-5" /> },
       { label: 'Submissions', path: '/student/submissions', icon: <CheckCheck className="h-5 w-5" /> },
       { label: 'Profile', path: '/student/profile', icon: <User className="h-5 w-5" /> },
     ],

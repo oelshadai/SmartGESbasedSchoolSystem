@@ -580,7 +580,7 @@ const StudentsManagement = () => {
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   selectedClassFilter === null
                     ? 'bg-blue-600 text-white border border-blue-600'
-                    : 'bg-gray-100 text-foreground border border-gray-300 hover:bg-gray-200 dark:bg-gray-800 dark:text-foreground dark:border-gray-600'
+                    : 'bg-[#f0c040] text-[#0f172a] border border-[#f0c040] hover:bg-[#e5b92f]'
                 }`}
               >
                 All Classes <span className="ml-1.5 text-xs opacity-75">({studentCountByClass(null)})</span>
@@ -594,7 +594,7 @@ const StudentsManagement = () => {
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     selectedClassFilter === cls.id.toString()
                       ? 'bg-blue-600 text-white border border-blue-600'
-                      : 'bg-gray-100 text-foreground border border-gray-300 hover:bg-gray-200 dark:bg-gray-800 dark:text-foreground dark:border-gray-600'
+                      : 'bg-[#f0c040] text-[#0f172a] border border-[#f0c040] hover:bg-[#e5b92f]'
                   }`}
                 >
                   {cls.full_name || `${cls.level_display || cls.level}${cls.section ? ` ${cls.section}` : ''}`}

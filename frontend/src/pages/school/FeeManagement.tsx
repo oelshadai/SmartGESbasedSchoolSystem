@@ -1097,7 +1097,7 @@ const FeeManagement = () => {
       )}
       
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <Card variant="elevated" key={i}>
@@ -1142,24 +1142,6 @@ const FeeManagement = () => {
               color="text-red-600"
               trend={summary.totalExpected > 0
                 ? `${((summary.nonDailyCollected / (summary.nonDailyCollected + summary.nonDailyOutstanding || 1)) * 100).toFixed(1)}% collected`
-                : undefined}
-            />
-            <StatCard
-              label="Weekly Fees Collected"
-              value={formatCurrency(summary.weeklyCollected)}
-              icon={<CalendarDays className="h-5 w-5" />}
-              color="text-purple-600"
-              trend={summary.weeklyTotalBilled > 0
-                ? `${((summary.weeklyCollected / summary.weeklyTotalBilled) * 100).toFixed(1)}% of billed`
-                : 'No weekly bills yet'}
-            />
-            <StatCard
-              label="Weekly Fees Outstanding"
-              value={formatCurrency(summary.weeklyOutstanding)}
-              icon={<AlertCircle className="h-5 w-5" />}
-              color="text-orange-600"
-              trend={summary.weeklyTotalBilled > 0
-                ? `${formatCurrency(summary.weeklyTotalBilled)} total billed`
                 : undefined}
             />
             <StatCard

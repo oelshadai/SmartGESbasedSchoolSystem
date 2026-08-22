@@ -232,7 +232,7 @@ const SubjectsManagement = () => {
 
       {/* Add Subject Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent>
+        <DialogContent className="professional-dialog">
           <DialogHeader>
             <DialogTitle>Add New Subject</DialogTitle>
             <DialogDescription>
@@ -285,7 +285,7 @@ const SubjectsManagement = () => {
 
       {/* View Subject Dialog */}
       <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
-        <DialogContent>
+        <DialogContent className="professional-dialog">
           <DialogHeader>
             <DialogTitle>Subject Details</DialogTitle>
           </DialogHeader>
@@ -303,7 +303,7 @@ const SubjectsManagement = () => {
 
       {/* Edit Subject Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent>
+        <DialogContent className="professional-dialog">
           <DialogHeader>
             <DialogTitle>Edit Subject</DialogTitle>
             <DialogDescription>
@@ -356,7 +356,7 @@ const SubjectsManagement = () => {
 
       {/* Assign Teacher Dialog */}
       <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
-        <DialogContent>
+        <DialogContent className="professional-dialog">
           <DialogHeader>
             <DialogTitle>Assign Subject to Class</DialogTitle>
             <DialogDescription>
