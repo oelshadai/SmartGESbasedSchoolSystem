@@ -196,7 +196,7 @@ const ProfessionalLoginPage = () => {
                   <img
                     src="/EliteTech logo with 3D cube design.png"
                     alt="Smart School Management System"
-                    className="h-8 w-8 sm:h-14 sm:w-14 flex-shrink-0 object-contain drop-shadow-[0_0_12px_rgba(37,99,235,0.18)]"
+                    className="h-14 w-14 sm:h-16 sm:w-16 flex-shrink-0 object-contain drop-shadow-[0_0_12px_rgba(37,99,235,0.18)]"
                   />
                   <div>
                     <h3 className="text-[13px] sm:text-xl font-extrabold leading-tight">

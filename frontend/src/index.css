@@ -629,6 +629,17 @@
   color: #0f172a !important;
 }
 
+html .login-page input,
+html .login-page input[type="password"],
+html .login-page input[type="email"] {
+  color: #0f2a5e !important;
+}
+
+html .login-page input::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+
 .register-page .login-glow-card-inner {
   background: #ffffff !important;
   border-color: #cbd5e1;
