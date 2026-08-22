@@ -31,6 +31,8 @@ RUN python manage.py collectstatic --noinput || echo "Static collection skipped"
 # Create startup script - use PORT environment variable (Railway sets this to 8080)
 RUN echo '#!/bin/sh' > /start.sh && \
     echo 'set -e' >> /start.sh && \
+    echo 'echo "=== Running database migrations ==="' >> /start.sh && \
+    echo 'python manage.py migrate --noinput' >> /start.sh && \
     echo 'echo "=== Starting Gunicorn Server on port $PORT ==="' >> /start.sh && \
     echo 'exec gunicorn school_report_saas.wsgi:application --bind 0.0.0.0:${PORT:-8080} --workers=5 --worker-class=gevent --timeout=120 --log-level=info --access-logfile - --error-logfile -' >> /start.sh && \
     chmod +x /start.sh
