@@ -475,6 +475,17 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
   };
 
   const navItems = getNavItems(user?.role || 'SCHOOL_ADMIN');
+  const mobileNavLabels: Record<string, string[]> = {
+    SUPER_ADMIN: ['Dashboard', 'Schools', 'Users', 'Analytics', 'Settings'],
+    SCHOOL_ADMIN: ['Dashboard', 'Students', 'Teachers', 'Fees', 'Profile'],
+    PRINCIPAL: ['Dashboard', 'Students', 'Teachers', 'Fees', 'Profile'],
+    TEACHER: ['Dashboard', 'Classes', 'Assignments', 'Grade Book', 'Profile'],
+    STUDENT: ['Dashboard', 'Assignments', 'Grades', 'Attendance', 'Profile'],
+    PARENT: ['Dashboard', 'Attendance', 'Grades', 'Bills', 'Profile'],
+  };
+  const mobileNavItems = navItems.filter((item) =>
+    mobileNavLabels[user?.role || 'SCHOOL_ADMIN']?.includes(item.label)
+  );
   const title = user?.role === 'SUPER_ADMIN'
     ? 'Admin Panel'
     : user?.role === 'SCHOOL_ADMIN' || user?.role === 'PRINCIPAL'
@@ -786,10 +797,38 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
         </div>
 
         {/* Page Content */}
-        <div className="professional-theme-content flex-1 overflow-auto min-w-0 bg-white p-4 sm:p-6 lg:p-8">
+        <div className="professional-theme-content flex-1 overflow-auto min-w-0 bg-white p-4 pb-24 sm:p-6 sm:pb-24 lg:p-8 lg:pb-8">
           <Outlet />
         </div>
       </div>
+
+      {/* Core navigation for mobile */}
+      <nav
+        aria-label="Core navigation"
+        className="mobile-core-nav fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-slate-200 bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_20px_rgba(15,42,94,0.1)] backdrop-blur lg:hidden"
+      >
+        {mobileNavItems.map((item) => {
+          const Icon = item.icon;
+          const active = isActivePath(item.path);
+          return (
+            <button
+              key={item.path}
+              type="button"
+              aria-label={item.label}
+              aria-current={active ? 'page' : undefined}
+              onClick={() => { navigate(item.path); setSidebarOpen(false); }}
+              className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 text-[9px] font-semibold transition-colors ${
+                active ? 'text-blue-900' : 'text-slate-500 hover:text-blue-800'
+              }`}
+            >
+              <span className={`flex h-6 w-9 items-center justify-center rounded-lg ${active ? 'bg-blue-100' : ''}`}>
+                <Icon className="h-4 w-4" />
+              </span>
+              <span className="max-w-full truncate">{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
 
       {/* Static background — no animation to avoid scroll jank */}
       <div className="fixed inset-0 pointer-events-none -z-10">

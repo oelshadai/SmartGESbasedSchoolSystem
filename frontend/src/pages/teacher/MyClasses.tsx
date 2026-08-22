@@ -147,7 +147,7 @@ const MyClasses = () => {
   const subjectClasses = assignments.filter(a => a.type === 'subject_class');
 
   return (
-    <div className="min-h-full w-full max-w-full overflow-x-hidden">
+    <div className="teacher-classes-page min-h-full w-full max-w-full overflow-x-hidden">
     <div className="p-4 sm:p-6 space-y-6 animate-fade-in">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-foreground">My Classes</h1>

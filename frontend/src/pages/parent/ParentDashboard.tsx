@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { secureApiClient } from '@/lib/secureApiClient';
+import NotificationCarousel from '@/components/NotificationCarousel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -162,6 +163,11 @@ const ParentDashboard = () => {
           <h1 className="text-2xl font-bold text-foreground">Welcome, {parentName}</h1>
           <p className="text-muted-foreground text-sm">Parent / Guardian Portal · {children.length} child{children.length !== 1 ? 'ren' : ''} linked</p>
         </div>
+      </div>
+
+      {/* Notification carousel — mobile only */}
+      <div className="sm:hidden">
+        <NotificationCarousel autoFetch />
       </div>
 
       {/* Aggregate Stats */}

@@ -680,6 +680,102 @@
   color: #0f2a5e !important;
 }
 
+@media (max-width: 639px) {
+  .mobile-core-nav svg {
+    color: #0f2a5e !important;
+  }
+
+  .mobile-core-nav button[aria-current="page"] svg {
+    color: #1d4ed8 !important;
+  }
+
+  .professional-theme-content,
+  .professional-theme-content > div {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .professional-theme-content {
+    padding: 0.5rem !important;
+    padding-bottom: 4.5rem !important;
+  }
+
+  .professional-theme-content > div {
+    padding: 0.5rem !important;
+  }
+
+  .teacher-classes-page > div {
+    padding: 0.75rem !important;
+  }
+
+  .teacher-classes-page .animated-border-content {
+    padding: 0.75rem !important;
+  }
+
+  .teacher-classes-page .animated-border-subtle-content {
+    padding: 0.75rem !important;
+  }
+
+  .teacher-classes-page .border-l-4 {
+    padding-left: 0.625rem !important;
+  }
+
+  .teacher-classes-page h2 {
+    font-size: 1rem !important;
+    line-height: 1.35 !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .teacher-classes-page h3 {
+    font-size: 1rem !important;
+    line-height: 1.35 !important;
+  }
+
+  .teacher-classes-page .flex.flex-wrap.gap-2 {
+    gap: 0.375rem !important;
+  }
+
+  .teacher-classes-page .flex.flex-wrap.gap-2 button {
+    height: 2rem !important;
+    padding: 0 0.625rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  .teacher-classes-page .flex.flex-wrap.gap-2 button svg {
+    height: 0.875rem !important;
+    width: 0.875rem !important;
+  }
+
+  .professional-theme-content .animated-stats-card-content {
+    padding: 0.75rem !important;
+  }
+
+  .professional-theme-content .animated-stats-card-content p.text-2xl {
+    font-size: 1.25rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .professional-theme-content .teacher-dashboard-stat-card {
+    padding: 0.625rem !important;
+  }
+
+  .professional-theme-content .teacher-dashboard-stat-card p.text-lg,
+  .professional-theme-content .teacher-dashboard-stat-card p.text-2xl {
+    font-size: 1.125rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .professional-theme-content .teacher-dashboard-stat-card svg {
+    height: 1.125rem !important;
+    width: 1.125rem !important;
+  }
+
+  .professional-theme-content::-webkit-scrollbar,
+  .professional-theme-content > div::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 .login-page .text-slate-700 {
   color: #334155 !important;
 }
