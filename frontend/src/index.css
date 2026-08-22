@@ -629,14 +629,14 @@
   color: #0f172a !important;
 }
 
-html .login-page input,
-html .login-page input[type="password"],
-html .login-page input[type="email"] {
+html.dark .login-page input,
+html.dark .login-page input[type="password"],
+html.dark .login-page input[type="email"] {
   color: #0f2a5e !important;
 }
 
-html .login-page input::placeholder {
-  color: #64748b !important;
+html.dark .login-page input::placeholder {
+  color: #0f2a5e !important;
   opacity: 1 !important;
 }
 
@@ -691,6 +691,20 @@ html .register-page input[type="email"] {
 
 .register-page .register-plan-price {
   color: #0f2a5e !important;
+}
+
+.login-page svg,
+.register-page svg {
+  display: none !important;
+}
+
+.login-page input,
+.register-page input {
+  padding-left: 0.75rem !important;
+}
+
+.login-page input + button {
+  display: none !important;
 }
 
 .fees-management-page .fees-tabs [role="tab"],

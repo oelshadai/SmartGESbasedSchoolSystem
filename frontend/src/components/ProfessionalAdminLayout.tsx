@@ -666,13 +666,15 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
                     : 'hover:bg-white/10 border border-transparent hover:border-[#f0c040]/30'
                 }`}
               >
-                <div className={`p-2 rounded-lg transition-colors ${
-                  isActive
-                    ? 'bg-amber-100 text-amber-700'
-                    : 'bg-amber-50 text-amber-600 group-hover:text-amber-700'
-                }`}>
-                  <Icon className="h-4 w-4" />
-                </div>
+                {collapsed && (
+                  <div className={`p-2 rounded-lg transition-colors ${
+                    isActive
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-amber-50 text-amber-600 group-hover:text-amber-700'
+                  }`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                )}
 
                 {!collapsed && (
                   <div className="flex-1 min-w-0">
