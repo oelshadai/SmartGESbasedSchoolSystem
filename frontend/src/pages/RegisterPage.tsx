@@ -55,7 +55,7 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative flex">
+    <div className="register-page min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50 relative flex">
       {/* Animated background glows */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-32 -right-32 w-48 sm:w-80 h-48 sm:h-80 bg-orange-500/10 rounded-full blur-3xl animate-pulse" />
@@ -159,11 +159,10 @@ const RegisterPage = () => {
                       <School className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-200" />
                       <Input
                         id="school_name"
-                        placeholder="Accra Senior High School"
                         value={formData.school_name}
                         onChange={(e) => handleChange('school_name', e.target.value)}
                         required
-                        className="pl-9 h-9 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-200 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl text-sm"
+                        className="pl-9 h-9 bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-500 focus:border-blue-700 focus:ring-blue-700/20 rounded-xl text-sm"
                       />
                     </div>
                   </div>
@@ -176,11 +175,10 @@ const RegisterPage = () => {
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-200" />
                         <Input
                           id="first_name"
-                          placeholder="Kwame"
                           value={formData.first_name}
                           onChange={(e) => handleChange('first_name', e.target.value)}
                           required
-                          className="pl-9 h-9 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-200 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl text-sm"
+                          className="pl-9 h-9 bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-500 focus:border-blue-700 focus:ring-blue-700/20 rounded-xl text-sm"
                         />
                       </div>
                     </div>
@@ -190,11 +188,10 @@ const RegisterPage = () => {
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-200" />
                         <Input
                           id="last_name"
-                          placeholder="Mensah"
                           value={formData.last_name}
                           onChange={(e) => handleChange('last_name', e.target.value)}
                           required
-                          className="pl-9 h-9 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-200 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl text-sm"
+                          className="pl-9 h-9 bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-500 focus:border-blue-700 focus:ring-blue-700/20 rounded-xl text-sm"
                         />
                       </div>
                     </div>
@@ -208,11 +205,10 @@ const RegisterPage = () => {
                       <Input
                         id="admin_email"
                         type="email"
-                        placeholder="k.mensah@school.edu.gh"
                         value={formData.admin_email}
                         onChange={(e) => handleChange('admin_email', e.target.value)}
                         required
-                        className="pl-9 h-9 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-200 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl text-sm"
+                        className="pl-9 h-9 bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-500 focus:border-blue-700 focus:ring-blue-700/20 rounded-xl text-sm"
                       />
                     </div>
                   </div>
@@ -225,12 +221,11 @@ const RegisterPage = () => {
                       <Input
                         id="password"
                         type="password"
-                        placeholder="••••••••"
                         value={formData.password}
                         onChange={(e) => handleChange('password', e.target.value)}
                         required
                         minLength={8}
-                        className="pl-9 h-9 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-200 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl text-sm"
+                        className="pl-9 h-9 bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-500 focus:border-blue-700 focus:ring-blue-700/20 rounded-xl text-sm"
                       />
                     </div>
                   </div>
@@ -248,12 +243,12 @@ const RegisterPage = () => {
                           onClick={() => handleChange('plan', p.key)}
                           className={`rounded-xl border p-2 text-left transition-all ${
                             formData.plan === p.key
-                              ? 'border-orange-500 bg-orange-500/10'
+                              ? 'border-blue-700 bg-blue-50'
                               : 'border-slate-700/50 bg-slate-800/30 hover:border-slate-600'
                           }`}
                         >
-                          <p className={`text-xs font-semibold ${ formData.plan === p.key ? 'text-orange-400' : 'text-slate-200' }`}>{p.label}</p>
-                          <p className="text-[11px] font-bold text-white mt-0.5">{p.price}</p>
+                          <p className={`text-xs font-semibold ${ formData.plan === p.key ? 'text-blue-900' : 'text-slate-200' }`}>{p.label}</p>
+                          <p className="register-plan-price text-[11px] font-bold mt-0.5">{p.price}</p>
                           <p className="text-[10px] text-slate-400 mt-0.5">{p.desc}</p>
                         </button>
                       ))}
@@ -268,7 +263,6 @@ const RegisterPage = () => {
                       <Input
                         id="password_confirm"
                         type="password"
-                        placeholder="••••••••"
                         value={formData.password_confirm}
                         onChange={(e) => handleChange('password_confirm', e.target.value)}
                         required
@@ -281,7 +275,7 @@ const RegisterPage = () => {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="w-full h-9 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/20 transition-all duration-200 hover:shadow-orange-500/30 text-sm"
+                    className="w-full h-9 bg-blue-900 hover:bg-blue-800 text-white font-semibold rounded-xl shadow-lg shadow-blue-900/20 transition-all duration-200 text-sm"
                   >
                     {loading ? (
                       <>
@@ -303,7 +297,7 @@ const RegisterPage = () => {
                     <div className="w-full border-t border-slate-800/80" />
                   </div>
                   <div className="relative flex justify-center text-[11px]">
-                    <span className="bg-[hsl(222_47%_8%)] px-3 text-slate-200">Already have an account?</span>
+                    <span className="bg-white px-3 text-slate-700">Already have an account?</span>
                   </div>
                 </div>
 
@@ -311,7 +305,7 @@ const RegisterPage = () => {
                   type="button"
                   variant="outline"
                   onClick={() => navigate('/login')}
-                  className="w-full h-9 bg-transparent border-slate-700/40 text-slate-200 hover:bg-slate-800/50 hover:text-white hover:border-slate-600 rounded-xl transition-all duration-200 text-sm"
+                  className="w-full h-9 bg-white border-blue-900 text-blue-900 hover:bg-blue-50 hover:text-blue-950 rounded-xl transition-all duration-200 text-sm"
                 >
                   Sign In
                 </Button>

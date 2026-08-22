@@ -629,6 +629,57 @@
   color: #0f172a !important;
 }
 
+.register-page .login-glow-card-inner {
+  background: #ffffff !important;
+  border-color: #cbd5e1;
+  box-shadow: 0 20px 45px rgba(15, 42, 94, 0.12);
+}
+
+.register-page label,
+.register-page p,
+.register-page span,
+.register-page button,
+.register-page .text-slate-200 {
+  color: #0f2a5e !important;
+}
+
+.register-page .login-gradient-text {
+  color: #1d4ed8 !important;
+  -webkit-text-fill-color: #1d4ed8 !important;
+}
+
+.register-page h3,
+.register-page h3 span {
+  color: #0f2a5e !important;
+  -webkit-text-fill-color: #0f2a5e !important;
+}
+
+.register-page input {
+  color: #0f172a !important;
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.register-page input::placeholder {
+  color: #64748b !important;
+}
+
+.register-page .text-slate-400 {
+  color: #475569 !important;
+}
+
+.register-page .border-slate-700\/50 {
+  border-color: #cbd5e1 !important;
+}
+
+.register-page .bg-slate-800\/30 {
+  background-color: #f8fafc !important;
+}
+
+.register-page .register-plan-price {
+  color: #0f2a5e !important;
+}
+
 .login-page .text-slate-700 {
   color: #334155 !important;
 }
