@@ -191,7 +191,7 @@ const TeacherDashboard = () => {
           <NotificationCarousel autoFetch />
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+        <div className="teacher-dashboard-stats grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           {stats.map((s) => (
             <div key={s.label} className="teacher-dashboard-stat-card rounded-xl border border-slate-200 bg-slate-100 p-2.5 sm:p-4 flex flex-col gap-1 shadow-md">
               <div className="flex items-center justify-between">

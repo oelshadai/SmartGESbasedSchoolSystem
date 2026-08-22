@@ -189,10 +189,10 @@ const ProfessionalLoginPage = () => {
           {/* Right side - Login Form */}
           <div className="relative flex justify-center">
             <div className="login-glow-card w-full max-w-md">
-              <div className="login-glow-card-inner p-3 sm:p-8">
+              <div className="login-glow-card-inner p-5 sm:p-8">
 
                 {/* Mobile: logo + title in one compact row */}
-                <div className="lg:hidden flex items-center gap-2 mb-2 sm:mb-5">
+                <div className="lg:hidden flex items-center gap-2 mb-5 sm:mb-5">
                   <img
                     src="/EliteTech logo with 3D cube design.png"
                     alt="Smart School Management System"
@@ -208,8 +208,8 @@ const ProfessionalLoginPage = () => {
                 </div>
 
                 {/* Role Selection */}
-                <div className="mb-2 sm:mb-5">
-                  <Label className="text-blue-700 text-[9px] sm:text-xs font-medium mb-1 sm:mb-2.5 block tracking-wide uppercase">Select Your Role</Label>
+                <div className="mb-5 sm:mb-5">
+                  <Label className="text-blue-700 text-[9px] sm:text-xs font-medium mb-2 sm:mb-2.5 block tracking-wide uppercase">Select Your Role</Label>
                   <div className="grid grid-cols-4 gap-1 sm:gap-2">
                     {ROLE_CONFIGS.map((role) => {
                       const RoleIcon = role.icon;
@@ -239,7 +239,7 @@ const ProfessionalLoginPage = () => {
                 </div>
 
                 {/* Login Form */}
-                <form onSubmit={handleSubmit} className="space-y-1.5 sm:space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-4">
                   {error && (
                     <div className="p-2 sm:p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-start gap-2">
                       <div className="flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-red-500/20 flex items-center justify-center mt-0.5">
@@ -262,7 +262,7 @@ const ProfessionalLoginPage = () => {
                         value={identifier}
                         onChange={(e) => setIdentifier(e.target.value)}
                         required
-                        className="pl-9 h-8 sm:h-11 bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:ring-sky-200 rounded-xl text-xs sm:text-sm"
+                        className="pl-9 h-11 sm:h-11 bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:ring-sky-200 rounded-xl text-xs sm:text-sm"
                       />
                     </div>
                   </div>
@@ -291,7 +291,7 @@ const ProfessionalLoginPage = () => {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
-                        className="pl-9 pr-9 h-8 sm:h-11 bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:ring-sky-200 rounded-xl text-xs sm:text-sm"
+                        className="pl-9 pr-9 h-11 sm:h-11 bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:ring-sky-200 rounded-xl text-xs sm:text-sm"
                       />
                       <button
                         type="button"
@@ -323,7 +323,7 @@ const ProfessionalLoginPage = () => {
                 </form>
 
                 {/* Divider */}
-                <div className="relative my-1.5 sm:my-5">
+                <div className="relative my-4 sm:my-5">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-slate-200" />
                   </div>
@@ -337,7 +337,7 @@ const ProfessionalLoginPage = () => {
                   type="button"
                   variant="outline"
                   onClick={() => navigate('/register')}
-                  className="w-full h-7 sm:h-11 bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 rounded-xl transition-all duration-200 text-[10px] sm:text-sm"
+                  className="w-full h-10 sm:h-11 bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 rounded-xl transition-all duration-200 text-xs sm:text-sm"
                 >
                   Register Your School
                 </Button>

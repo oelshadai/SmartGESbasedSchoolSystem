@@ -67,7 +67,7 @@ const RegisterPage = () => {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px]" />
 
       {/* Scrollable inner */}
-      <div className="relative w-full overflow-y-auto flex items-center justify-center px-3 py-6 sm:px-4 sm:py-8">
+      <div className="register-page-content relative w-full overflow-y-auto flex items-center justify-center px-3 py-6 sm:px-4 sm:py-8">
         <div className="w-full max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-6 lg:gap-12 items-center">
 

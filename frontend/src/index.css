@@ -654,7 +654,9 @@
   -webkit-text-fill-color: #0f2a5e !important;
 }
 
-.register-page input {
+html .register-page input,
+html .register-page input[type="password"],
+html .register-page input[type="email"] {
   color: #0f172a !important;
   background-color: #f8fafc !important;
   border-color: #cbd5e1 !important;
@@ -680,7 +682,81 @@
   color: #0f2a5e !important;
 }
 
+.fees-management-page .fees-tabs [role="tab"],
+.fees-management-page .fees-tabs [role="tab"] svg {
+  color: #0f2a5e !important;
+}
+
+.fees-management-page .fees-tabs [role="tab"][data-state="active"] {
+  background-color: #dbeafe !important;
+  color: #0f2a5e !important;
+}
+
+.fees-management-page .fees-collection-form {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 8px 20px rgba(15, 42, 94, 0.06);
+}
+
+.fees-management-page .fees-collection-form h4,
+.fees-management-page .fees-collection-form label {
+  color: #0f2a5e !important;
+}
+
+.fees-management-page .fees-collection-form input,
+.fees-management-page .fees-collection-form textarea,
+.fees-management-page .fees-collection-form [role="combobox"] {
+  color: #0f172a !important;
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.fees-management-page .fees-collection-form input::placeholder,
+.fees-management-page .fees-collection-form textarea::placeholder {
+  color: #64748b !important;
+}
+
+.fees-management-page .fees-collection-form [role="combobox"] > span {
+  color: #0f2a5e !important;
+}
+
+.fees-management-page .fees-collection-form .bg-muted\/20 {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+}
+
 @media (max-width: 639px) {
+  .fees-management-page .fees-collection-form {
+    padding: 0.75rem !important;
+  }
+
+  .fees-management-page .fees-collection-form .grid {
+    gap: 0.75rem !important;
+  }
+
+  .fees-management-page .fees-collection-form textarea {
+    min-height: 4.5rem !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .login-page,
+  .register-page {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .login-page::-webkit-scrollbar,
+  .register-page::-webkit-scrollbar,
+  .register-page-content::-webkit-scrollbar {
+    display: none;
+  }
+
+  .register-page-content {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
   .mobile-core-nav svg {
     color: #0f2a5e !important;
   }
@@ -768,6 +844,14 @@
   .professional-theme-content .teacher-dashboard-stat-card svg {
     height: 1.125rem !important;
     width: 1.125rem !important;
+  }
+
+  .teacher-dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .fees-summary-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
   .professional-theme-content::-webkit-scrollbar,

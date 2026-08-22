@@ -486,7 +486,7 @@ const FeeManagement = () => {
     setRecordsBillsLoading(true);
     try {
       const data = await feeService.getTermBills({ ordering: '-updated_at' });
-      setRecordsBills(data.results);
+      setRecordsBills(data?.results ?? []);
     } catch (e) {
       console.error('Failed to load fee records', e);
     } finally {
@@ -597,7 +597,7 @@ const FeeManagement = () => {
         feeService.getStudentFeesByStatus(),
         feeService.getCollectionSummary(),
       ]);
-      setPaymentStatusBreakdown(statusData);
+      setPaymentStatusBreakdown(Array.isArray(statusData) ? statusData : []);
       setCollectionByFeeType(summaryData.by_fee_type || []);
       setCollectionByCollector(summaryData.by_collector || []);
     } catch (e) {
@@ -1062,18 +1062,18 @@ const FeeManagement = () => {
 
   // --- Unique class levels from recordsBills for filter ---
   const recClassLevels = useMemo(() =>
-    [...new Set(recordsBills.map(b => b.class_level))].sort(),
+    [...new Set((recordsBills ?? []).map(b => b.class_level))].sort(),
     [recordsBills]
   );
 
   // --- Pie chart data for analytics tab ---
-  const pieData = paymentStatusBreakdown.map(item => ({
+  const pieData = (paymentStatusBreakdown ?? []).map(item => ({
     name: ({ PAID: 'Paid', PARTIAL: 'Partial', NOT_STARTED: 'Not Started', DEFAULTED: 'Defaulted' } as Record<string, string>)[item.status] ?? item.status,
     value: item.count,
   }));
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="fees-management-page space-y-6 animate-fade-in">
       <PageHeader 
         title="Fee Management" 
         description="Collect and manage student fees across all classes"
@@ -1097,7 +1097,7 @@ const FeeManagement = () => {
       )}
       
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="fees-summary-stats grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <Card variant="elevated" key={i}>
@@ -1167,15 +1167,15 @@ const FeeManagement = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 gap-1">
-          <TabsTrigger value="collect" className="text-xs sm:text-sm">Collect</TabsTrigger>
-          <TabsTrigger value="records" className="text-xs sm:text-sm">Records</TabsTrigger>
-          <TabsTrigger value="payments" className="text-xs sm:text-sm">Payments</TabsTrigger>
-          <TabsTrigger value="analytics" className="text-xs sm:text-sm">
+        <TabsList className="fees-tabs grid w-full grid-cols-5 gap-1">
+          <TabsTrigger value="collect" className="h-8 text-xs sm:text-sm">Collect</TabsTrigger>
+          <TabsTrigger value="records" className="h-8 text-xs sm:text-sm">Records</TabsTrigger>
+          <TabsTrigger value="payments" className="h-8 text-xs sm:text-sm">Payments</TabsTrigger>
+          <TabsTrigger value="analytics" className="h-8 text-xs sm:text-sm [&>svg]:shrink-0">
             <BarChart3 className="h-3 w-3 sm:h-3.5 sm:w-3.5 sm:mr-1" />
             <span className="hidden sm:inline">Analytics</span>
           </TabsTrigger>
-          <TabsTrigger value="setup" className="text-xs sm:text-sm">
+          <TabsTrigger value="setup" className="h-8 text-xs sm:text-sm [&>svg]:shrink-0">
             <Settings className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
             <span className="hidden sm:inline">Setup</span>
           </TabsTrigger>
@@ -1297,7 +1297,7 @@ const FeeManagement = () => {
                 const selFeeTypeObj = feeTypes.find(ft => String(ft.id) === selectedFeeType && selectedFeeType !== 'all') ?? null;
                 const isDaily = selFeeTypeObj?.collection_frequency === 'DAILY';
                 return (
-              <div className="border rounded-lg p-4 bg-muted/20">
+              <div className="fees-collection-form border rounded-lg p-4 bg-muted/20">
                 <h4 className="font-medium mb-3">
                   {selectedStudent ? `Collect Fee from ${selectedStudent.first_name} ${selectedStudent.last_name}` : 'Fee Collection Form'}
                 </h4>
