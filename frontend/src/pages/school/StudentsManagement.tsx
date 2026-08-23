@@ -611,7 +611,7 @@ const StudentsManagement = () => {
 
       {/* Add/Edit Student Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="student-form-dialog max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingStudent ? 'Edit Student' : 'Add New Student'}</DialogTitle>
             <DialogDescription>

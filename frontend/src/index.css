@@ -750,6 +750,64 @@ html .register-page input[type="email"] {
   border-color: #bfdbfe !important;
 }
 
+.student-form-dialog {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f2a5e !important;
+}
+
+.student-form-dialog h2,
+.student-form-dialog h3,
+.student-form-dialog label,
+.student-form-dialog p {
+  color: #0f2a5e !important;
+}
+
+html.dark .student-form-dialog label,
+html.dark .student-form-dialog h2,
+html.dark .student-form-dialog h3 {
+  color: #0f2a5e !important;
+}
+
+.student-form-dialog input,
+.student-form-dialog textarea,
+.student-form-dialog [role="combobox"] {
+  color: #0f172a !important;
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.student-form-dialog input::placeholder,
+.student-form-dialog textarea::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+
+.student-form-dialog [role="combobox"] > span {
+  color: #0f2a5e !important;
+}
+
+.student-form-dialog .bg-muted {
+  background-color: #eff6ff !important;
+}
+
+@media (max-width: 639px) {
+  .student-form-dialog {
+    width: calc(100% - 1rem) !important;
+    max-height: 88vh !important;
+    padding: 1rem !important;
+  }
+
+  .student-form-dialog [data-radix-dialog-content] {
+    padding: 1rem !important;
+  }
+
+  .student-form-dialog .space-y-4,
+  .student-form-dialog .gap-4 {
+    gap: 0.75rem !important;
+  }
+}
+
 @media (max-width: 639px) {
   .fees-management-page .fees-collection-form {
     padding: 0.75rem !important;
