@@ -9,7 +9,7 @@ from schools.models import Term, Class
 from core import ai_service
 from core.models import (
     StudentRiskProfile, AttendanceInsight, AcademicTrend,
-    AIGeneratedReport, SmartSMSLog,
+    AIGeneratedReport, SmartSMSLog, StudentAIConversation,
 )
 
 logger = logging.getLogger(__name__)
@@ -576,9 +576,29 @@ def student_chat(request):
     if not student_name:
         student_name = getattr(student, 'first_name', '') or getattr(student, 'name', '') or 'student'
     subject_context = f' about {subject}' if subject else ''
+    subject_instruction = (
+        f"The student selected {subject} as the subject. Keep the explanation, examples, "
+        f"vocabulary, and homework guidance focused on {subject}; do not switch to another subject. "
+        if subject else
+        'No subject was selected, so identify the subject from the question when useful. '
+    )
+
+    conversation, _ = StudentAIConversation.objects.get_or_create(student=student)
+    previous_messages = conversation.messages[-10:]
+    history_context = '\n'.join(
+        f"{item.get('role', 'student').title()}: {item.get('text', '')}"
+        for item in previous_messages
+        if item.get('text')
+    )
+    history_instruction = (
+        f"Here is the recent conversation. Continue naturally from it:\n{history_context}\n"
+        if history_context else ''
+    )
 
     prompt = (
         f"You are a friendly school tutor for a Ghana Basic/SHS student named {student_name} in {class_level}. "
+        f"{history_instruction}"
+        f"{subject_instruction}"
         f"Answer this question{subject_context} simply and clearly, using examples relevant to Ghana. "
         f"Address the student by their name naturally when appropriate. "
         f"If it's a homework question, guide them to the answer with hints — don't just give it directly. "
@@ -597,6 +617,15 @@ def student_chat(request):
     # Increment counter (expires at midnight via 86400s TTL)
     cache.set(cache_key, count + 1, 86400)
 
+    timestamp = __import__('datetime').datetime.now().strftime('%I:%M %p').lstrip('0')
+    conversation.messages = (
+        conversation.messages + [
+            {'id': len(conversation.messages) + 1, 'role': 'student', 'text': message, 'time': timestamp},
+            {'id': len(conversation.messages) + 2, 'role': 'ai', 'text': reply, 'time': timestamp},
+        ]
+    )[-100:]
+    conversation.save(update_fields=['messages', 'updated_at'])
+
     # Simple follow-up suggestions based on subject
     suggestions = []
     if subject:
@@ -614,9 +643,29 @@ def student_chat(request):
 
     return Response({
         'reply': reply,
+        'messages': conversation.messages,
         'suggestions': suggestions,
         'messages_used': count + 1,
         'messages_limit': DAILY_LIMIT,
+    })
+
+
+@api_view(['GET'])
+def student_chat_history(request):
+    """GET /api/ai/student/chat/history/ returns the student's saved tutor chat."""
+    from django.core.cache import cache
+
+    try:
+        student = _get_request_student(request)
+    except ValueError as e:
+        return Response({'error': str(e)}, status=status.HTTP_403_FORBIDDEN)
+
+    conversation = StudentAIConversation.objects.filter(student=student).first()
+    cache_key = f'student_chat_count:{student.id}:{__import__("datetime").date.today()}'
+    return Response({
+        'messages': conversation.messages if conversation else [],
+        'messages_used': cache.get(cache_key, 0),
+        'messages_limit': 20,
     })
 
 
@@ -638,9 +687,9 @@ def student_my_analysis(request):
     from schools.models import Term
 
     # Current term
-    term = Term.objects.filter(school=student.school, is_current=True).first()
+    term = Term.objects.filter(academic_year__school=student.school, is_current=True).first()
     if not term:
-        term = Term.objects.filter(school=student.school).order_by('-end_date').first()
+        term = Term.objects.filter(academic_year__school=student.school).order_by('-end_date').first()
 
     if not term:
         return Response({'error': 'No term data found'}, status=status.HTTP_404_NOT_FOUND)
@@ -657,6 +706,8 @@ def student_my_analysis(request):
             'strengths': [], 'weaknesses': [],
             'attendance_status': 'No Data',
             'overall_trend': 'Stable',
+            'percentage_change': 0,
+            'current_average': 0,
             'ai_message': f"{student.first_name}, no results recorded yet for this term. Keep attending classes!",
             'study_tips': ['Attend all classes', 'Complete all assignments on time'],
             'predicted_grade': 'Not enough data yet',
@@ -686,7 +737,7 @@ def student_my_analysis(request):
     try:
         curr_tr = TermResult.objects.get(student=student, term=term)
         prev_term = Term.objects.filter(
-            school=student.school, end_date__lt=term.start_date
+            academic_year__school=student.school, end_date__lt=term.start_date
         ).order_by('-end_date').first()
         if prev_term:
             prev_tr = TermResult.objects.get(student=student, term=prev_term)

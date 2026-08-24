@@ -128,3 +128,20 @@ class SmartSMSLog(models.Model):
 
     def __str__(self):
         return f"{self.alert_type} → {self.student} ({self.status})"
+
+
+class StudentAIConversation(models.Model):
+    student = models.OneToOneField(
+        Student,
+        on_delete=models.CASCADE,
+        related_name='ai_conversation',
+    )
+    messages = models.JSONField(default=list)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'core_student_ai_conversations'
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"AI Tutor conversation — {self.student}"

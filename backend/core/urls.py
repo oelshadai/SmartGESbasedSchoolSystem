@@ -27,6 +27,7 @@ urlpatterns = [
     path('generate-questions/', views.generate_questions_ai, name='ai-generate-questions'),
 
     # ── Student AI (student JWT auth) ──────────────────────────────────────────
+    path('student/chat/history/', views.student_chat_history, name='ai-student-chat-history'),
     path('student/chat/', views.student_chat, name='ai-student-chat'),
     path('student/my-analysis/', views.student_my_analysis, name='ai-student-analysis'),
     path('student/study-timetable/', views.student_study_timetable, name='ai-student-timetable'),

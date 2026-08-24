@@ -194,7 +194,7 @@ const TeacherAITools = () => {
 
       {/* Result */}
       {plan && (
-        <div className="rounded-3xl border border-border bg-card p-5 space-y-5">
+        <div className="ai-lesson-plan-card rounded-3xl border p-5 space-y-5">
           {/* Title row */}
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
@@ -250,7 +250,7 @@ const TeacherAITools = () => {
               {(plan.resources_needed ?? []).map((r, i) => (
                 <li
                   key={i}
-                  className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground"
+                  className="ai-lesson-resource rounded-full px-3 py-1 text-xs"
                 >
                   {r}
                 </li>
@@ -272,7 +272,7 @@ const Section = ({
   title: string;
   children: React.ReactNode;
 }) => (
-  <div className="rounded-2xl border border-border bg-slate-900/50 p-4 space-y-2">
+  <div className="ai-lesson-section rounded-2xl border p-4 space-y-2">
     <div className="flex items-center gap-2">
       {icon}
       <p className="text-sm font-semibold text-foreground">{title}</p>

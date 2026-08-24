@@ -263,19 +263,19 @@ const EnhancedGradeBook = () => {
   const selectedAssignmentData = assignments.find(a => a.id.toString() === selectedAssignment);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 bg-white p-4 text-slate-900 sm:p-6">
       <div>
-        <h1 className="text-3xl font-bold">Assignment Grading</h1>
-        <p className="text-muted-foreground mt-1">Review and grade student submissions with detailed inspection</p>
+        <h1 className="text-3xl font-bold text-[#0f2a5e]">Assignment Grading</h1>
+        <p className="mt-1 text-slate-600">Review and grade student submissions with detailed inspection</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Assignment</CardTitle>
+      <Card className="border-slate-200 bg-white shadow-sm">
+        <CardHeader className="border-b border-slate-100">
+          <CardTitle className="text-[#0f2a5e]">Select Assignment</CardTitle>
         </CardHeader>
         <CardContent>
           <Select value={selectedAssignment} onValueChange={setSelectedAssignment}>
-            <SelectTrigger>
+            <SelectTrigger className="border-slate-300 bg-white text-slate-900 focus:ring-[#0f2a5e]">
               <SelectValue placeholder="Choose assignment to grade" />
             </SelectTrigger>
             <SelectContent>
@@ -286,7 +286,7 @@ const EnhancedGradeBook = () => {
                   </SelectItem>
                 ))
               ) : (
-                <SelectItem value="none" disabled>No assignments pending grading</SelectItem>
+                <SelectItem value="none" disabled>No published assignments available</SelectItem>
               )}
             </SelectContent>
           </Select>
@@ -294,18 +294,19 @@ const EnhancedGradeBook = () => {
       </Card>
 
       {selectedAssignment && (
-        <Card>
-          <CardHeader>
+        <Card className="border-slate-200 bg-white shadow-sm">
+          <CardHeader className="border-b border-slate-100">
             <div className="flex items-center justify-between">
-              <CardTitle>{selectedAssignmentData?.title}</CardTitle>
-              <Badge>{submissions.length} submissions</Badge>
+              <CardTitle className="text-[#0f2a5e]">{selectedAssignmentData?.title}</CardTitle>
+              <Badge className="bg-[#0f2a5e] text-white hover:bg-[#0f2a5e]">{submissions.length} submissions</Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {submissions.map((submission) => (
-              <Card key={submission.id} className="border-l-4 border-l-blue-500">
+              <div key={submission.id} className="animated-stats-card">
+                <Card className="border-0 bg-white shadow-sm">
                 <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="font-medium">{submission.student.name}</p>
                       <p className="text-sm text-muted-foreground">{submission.student.student_id}</p>
@@ -313,14 +314,14 @@ const EnhancedGradeBook = () => {
                         Submitted: {new Date(submission.submitted_at).toLocaleString()}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
                       {submission.score !== undefined && (
                         <Badge variant="outline">{submission.score}/{selectedAssignmentData?.max_score}</Badge>
                       )}
                       <Badge variant={submission.status === 'graded' ? 'default' : 'secondary'}>
                         {submission.status}
                       </Badge>
-                      <Button size="sm" onClick={() => handleGradeSubmission(submission)}>
+                      <Button size="sm" onClick={() => handleGradeSubmission(submission)} className="bg-[#0f2a5e] text-white hover:bg-[#163b7d]">
                         {String(submission.id).startsWith('quiz_') ? (
                           <>
                             <BookOpen className="h-4 w-4 mr-1" />
@@ -333,7 +334,8 @@ const EnhancedGradeBook = () => {
                     </div>
                   </div>
                 </CardContent>
-              </Card>
+                </Card>
+              </div>
             ))}
           </CardContent>
         </Card>
@@ -344,9 +346,9 @@ const EnhancedGradeBook = () => {
         setQuizDetails(null);
         setGradingAnswers({});
       }}>
-        <DialogContent className={String(gradingSubmission?.id).startsWith('quiz_') ? "max-w-4xl max-h-[90vh] overflow-y-auto" : "max-w-md"}>
+        <DialogContent className={String(gradingSubmission?.id).startsWith('quiz_') ? "max-w-4xl max-h-[90vh] overflow-y-auto border-slate-200 bg-white" : "max-w-md border-slate-200 bg-white"}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-[#0f2a5e]">
               {String(gradingSubmission?.id || '').startsWith('quiz_') ? (
                 <>
                   <BookOpen className="h-5 w-5" />
@@ -360,7 +362,7 @@ const EnhancedGradeBook = () => {
           
           {gradingSubmission && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+              <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-[#f4f7fb] p-4">
                 <div>
                   <p className="font-medium text-lg">{gradingSubmission.student.name}</p>
                   <p className="text-sm text-foreground">{gradingSubmission.student.student_id}</p>
@@ -393,8 +395,8 @@ const EnhancedGradeBook = () => {
                       
                       <TabsContent value="questions" className="space-y-4 mt-4">
                         {quizDetails.answers.map((answer, index) => (
-                          <Card key={answer.id} className="border-l-4 border-l-blue-500">
-                            <CardHeader className="pb-3">
+                          <Card key={answer.id} className="border border-slate-200 border-l-4 border-l-[#0f2a5e] bg-white shadow-sm">
+                            <CardHeader className="border-b border-slate-100 pb-3">
                               <div className="flex items-center gap-2 mb-2">
                                 <Badge variant="outline">Q{index + 1}</Badge>
                                 <Badge variant={answer.question.type === 'mcq' ? 'default' : 'secondary'}>
@@ -408,7 +410,7 @@ const EnhancedGradeBook = () => {
                             <CardContent className="space-y-4">
                               <div>
                                 <Label className="text-sm font-medium">Student's Answer:</Label>
-                                <div className="mt-1 p-3 bg-muted rounded-md">
+                                <div className="mt-1 rounded-md border border-slate-200 bg-[#f8fafc] p-3">
                                   {answer.question.type === 'mcq' ? (
                                     <div className="flex items-center gap-2">
                                       <span>{answer.selected_option || 'No answer'}</span>
@@ -427,13 +429,14 @@ const EnhancedGradeBook = () => {
                               </div>
 
                               {(answer.question.type === 'short_answer' || answer.question.type === 'project') && (
-                                <div className="border-t pt-4 space-y-3">
+                                <div className="space-y-3 border-t border-slate-200 pt-4">
                                   <div>
                                     <Label>Points (out of {answer.question.points})</Label>
                                     <Input
                                       type="number"
                                       min="0"
                                       max={answer.question.points}
+                                      className="border-slate-300 bg-white focus-visible:ring-[#0f2a5e]"
                                       value={gradingAnswers[answer.id]?.points || '0'}
                                       onChange={(e) => updateAnswerGrading(answer.id, 'points', e.target.value)}
                                     />
@@ -441,6 +444,7 @@ const EnhancedGradeBook = () => {
                                   <div>
                                     <Label>Comment</Label>
                                     <Textarea
+                                      className="border-slate-300 bg-white focus-visible:ring-[#0f2a5e]"
                                       value={gradingAnswers[answer.id]?.comment || ''}
                                       onChange={(e) => updateAnswerGrading(answer.id, 'comment', e.target.value)}
                                       placeholder="Feedback for this answer..."
@@ -451,9 +455,9 @@ const EnhancedGradeBook = () => {
                               )}
 
                               {answer.question.type === 'mcq' && (
-                                <div className="flex items-center justify-between p-3 bg-green-950/50 border border-green-700 rounded-md">
-                                  <span className="text-sm font-medium text-green-300">Auto-graded</span>
-                                  <Badge>{answer.points_earned}/{answer.question.points} pts</Badge>
+                                <div className="flex items-center justify-between rounded-md border border-[#b9c9e3] bg-[#eef3fa] p-3">
+                                  <span className="text-sm font-medium text-[#0f2a5e]">Auto-graded</span>
+                                  <Badge className="bg-[#0f2a5e] text-white hover:bg-[#0f2a5e]">{answer.points_earned}/{answer.question.points} pts</Badge>
                                 </div>
                               )}
                             </CardContent>
@@ -468,11 +472,11 @@ const EnhancedGradeBook = () => {
                           </CardHeader>
                           <CardContent className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
-                              <div className="text-center p-4 bg-muted rounded-lg">
+                              <div className="rounded-lg border border-slate-200 bg-[#f4f7fb] p-4 text-center">
                                 <p className="text-2xl font-bold">{calculateTotalScore().toFixed(1)}</p>
                                 <p className="text-sm text-muted-foreground">Calculated Score</p>
                               </div>
-                              <div className="text-center p-4 bg-muted rounded-lg">
+                              <div className="rounded-lg border border-slate-200 bg-[#f4f7fb] p-4 text-center">
                                 <p className="text-2xl font-bold">{quizDetails.attempt.assignment.max_score}</p>
                                 <p className="text-sm text-muted-foreground">Max Score</p>
                               </div>
@@ -484,6 +488,7 @@ const EnhancedGradeBook = () => {
                               <Label>Final Score (Optional Override)</Label>
                               <Input
                                 type="number"
+                                className="border-slate-300 bg-white focus-visible:ring-[#0f2a5e]"
                                 value={score || calculateTotalScore().toFixed(1)}
                                 onChange={(e) => setScore(e.target.value)}
                                 min="0"
@@ -497,6 +502,7 @@ const EnhancedGradeBook = () => {
                             <div>
                               <Label>Overall Feedback</Label>
                               <Textarea
+                                className="border-slate-300 bg-white focus-visible:ring-[#0f2a5e]"
                                 value={feedback}
                                 onChange={(e) => setFeedback(e.target.value)}
                                 rows={3}
@@ -517,6 +523,7 @@ const EnhancedGradeBook = () => {
                     <Label>Score (out of {selectedAssignmentData?.max_score})</Label>
                     <Input
                       type="number"
+                      className="border-slate-300 bg-white focus-visible:ring-[#0f2a5e]"
                       value={score}
                       onChange={(e) => setScore(e.target.value)}
                       min="0"
@@ -526,6 +533,7 @@ const EnhancedGradeBook = () => {
                   <div>
                     <Label>Feedback</Label>
                     <Textarea
+                      className="border-slate-300 bg-white focus-visible:ring-[#0f2a5e]"
                       value={feedback}
                       onChange={(e) => setFeedback(e.target.value)}
                       rows={4}
@@ -535,7 +543,7 @@ const EnhancedGradeBook = () => {
                 </div>
               )}
               
-              <div className="flex justify-end gap-2 pt-4 border-t">
+              <div className="flex justify-end gap-2 border-t border-slate-200 pt-4">
                 <Button variant="outline" onClick={() => {
                   setGradingSubmission(null);
                   setQuizDetails(null);
@@ -543,7 +551,7 @@ const EnhancedGradeBook = () => {
                 }}>
                   Cancel
                 </Button>
-                <Button onClick={saveGrade} disabled={saving}>
+                <Button onClick={saveGrade} disabled={saving} className="bg-[#0f2a5e] text-white hover:bg-[#163b7d]">
                   {saving ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />

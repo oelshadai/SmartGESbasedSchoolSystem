@@ -1573,7 +1573,17 @@ html.dark .student-form-dialog h3 {
 .professional-theme-content .animated-quick-action-content,
 .professional-theme-content .animated-stats-card-content,
 .professional-theme-content .animated-assignment-card-content {
-  background-color: #f1f5f9 !important;
+  background-color: #ffffff !important;
+  border: 1px solid #dbeafe;
+  box-shadow: 0 8px 20px rgba(15, 42, 94, 0.12), 0 2px 6px rgba(15, 42, 94, 0.08);
+}
+
+.professional-theme-content .animated-assignment-card {
+  box-shadow: 0 8px 22px rgba(15, 42, 94, 0.14), 0 0 12px rgba(var(--theme-animation-rgb), 0.18);
+}
+
+.professional-theme-content .animated-assignment-card:hover {
+  box-shadow: 0 12px 30px rgba(15, 42, 94, 0.2), 0 0 18px rgba(var(--theme-animation-rgb), 0.28);
 }
 
 .professional-theme-content .bg-card\/100 {
@@ -1615,6 +1625,26 @@ html.dark .student-form-dialog h3 {
 .professional-theme-content .ai-tutor-header svg,
 .professional-theme-content .ai-tutor-header button {
   color: #ffffff !important;
+}
+
+.professional-theme-content .ai-lesson-plan-card {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+.professional-theme-content .ai-lesson-section {
+  background-color: #0f2a5e !important;
+  border-color: #1e4a86 !important;
+}
+
+.professional-theme-content .ai-lesson-section p,
+.professional-theme-content .ai-lesson-section li {
+  color: #ffffff !important;
+}
+
+.professional-theme-content .ai-lesson-section li.ai-lesson-resource {
+  background-color: #e2e8f0 !important;
+  color: #0f2a5e !important;
 }
 
 .professional-dialog {

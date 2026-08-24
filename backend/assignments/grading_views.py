@@ -22,87 +22,57 @@ class GradingViewSet(viewsets.ViewSet):
     
     @action(detail=False, methods=['get'], url_path='pending-grading')
     def pending_grading(self, request):
-        """Get assignments that have submissions needing manual grading"""
+        """List all published assignments for this teacher, with pending count on each."""
         user = request.user
-        
-        # Get assignments created by this teacher or for classes they teach
+
         from schools.models import ClassSubject
-        
+
         teacher_subjects = ClassSubject.objects.filter(
             teacher=user
         ).values_list('id', flat=True)
-        
-        # All published assignments for this teacher
+
         base_assignments = Assignment.objects.filter(
             Q(created_by=user) |
             Q(class_subject__in=teacher_subjects) |
             Q(class_instance__class_teacher=user)
-        ).filter(
-            status='PUBLISHED'
-        )
-
-        # Homework/project/exercise pending by StudentAssignment SUBMITTED
-        pending_hw_assignments = StudentAssignment.objects.filter(
-            assignment__in=base_assignments,
-            status='SUBMITTED',
-            assignment__assignment_type__in=['HOMEWORK', 'PROJECT', 'EXERCISE']
-        ).values_list('assignment_id', flat=True).distinct()
-
-        # Quiz/exam pending by short_answer/project quiz answers not yet graded OR submitted attempts
-        quiz_assignments = base_assignments.filter(assignment_type__in=['QUIZ', 'EXAM'])
-
-        pending_quiz_attempts = QuizAttempt.objects.filter(
-            assignment__in=quiz_assignments,
-            status='SUBMITTED'
-        ).values_list('assignment_id', flat=True).distinct()
-
-        pending_quiz_ungraded = QuizAnswer.objects.filter(
-            attempt__assignment__in=quiz_assignments,
-            question__question_type__in=['short_answer', 'project'],
-            is_correct__isnull=True
-        ).values_list('attempt__assignment_id', flat=True).distinct()
-
-        pending_assignment_ids = set(list(pending_hw_assignments)) | set(list(pending_quiz_attempts)) | set(list(pending_quiz_ungraded))
-
-        assignments = base_assignments.filter(id__in=pending_assignment_ids)
+        ).filter(status='PUBLISHED').select_related(
+            'class_subject__subject',
+            'class_instance'
+        ).order_by('-due_date', '-id')
 
         assignment_data = []
-        for assignment in assignments:
-            # Count submissions needing grading
+        for assignment in base_assignments:
             if assignment.assignment_type in ['HOMEWORK', 'PROJECT', 'EXERCISE']:
-                # All submitted homework/project/exercise need manual grading
                 pending_count = StudentAssignment.objects.filter(
                     assignment=assignment,
                     status='SUBMITTED'
                 ).count()
             else:
-                # For quizzes/exams, count those with ungraded short answer or project questions
                 pending_count = QuizAnswer.objects.filter(
                     attempt__assignment=assignment,
                     question__question_type__in=['short_answer', 'project'],
-                    is_correct__isnull=True  # Not yet graded
+                    is_correct__isnull=True
                 ).values('attempt').distinct().count()
-            
-            if pending_count > 0:
-                assignment_data.append({
-                    'id': assignment.id,
-                    'title': assignment.title,
-                    'description': assignment.description,
-                    'assignment_type': assignment.assignment_type,
-                    'due_date': assignment.due_date,
-                    'max_score': assignment.max_score,
-                    'subject': {
-                        'id': assignment.class_subject.subject.id if assignment.class_subject else None,
-                        'name': assignment.class_subject.subject.name if assignment.class_subject else 'General'
-                    },
-                    'class_instance': {
-                        'id': assignment.class_instance.id,
-                        'name': str(assignment.class_instance)
-                    },
-                    'pending_submissions': pending_count,
-                    'is_auto_graded': assignment.auto_grade and assignment.assignment_type in ['QUIZ', 'EXAM']
-                })
-        
+
+            assignment_data.append({
+                'id': assignment.id,
+                'title': assignment.title,
+                'description': assignment.description,
+                'assignment_type': assignment.assignment_type,
+                'due_date': assignment.due_date,
+                'max_score': assignment.max_score,
+                'subject': {
+                    'id': assignment.class_subject.subject.id if assignment.class_subject else None,
+                    'name': assignment.class_subject.subject.name if assignment.class_subject else 'General'
+                },
+                'class_instance': {
+                    'id': assignment.class_instance.id,
+                    'name': str(assignment.class_instance)
+                },
+                'pending_submissions': pending_count,
+                'is_auto_graded': assignment.auto_grade and assignment.assignment_type in ['QUIZ', 'EXAM']
+            })
+
         return Response({'results': assignment_data})
     
     @action(detail=True, methods=['get'], url_path='submissions')
@@ -153,7 +123,7 @@ class GradingViewSet(viewsets.ViewSet):
                 })
         
         elif assignment.assignment_type in ['QUIZ', 'EXAM']:
-            # Get ALL quiz attempts that have at least one manual-grading question
+            # Include graded attempts so teachers can re-inspect quiz responses.
             quiz_attempts = QuizAttempt.objects.filter(
                 assignment=assignment,
                 status__in=['SUBMITTED', 'GRADED']
@@ -165,10 +135,6 @@ class GradingViewSet(viewsets.ViewSet):
                     attempt=attempt,
                     question__question_type__in=['short_answer', 'project']
                 ).select_related('question')
-
-                if not manual_answers.exists():
-                    # Pure MCQ quiz – no manual grading needed, skip
-                    continue
 
                 ungraded_count = manual_answers.filter(is_correct__isnull=True).count()
                 needs_grading = ungraded_count > 0
@@ -197,7 +163,10 @@ class GradingViewSet(viewsets.ViewSet):
                     'file_url': None,
                     'text_content': '\n\n'.join(text_answers),
                     'score': attempt.score,
-                    'feedback': '',
+                    'feedback': StudentAssignment.objects.filter(
+                        assignment=assignment,
+                        student=attempt.student
+                    ).values_list('teacher_feedback', flat=True).first() or '',
                     'status': 'submitted' if needs_grading else 'graded',
                     'needs_grading': needs_grading,
                     'ungraded_count': ungraded_count,

@@ -179,7 +179,7 @@ export default function AIChatbot() {
     .reverse();
 
   return (
-    <div className="flex flex-col h-[calc(100vh-18rem)] max-w-lg mx-auto">
+    <div className="flex flex-col h-[calc(100vh-12rem)] min-h-[520px] md:h-[calc(100vh-8rem)] md:min-h-[650px] max-w-lg mx-auto">
       {/* Header */}
       <div className="ai-tutor-header flex items-center gap-3 px-4 py-3 bg-[#0f2a5e] rounded-t-2xl">
         <div className="h-9 w-9 rounded-full bg-white/20 flex items-center justify-center">

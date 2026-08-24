@@ -2,8 +2,9 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Sum, Q, Count
+from django.db import transaction
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from decimal import Decimal
 from calendar import month_name
 
@@ -38,6 +39,34 @@ class StaffViewSet(viewsets.ModelViewSet):
             serializer.save(school=self.request.user.school)
         finally:
             clear_audit_context()
+
+    @action(detail=False, methods=['post'], url_path='sync-teachers')
+    def sync_teachers(self, request):
+        """Create/update payroll staff profiles for all teachers in this school."""
+        user = request.user
+        if not user.school:
+            return Response({'error': 'User is not associated with a school.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        teachers = Teacher.objects.filter(school=user.school).select_related('user')
+        synced = 0
+        with transaction.atomic():
+            for teacher in teachers:
+                staff, _ = Staff.objects.update_or_create(
+                    school=user.school,
+                    user=teacher.user,
+                    defaults={
+                        'staff_id': teacher.employee_id,
+                        'first_name': teacher.user.first_name,
+                        'last_name': teacher.user.last_name,
+                        'email': teacher.user.email,
+                        'phone': teacher.user.phone_number or '',
+                        'position': 'Teacher',
+                        'hire_date': teacher.hire_date,
+                        'status': 'ACTIVE' if teacher.is_active else 'SUSPENDED',
+                    },
+                )
+                synced += 1
+        return Response({'synced': synced})
 
     def perform_update(self, serializer):
         set_audit_context(self.request.user, action='UPDATE')
@@ -157,6 +186,16 @@ class PayrollRecordViewSet(viewsets.ModelViewSet):
                     skipped_count += 1
                     continue
 
+                monthly_allowances = (
+                    salary.housing_allowance
+                    + salary.transport_allowance
+                    + salary.other_allowances
+                    + (salary.weekly_allowance * 4)
+                )
+                monthly_deductions = salary.tax_deduction + salary.pension_deduction + salary.other_deductions
+                monthly_gross = salary.basic_salary + monthly_allowances
+                monthly_net = monthly_gross - monthly_deductions
+
                 # Create payroll record
                 PayrollRecord.objects.create(
                     school=school,
@@ -164,11 +203,12 @@ class PayrollRecordViewSet(viewsets.ModelViewSet):
                     salary=salary,
                     month=month,
                     year=year,
+                    payroll_frequency='MONTHLY',
                     basic_salary=salary.basic_salary,
-                    allowances=salary.housing_allowance + salary.transport_allowance + salary.other_allowances,
-                    deductions=salary.tax_deduction + salary.pension_deduction + salary.other_deductions,
-                    gross_salary=salary.gross_salary(),
-                    net_salary=salary.net_salary(),
+                    allowances=monthly_allowances,
+                    deductions=monthly_deductions,
+                    gross_salary=monthly_gross,
+                    net_salary=monthly_net,
                     created_by=request.user
                 )
                 created_count += 1
@@ -180,6 +220,39 @@ class PayrollRecordViewSet(viewsets.ModelViewSet):
             })
         finally:
             clear_audit_context()
+
+    @action(detail=False, methods=['post'])
+    def generate_weekly(self, request):
+        """Generate one weekly payroll period for all active staff."""
+        try:
+            period_start = date.fromisoformat(request.data.get('period_start', ''))
+            period_end = date.fromisoformat(request.data.get('period_end', ''))
+        except (TypeError, ValueError):
+            return Response({'error': 'Valid period_start and period_end dates are required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if period_end < period_start or (period_end - period_start).days > 6:
+            return Response({'error': 'Weekly payroll must cover 1 to 7 days.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        school = request.user.school
+        created_count = skipped_count = 0
+        for staff in Staff.objects.filter(school=school, status='ACTIVE'):
+            salary = StaffSalary.objects.filter(staff=staff, is_active=True).first()
+            if not salary or PayrollRecord.objects.filter(staff=staff, period_start=period_start, period_end=period_end).exists():
+                skipped_count += 1
+                continue
+            PayrollRecord.objects.create(
+                school=school, staff=staff, salary=salary,
+                month=period_start.month, year=period_start.year,
+                payroll_frequency='WEEKLY',
+                period_start=period_start, period_end=period_end,
+                basic_salary=salary.basic_salary / 4,
+                allowances=salary.weekly_allowance,
+                deductions=(salary.tax_deduction + salary.pension_deduction + salary.other_deductions) / 4,
+                gross_salary=salary.gross_salary() / 4,
+                net_salary=salary.net_salary() / 4,
+                created_by=request.user,
+            )
+            created_count += 1
+        return Response({'message': 'Weekly payroll generated successfully', 'created': created_count, 'skipped': skipped_count})
     
     @action(detail=True, methods=['post'])
     def mark_paid(self, request, pk=None):

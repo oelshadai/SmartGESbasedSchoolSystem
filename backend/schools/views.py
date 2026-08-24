@@ -16,6 +16,8 @@ from students.models import Student
 from reports.models import ReportCard
 from django.db import models
 from django.db.models import Count
+from django.db import transaction
+from core import ai_service
 
 User = get_user_model()
 
@@ -57,9 +59,38 @@ class AcademicYearViewSet(viewsets.ModelViewSet):
         if user.school:
             return AcademicYear.objects.filter(school=user.school)
         return AcademicYear.objects.none()
+
+    def list(self, request, *args, **kwargs):
+        """Keep the displayed current-year badge aligned with school settings."""
+        school = getattr(request.user, 'school', None)
+        if school and school.current_academic_year:
+            AcademicYear.objects.filter(school=school).update(
+                is_current=models.Case(
+                    models.When(name=school.current_academic_year, then=models.Value(True)),
+                    default=models.Value(False),
+                    output_field=models.BooleanField(),
+                )
+            )
+        return super().list(request, *args, **kwargs)
     
     def perform_create(self, serializer):
         serializer.save(school=self.request.user.school)
+
+    @action(detail=False, methods=['post'], url_path='ai-ges-calendar')
+    def ai_ges_calendar(self, request):
+        """Suggest GES-style dates for admin review; this does not save anything."""
+        if not request.user.is_staff and getattr(request.user, 'role', '') not in {'ADMIN', 'SCHOOL_ADMIN'}:
+            return Response({'error': 'Only school administrators can use this tool.'}, status=status.HTTP_403_FORBIDDEN)
+        academic_year = (request.data.get('academic_year') or '').strip()
+        if not academic_year:
+            return Response({'error': 'academic_year is required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            calendar = ai_service.generate_ges_academic_calendar(academic_year)
+        except (ImportError, ValueError) as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except Exception:
+            return Response({'error': 'AI calendar service is temporarily unavailable.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response(calendar)
 
 
 class TermViewSet(viewsets.ModelViewSet):
@@ -537,18 +568,39 @@ class SchoolSettingsView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        serializer = SchoolSettingsSerializer(
-            user.school, 
-            data=request.data, 
-            partial=True
-        )
+        requested_year = request.data.get('current_academic_year')
+        selected_year = None
+        if requested_year is not None:
+            selected_year = AcademicYear.objects.filter(
+                school=user.school, name=str(requested_year).strip()
+            ).first()
+            if not selected_year:
+                return Response(
+                    {'current_academic_year': ['Select an academic year configured for this school.']},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        serializer = SchoolSettingsSerializer(user.school, data=request.data, partial=True)
         if serializer.is_valid():
-            school = serializer.save()
-            # Sync Term.is_current with school.current_term so all parts of the
-            # system that query Term.is_current=True stay in sync
-            if 'current_term' in request.data and school.current_term_id:
-                Term.objects.filter(academic_year__school=school).update(is_current=False)
-                Term.objects.filter(id=school.current_term_id).update(is_current=True)
+            with transaction.atomic():
+                school = serializer.save()
+                if selected_year:
+                    AcademicYear.objects.filter(school=school).update(is_current=False)
+                    AcademicYear.objects.filter(id=selected_year.id).update(is_current=True)
+
+                    current_term = school.current_term
+                    if not current_term or current_term.academic_year_id != selected_year.id:
+                        current_term = Term.objects.filter(
+                            academic_year=selected_year, name='FIRST'
+                        ).first()
+                        school.current_term = current_term
+                        school.save(update_fields=['current_term'])
+
+                # Sync Term.is_current with school.current_term so all parts of the
+                # system that query Term.is_current=True stay in sync
+                if school.current_term_id:
+                    Term.objects.filter(academic_year__school=school).update(is_current=False)
+                    Term.objects.filter(id=school.current_term_id).update(is_current=True)
             return Response({
                 "message": "School settings updated successfully",
                 "data": serializer.data

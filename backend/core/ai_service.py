@@ -508,13 +508,15 @@ def generate_smart_sms(student, alert_type, data):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _get_ai_provider():
-    """Return the preferred AI provider: ollama, gemini, or auto."""
+    """Return the preferred AI provider: ollama, groq, gemini, or auto."""
     provider = (
         getattr(settings, 'AI_PROVIDER', '')
         or os.getenv('AI_PROVIDER', '')
         or 'auto'
     ).strip().lower()
-    return provider or 'auto'
+    if provider in {'ollama', 'groq', 'gemini', 'auto'}:
+        return provider
+    return 'auto'
 
 
 def _get_ollama_base_url():
@@ -583,9 +585,51 @@ def _get_groq_model():
     model = (
         getattr(settings, 'GROQ_MODEL', '')
         or os.getenv('GROQ_MODEL', '')
-        or 'llama-3.1-8b-instant'
+        or 'openai/gpt-oss-20b'
     ).strip().strip('"').strip("'")
-    return model or 'llama-3.1-8b-instant'
+    return model or 'openai/gpt-oss-20b'
+
+
+def _get_gemini_model():
+    """Return the configured Gemini model name."""
+    model = (
+        getattr(settings, 'GEMINI_MODEL', '')
+        or os.getenv('GEMINI_MODEL', '')
+        or 'gemini-1.5-flash'
+    ).strip().strip('"').strip("'")
+    return model or 'gemini-1.5-flash'
+
+
+def _get_gemini_fallback_models():
+    """Return a safe list of Gemini models to try if the configured one is unavailable."""
+    configured = _get_gemini_model()
+    fallback_order = [
+        'gemini-1.5-flash',
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-pro',
+        'gemini-2.0-flash',
+    ]
+    deduped = []
+    for model in [configured, *fallback_order]:
+        if model and model not in deduped:
+            deduped.append(model)
+    return deduped
+
+
+def _get_groq_fallback_models():
+    """Return a safe list of Groq models to try if the configured one is unavailable."""
+    configured = _get_groq_model()
+    fallback_order = [
+        'openai/gpt-oss-20b',
+        'openai/gpt-oss-120b',
+        'llama-3.1-8b-instant',
+        'meta-llama/llama-4-scout-17b-16e-instruct',
+    ]
+    deduped = []
+    for model in [configured, *fallback_order]:
+        if model and model not in deduped:
+            deduped.append(model)
+    return deduped
 
 
 def _get_gemini_api_key():
@@ -605,92 +649,122 @@ def _get_gemini_api_key():
 def _groq_generate_text(prompt, model=None):
     """Call the Groq API using an OpenAI-compatible endpoint."""
     api_key = _get_groq_api_key()
-    model_name = model or _get_groq_model()
     url = 'https://api.groq.com/openai/v1/chat/completions'
     headers = {
         'Authorization': f'Bearer {api_key}',
         'Content-Type': 'application/json',
     }
-    data = {
-        'model': model_name,
-        'messages': [
-            {
-                'role': 'system',
-                'content': 'You are a friendly school tutor for Ghanaian students. Keep answers clear, simple, and under 200 words.'
-            },
-            {'role': 'user', 'content': prompt},
-        ],
-        'temperature': 0.7,
-    }
 
-    response = requests.post(url, headers=headers, json=data, timeout=60)
-    if response.status_code != 200:
-        raise ValueError(f'Groq API request failed with status {response.status_code}: {response.text[:200]}')
+    model_candidates = [model] if model else []
+    if not model_candidates:
+        model_candidates = _get_groq_fallback_models()
 
-    result = response.json()
-    choices = result.get('choices', [])
-    if not choices:
-        raise ValueError('Groq returned no choices')
-    return (choices[0].get('message', {}) or {}).get('content', '').strip()
+    last_error = None
+
+    for model_name in model_candidates:
+        data = {
+            'model': model_name,
+            'messages': [
+                {
+                    'role': 'system',
+                    'content': 'You are a friendly school tutor for Ghanaian students. Keep answers clear, simple, and under 200 words.'
+                },
+                {'role': 'user', 'content': prompt},
+            ],
+            'temperature': 0.7,
+        }
+
+        try:
+            response = requests.post(url, headers=headers, json=data, timeout=60)
+        except (SSLError, ConnectionError, Timeout, RequestException) as exc:
+            last_error = exc
+            continue
+
+        if response.status_code == 200:
+            result = response.json()
+            choices = result.get('choices', [])
+            if not choices:
+                raise ValueError('Groq returned no choices')
+            return (choices[0].get('message', {}) or {}).get('content', '').strip()
+
+        last_error = ValueError(
+            f'Groq API request failed with status {response.status_code}: {response.text[:200]}'
+        )
+        if response.status_code not in (400, 404):
+            raise last_error
+
+    if last_error is not None:
+        raise last_error
+    raise ValueError('Groq API request failed without a usable response')
 
 
-def _gemini_generate_text_impl(prompt, model='gemini-2.0-flash'):
+def _gemini_generate_text_impl(prompt, model=None):
     """Call the Gemini REST API using the official Google endpoint and auth header."""
     api_key = _get_gemini_api_key()
-    url = f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
-    headers = {
-        'x-goog-api-key': api_key,
-        'Content-Type': 'application/json',
-    }
-    data = {
-        'contents': [
-            {
-                'parts': [
-                    {'text': prompt}
-                ]
-            }
-        ]
-    }
+    model_candidates = [model] if model else _get_gemini_fallback_models()
+    last_error = None
 
-    max_attempts = 3
-    for attempt in range(1, max_attempts + 1):
+    for model_name in model_candidates:
+        url = f'https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent'
+        headers = {
+            'x-goog-api-key': api_key,
+            'Content-Type': 'application/json',
+        }
+        data = {
+            'contents': [
+                {
+                    'parts': [
+                        {'text': prompt}
+                    ]
+                }
+            ]
+        }
+
         try:
             response = requests.post(url, headers=headers, json=data, timeout=30)
-            break
         except (SSLError, ConnectionError, Timeout, RequestException) as exc:
-            logger.warning('Gemini request attempt %s failed: %s', attempt, exc)
-            if attempt == max_attempts:
-                raise ValueError('AI service is temporarily unavailable. Please try again shortly.')
-            time.sleep(1.5 * attempt)
+            last_error = exc
+            logger.warning('Gemini request failed for model %s: %s', model_name, exc)
+            continue
 
-    if response.status_code == 200:
-        result = response.json()
-        if not result.get('candidates'):
-            raise ValueError('Gemini returned no candidates')
-        parts = result['candidates'][0].get('content', {}).get('parts', [])
-        if not parts:
-            raise ValueError('Gemini returned no content parts')
-        return parts[0].get('text', '').strip()
+        if response.status_code == 200:
+            result = response.json()
+            if not result.get('candidates'):
+                raise ValueError('Gemini returned no candidates')
+            parts = result['candidates'][0].get('content', {}).get('parts', [])
+            if not parts:
+                raise ValueError('Gemini returned no content parts')
+            return parts[0].get('text', '').strip()
 
-    if response.status_code == 401:
-        raise ValueError('Gemini API authentication failed')
-    if response.status_code == 429:
-        raise ValueError('Gemini API rate limit exceeded')
-    raise ValueError(f'Gemini API request failed with status {response.status_code}')
+        last_error = ValueError(f'Gemini API request failed with status {response.status_code}')
+        if response.status_code in (401, 400, 404):
+            logger.warning('Gemini model %s unavailable or rejected; trying next candidate.', model_name)
+            continue
+        if response.status_code == 429:
+            raise ValueError('Gemini API rate limit exceeded')
+        raise last_error
+
+    if last_error is not None:
+        raise last_error
+    raise ValueError('Gemini AI service is unavailable')
 
 
 def _gemini_generate_text(prompt, model=None):
-    """Prefer Ollama locally, then Groq, then Gemini."""
+    """Prefer the configured provider, but always fall back to Gemini if Groq fails."""
     provider = _get_ai_provider()
 
     if provider == 'ollama':
         return _ollama_generate_text(prompt, model=model or _get_ollama_model())
 
     if provider == 'groq':
-        return _groq_generate_text(prompt, model=model or _get_groq_model())
+        try:
+            return _groq_generate_text(prompt, model=model or _get_groq_model())
+        except Exception as exc:
+            logger.warning('Groq failed, falling back to Gemini: %s', exc)
+            return _gemini_generate_text_impl(prompt, model=model or _get_gemini_model())
 
     if provider == 'gemini':
-        return _gemini_generate_text_impl(prompt, model=model or 'gemini-2.0-flash')
+        return _gemini_generate_text_impl(prompt, model=model or _get_gemini_model())
 
     # Auto mode: try Ollama first, then Groq, then Gemini.
     try:
@@ -703,7 +777,7 @@ def _gemini_generate_text(prompt, model=None):
     except Exception as exc:
         logger.info('Groq unavailable, falling back to Gemini: %s', exc)
 
-    return _gemini_generate_text_impl(prompt, model=model)
+    return _gemini_generate_text_impl(prompt, model=model or _get_gemini_model())
 
 
 def generate_ai_student_report(student, term):
@@ -816,6 +890,37 @@ def generate_lesson_plan(subject, topic, class_level, duration_minutes):
             'resources_needed': ['Textbook', 'Chalkboard', 'Exercise books'],
             '_note': 'Fallback plan — Gemini response was not valid JSON.',
         }
+
+def generate_ges_academic_calendar(academic_year):
+    """Suggest a GES-style academic calendar for admin review before saving."""
+    import json
+
+    prompt = (
+        f"Prepare a proposed Ghana Education Service (GES) basic-school academic calendar for {academic_year}. "
+        "Use the three-term Ghana school structure and typical GES term sequencing, reopening, vacation, "
+        "and school-day patterns. Do not claim these are official dates unless certain; mark the result as a "
+        "proposal requiring confirmation against the latest GES circular. Return ONLY valid JSON with keys: "
+        "academic_year (string), start_date (YYYY-MM-DD), end_date (YYYY-MM-DD), "
+        "terms (list of exactly 3 objects with name FIRST/SECOND/THIRD, start_date, end_date, total_days integer), "
+        "source_note (string)."
+    )
+    text = _gemini_generate_text(prompt)
+    if text.startswith('```'):
+        text = text.split('```')[1]
+        if text.startswith('json'):
+            text = text[4:]
+    try:
+        result = json.loads(text.strip())
+    except json.JSONDecodeError as exc:
+        raise ValueError('AI returned an invalid academic calendar. Please try again.') from exc
+
+    terms = result.get('terms')
+    if not isinstance(terms, list) or len(terms) != 3:
+        raise ValueError('AI returned an incomplete academic calendar. Please try again.')
+    required_names = {'FIRST', 'SECOND', 'THIRD'}
+    if {term.get('name') for term in terms} != required_names:
+        raise ValueError('AI returned invalid term names. Please try again.')
+    return result
 
 
 def generate_assignment(subject, topic, assignment_type, class_level, num_questions, duration_minutes=None,

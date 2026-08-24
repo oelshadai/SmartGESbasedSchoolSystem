@@ -132,6 +132,10 @@ class School(models.Model):
         default=True,
         help_text='Master switch — when off, no special fee-collector teacher can see the fee collection page'
     )
+    PAYROLL_FREQUENCY_CHOICES = [('MONTHLY', 'Monthly'), ('WEEKLY', 'Weekly')]
+    payroll_frequency = models.CharField(
+        max_length=10, choices=PAYROLL_FREQUENCY_CHOICES, default='MONTHLY'
+    )
 
     # Teacher student management
     teachers_can_add_students = models.BooleanField(
@@ -502,6 +506,7 @@ class StaffSalary(models.Model):
     housing_allowance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     transport_allowance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     other_allowances = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    weekly_allowance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     tax_deduction = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     pension_deduction = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     other_deductions = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -531,7 +536,7 @@ class StaffSalary(models.Model):
 
 
 class PayrollRecord(models.Model):
-    """Monthly payroll records"""
+    """Monthly or weekly payroll records."""
     STATUS_CHOICES = [
         ('DRAFT', 'Draft'),
         ('APPROVED', 'Approved'),
@@ -544,6 +549,9 @@ class PayrollRecord(models.Model):
     salary = models.ForeignKey(StaffSalary, on_delete=models.SET_NULL, null=True)
     month = models.IntegerField()
     year = models.IntegerField()
+    payroll_frequency = models.CharField(max_length=10, choices=School.PAYROLL_FREQUENCY_CHOICES, default='MONTHLY')
+    period_start = models.DateField(null=True, blank=True)
+    period_end = models.DateField(null=True, blank=True)
     basic_salary = models.DecimalField(max_digits=10, decimal_places=2)
     allowances = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     deductions = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -561,7 +569,18 @@ class PayrollRecord(models.Model):
     
     class Meta:
         db_table = 'financial_payrollrecord'
-        unique_together = ['school', 'staff', 'month', 'year']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['school', 'staff', 'month', 'year'],
+                condition=models.Q(payroll_frequency='MONTHLY'),
+                name='unique_monthly_payroll_record',
+            ),
+            models.UniqueConstraint(
+                fields=['school', 'staff', 'period_start', 'period_end'],
+                condition=models.Q(payroll_frequency='WEEKLY'),
+                name='unique_weekly_payroll_record',
+            ),
+        ]
         ordering = ['-year', '-month']
     
     def __str__(self):

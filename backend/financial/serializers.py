@@ -14,7 +14,7 @@ class StaffSerializer(serializers.ModelSerializer):
     class Meta:
         model = Staff
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'school']
     
     def get_full_name(self, obj):
         return f"{obj.first_name} {obj.last_name}"

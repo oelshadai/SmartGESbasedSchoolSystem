@@ -83,7 +83,7 @@ class SchoolSettingsSerializer(serializers.ModelSerializer):
             'logo', 'motto', 'website', 'current_academic_year', 'current_term',
             
             # System Configuration
-            'score_entry_mode', 'is_active',
+            'score_entry_mode', 'is_active', 'payroll_frequency',
             
             # Terminal Report Settings
             'term_closing_date', 'term_reopening_date', 'show_promotion_on_terminal',
@@ -131,7 +131,7 @@ class AcademicYearSerializer(serializers.ModelSerializer):
     class Meta:
         model = AcademicYear
         fields = '__all__'
-        read_only_fields = ['created_at']
+        read_only_fields = ['created_at', 'school']
 
 
 class TermSerializer(serializers.ModelSerializer):
