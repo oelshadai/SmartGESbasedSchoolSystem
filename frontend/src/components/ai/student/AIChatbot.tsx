@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Bot, User, Loader2, BookOpen, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { Send, Bot, User, Loader2, BookOpen, Mic, MicOff, Volume2, VolumeX, History, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { secureApiClient } from '@/lib/secureApiClient';
@@ -20,14 +20,7 @@ interface Message {
 const SUBJECTS = ['Mathematics', 'English', 'Science', 'Social Studies', 'ICT', 'French', 'RME', 'Creative Arts', 'Ghanaian Language'];
 
 export default function AIChatbot() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 0,
-      role: 'ai',
-      text: "Hi! I'm your AI Tutor 👋 Ask me anything about your schoolwork. I'll guide you with hints on homework questions!",
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [subject, setSubject] = useState('all');
   const [loading, setLoading] = useState(false);
@@ -36,10 +29,34 @@ export default function AIChatbot() {
   const [listening, setListening] = useState(false);
   const [speakingId, setSpeakingId] = useState<number | null>(null);
   const [autoSpeak, setAutoSpeak] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
   const speakingIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const res = await secureApiClient.get('/ai/student/chat/history/') as any;
+        setMessages(res.messages?.length ? res.messages : [{
+          id: 0,
+          role: 'ai',
+          text: "Hi! I'm your AI Tutor 👋 Ask me anything about your schoolwork. I'll guide you with hints on homework questions!",
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }]);
+        setUsed(res.messages_used ?? 0);
+      } catch {
+        setMessages([{
+          id: 0,
+          role: 'ai',
+          text: "Hi! I'm your AI Tutor 👋 Ask me anything about your schoolwork. I'll guide you with hints on homework questions!",
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }]);
+      }
+    };
+    loadHistory();
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -122,7 +139,7 @@ export default function AIChatbot() {
       }) as any;
 
       const aiMsg: Message = { id: Date.now() + 1, role: 'ai', text: res.reply, time };
-      setMessages(prev => [...prev, aiMsg]);
+      setMessages(res.messages?.length ? res.messages : prev => [...prev, aiMsg]);
       setUsed(res.messages_used ?? used + 1);
       if (autoSpeak && hasSpeechSynthesis) speak(res.reply, aiMsg.id);
 
@@ -156,6 +173,11 @@ export default function AIChatbot() {
     inputRef.current?.focus();
   };
 
+  const historyQuestions = messages
+    .filter(msg => msg.role === 'student' && !msg.text.startsWith('__suggestions__'))
+    .slice()
+    .reverse();
+
   return (
     <div className="flex flex-col h-[calc(100vh-18rem)] max-w-lg mx-auto">
       {/* Header */}
@@ -168,6 +190,14 @@ export default function AIChatbot() {
           <p className="text-xs text-white/70">Always here to help</p>
         </div>
         <div className="text-right flex items-center gap-2">
+          <button
+            onClick={() => setShowHistory(prev => !prev)}
+            title={showHistory ? 'Close chat history' : 'Open chat history'}
+            aria-label={showHistory ? 'Close chat history' : 'Open chat history'}
+            className={`p-1.5 rounded-lg transition-colors ${showHistory ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white'}`}
+          >
+            {showHistory ? <X className="h-4 w-4" /> : <History className="h-4 w-4" />}
+          </button>
           {hasSpeechSynthesis && (
             <button
               onClick={() => { setAutoSpeak(p => !p); window.speechSynthesis.cancel(); setSpeakingId(null); }}
@@ -199,6 +229,38 @@ export default function AIChatbot() {
           </SelectContent>
         </Select>
       </div>
+
+      {showHistory && (
+        <div className="border-b border-border bg-card px-3 py-3" aria-label="Chat history">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-xs font-semibold text-foreground">Recent questions</p>
+              <p className="text-[11px] text-muted-foreground">Your tutor conversation is saved automatically.</p>
+            </div>
+            <span className="text-[11px] text-muted-foreground">{historyQuestions.length}</span>
+          </div>
+          {historyQuestions.length ? (
+            <div className="max-h-36 overflow-y-auto space-y-1.5">
+              {historyQuestions.map(question => (
+                <button
+                  key={question.id}
+                  onClick={() => {
+                    setInput(question.text);
+                    setShowHistory(false);
+                    inputRef.current?.focus();
+                  }}
+                  className="w-full text-left rounded-lg border border-border bg-muted/30 px-2.5 py-2 text-xs text-foreground hover:bg-muted transition-colors"
+                >
+                  <span className="line-clamp-2">{question.text}</span>
+                  <span className="mt-1 block text-[10px] text-muted-foreground">{question.time}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground py-2">No previous questions yet.</p>
+          )}
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-3 bg-muted/20">

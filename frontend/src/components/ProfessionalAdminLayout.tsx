@@ -824,7 +824,7 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
               }`}
             >
               <span className={`flex h-6 w-9 items-center justify-center rounded-lg ${active ? 'bg-blue-100' : ''}`}>
-                <Icon className="h-4 w-4" />
+                <Icon className="h-4 w-4 text-[#0f2a5e]" />
               </span>
               <span className="max-w-full truncate">{item.label}</span>
             </button>

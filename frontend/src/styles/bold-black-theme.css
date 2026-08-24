@@ -1,11 +1,10 @@
 /* ══════════════════════════════════════════════════════════════
-   NAVY & GOLD THEME  —  single source of truth
-   Gold  = #f0c040   (headings only)
-   White = #ffffff   bold (all other text: labels, body, inputs, messages)
-   Navy  = #0f2a5e   (headings in light mode)
+  WHITE & NAVY THEME  —  single source of truth
+  White = #ffffff   (surfaces and light-mode cards)
+  Navy  = #0f2a5e   (primary, headings, labels, and actions)
    ══════════════════════════════════════════════════════════════ */
 
-/* ── ALL headings → gold in dark, navy in light ── */
+/* ── ALL headings → white in dark, navy in light ── */
 h1, h2, h3, h4, h5, h6,
 .card-title,
 .page-title,
@@ -19,14 +18,14 @@ h1, h2, h3, h4, h5, h6,
 .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6,
 .dark .card-title, .dark .page-title, .dark .section-title,
 .dark .dialog-title, .dark .modal-title {
-  color: #f0c040 !important;
+  color: #ffffff !important;
 }
 
 :not(.dark) h1, :not(.dark) h2, :not(.dark) h3,
 :not(.dark) h4, :not(.dark) h5, :not(.dark) h6,
 :not(.dark) .card-title, :not(.dark) .page-title,
 :not(.dark) .section-title {
-  color: #e5b92f !important;
+  color: #0f2a5e !important;
 }
 
 /* ── ALL labels → bold white in dark, navy in light ── */
@@ -121,12 +120,12 @@ label,
 /* light mode body text → navy (only semantic/utility classes, not bare span/div/li) */
 :not(.dark) .text-foreground,
 :not(.dark) .text-card-foreground {
-  color: #e5b92f !important;
+  color: #0f2a5e !important;
   font-weight: 600 !important;
 }
 
 :not(.dark) .text-muted-foreground {
-  color: #ffffff !important;
+  color: #475569 !important;
   font-weight: 600 !important;
 }
 
@@ -158,9 +157,9 @@ textarea::placeholder {
   font-weight: 400 !important;
 }
 
-/* ── Table headers → gold in dark, navy in light ── */
+/* ── Table headers → white in dark, navy in light ── */
 .dark th {
-  color: #f0c040 !important;
+  color: #ffffff !important;
   font-weight: 700 !important;
 }
 :not(.dark) th {
@@ -176,7 +175,7 @@ textarea::placeholder {
 .dark .sidebar *, .dark [data-sidebar] * { color: #e2e8f0 !important; }
 
 /* ── Links ── */
-.dark a { color: #f0c040 !important; font-weight: 600 !important; }
+.dark a { color: #ffffff !important; font-weight: 600 !important; }
 .dark a:hover { color: #fde68a !important; }
 :not(.dark) a { color: #1e40af !important; font-weight: 600 !important; }
 :not(.dark) a:hover { color: #0f2a5e !important; }
@@ -355,6 +354,17 @@ textarea::placeholder {
 
 .professional-theme-content [role="combobox"] span {
   color: #0f172a !important;
+}
+
+.professional-dialog label,
+.professional-dialog label .font-medium {
+  color: #0f172a !important;
+}
+
+.professional-dialog input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: brightness(0) saturate(100%) invert(14%) sepia(28%) saturate(1800%) hue-rotate(180deg) brightness(86%);
+  opacity: 0.9;
+  cursor: pointer;
 }
 
 .professional-theme-content [role="combobox"] svg {

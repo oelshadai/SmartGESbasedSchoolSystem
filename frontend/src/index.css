@@ -26,7 +26,7 @@
     --muted: 214 30% 93%;
     --muted-foreground: 220 20% 45%;
 
-    --accent: 43 90% 50%;         /* gold */
+    --accent: 214 70% 93%;        /* pale navy tint */
     --accent-foreground: 220 60% 12%;
 
     --destructive: 0 72% 51%;
@@ -34,18 +34,18 @@
 
     --border: 214 25% 85%;
     --input: 214 25% 85%;
-    --ring: 43 90% 50%;
+    --ring: 220 70% 20%;
 
     --radius: 0.625rem;
 
     --sidebar-background: 220 70% 15%;
     --sidebar-foreground: 210 40% 92%;
-    --sidebar-primary: 43 90% 50%;
+    --sidebar-primary: 214 70% 93%;
     --sidebar-primary-foreground: 220 60% 12%;
     --sidebar-accent: 220 60% 22%;
     --sidebar-accent-foreground: 210 40% 92%;
     --sidebar-border: 220 50% 24%;
-    --sidebar-ring: 43 90% 50%;
+    --sidebar-ring: 214 70% 93%;
 
     --success: 152 60% 40%;
     --success-foreground: 0 0% 100%;
@@ -54,7 +54,7 @@
     --info: 205 80% 50%;
     --info-foreground: 0 0% 100%;
     --theme-animation-rgb: 30, 58, 138;     /* navy */
-    --theme-animation-alt-rgb: 202, 155, 36; /* gold */
+    --theme-animation-alt-rgb: 30, 58, 138;  /* navy */
   }
 
   .dark {

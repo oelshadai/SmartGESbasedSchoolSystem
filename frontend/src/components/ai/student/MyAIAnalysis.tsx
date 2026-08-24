@@ -101,7 +101,7 @@ export default function MyAIAnalysis() {
           {/* Stats row */}
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-2xl bg-card border border-border p-3 text-center">
-              <p className="text-xl font-bold text-foreground">{data.current_average.toFixed(1)}</p>
+              <p className="text-xl font-bold text-foreground">{Number(data.current_average ?? 0).toFixed(1)}</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">Average %</p>
             </div>
             <div className={`rounded-2xl border p-3 text-center ${attendanceColor}`}>
@@ -112,7 +112,7 @@ export default function MyAIAnalysis() {
               <div className={`flex items-center justify-center gap-1 ${trendColor}`}>
                 <TrendIcon className="h-4 w-4" />
                 <span className="text-sm font-bold">
-                  {data.percentage_change > 0 ? '+' : ''}{data.percentage_change.toFixed(1)}%
+                  {Number(data.percentage_change ?? 0) > 0 ? '+' : ''}{Number(data.percentage_change ?? 0).toFixed(1)}%
                 </span>
               </div>
               <p className="text-[10px] text-muted-foreground mt-0.5">{data.overall_trend}</p>

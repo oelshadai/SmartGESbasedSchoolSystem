@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Edit, Calendar, Plus, Star, Loader2, BookOpen } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Edit, Calendar, Plus, Star, Loader2, BookOpen, Sparkles } from 'lucide-react';
 import secureApiClient from '@/lib/secureApiClient';
 import { toast } from 'sonner';
 
@@ -62,6 +62,9 @@ const AcademicYearManagement = () => {
 
   const [settingCurrent, setSettingCurrent] = useState<number | null>(null);
   const [settingCurrentYear, setSettingCurrentYear] = useState<number | null>(null);
+  const [aiCalendarLoading, setAiCalendarLoading] = useState(false);
+  const [aiTerms, setAiTerms] = useState<Array<{ name: 'FIRST' | 'SECOND' | 'THIRD'; start_date: string; end_date: string; total_days: number }>>([]);
+  const [aiSourceNote, setAiSourceNote] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -91,8 +94,31 @@ const AcademicYearManagement = () => {
   // ---- Academic Year ----
   const openAddYear = () => {
     setEditYear(null);
-    setYearForm({ name: '', start_date: '', end_date: '' });
+    const nextStartYear = new Date().getFullYear();
+    setYearForm({ name: `${nextStartYear}/${nextStartYear + 1}`, start_date: '', end_date: '' });
+    setAiTerms([]);
+    setAiSourceNote('');
     setYearModal(true);
+  };
+
+  const suggestGesCalendar = async () => {
+    const academicYear = yearForm.name.trim();
+    if (!academicYear) {
+      toast.error('Enter an academic year first, for example 2026/2027');
+      return;
+    }
+    setAiCalendarLoading(true);
+    try {
+      const suggestion = await secureApiClient.post('/schools/academic-years/ai-ges-calendar/', { academic_year: academicYear }) as any;
+      setYearForm({ name: suggestion.academic_year || academicYear, start_date: suggestion.start_date || '', end_date: suggestion.end_date || '' });
+      setAiTerms(suggestion.terms || []);
+      setAiSourceNote(suggestion.source_note || 'Confirm dates against the latest GES circular before publishing.');
+      toast.success('GES calendar suggested. Review the dates before saving.');
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not generate a GES calendar suggestion');
+    } finally {
+      setAiCalendarLoading(false);
+    }
   };
 
   const openEditYear = (y: AcademicYear) => {
@@ -105,16 +131,31 @@ const AcademicYearManagement = () => {
     if (!yearForm.name || !yearForm.start_date || !yearForm.end_date) {
       toast.error('Please fill all fields'); return;
     }
+    if (!editYear && years.some(year => year.name.toLowerCase() === yearForm.name.trim().toLowerCase())) {
+      toast.error('This academic year already exists. Edit the existing year instead.');
+      return;
+    }
     setYearSaving(true);
     try {
       if (editYear) {
         await secureApiClient.patch(`/schools/academic-years/${editYear.id}/`, yearForm);
         toast.success('Academic year updated');
       } else {
-        await secureApiClient.post('/schools/academic-years/', yearForm);
+        const createdYear = await secureApiClient.post('/schools/academic-years/', yearForm) as any;
+        if (aiTerms.length === 3 && createdYear?.id) {
+          await Promise.all(aiTerms.map(term => secureApiClient.post('/schools/terms/', {
+            academic_year: createdYear.id,
+            name: term.name,
+            start_date: term.start_date,
+            end_date: term.end_date,
+            total_days: term.total_days || 0,
+          })));
+        }
         toast.success('Academic year created');
       }
       setYearModal(false);
+      setAiTerms([]);
+      setAiSourceNote('');
       load();
     } catch (e: any) {
       const msg = e?.response?.data ? Object.values(e.response.data).flat().join(' ') : 'Failed to save';
@@ -222,8 +263,18 @@ const AcademicYearManagement = () => {
       <PageHeader
         title="Academic Year Management"
         description="Configure academic years and terms for your school"
-        actionLabel="New Academic Year"
-        onAction={openAddYear}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={openAddYear}>
+              <Sparkles className="h-4 w-4 mr-1.5" />
+              <span className="text-xs sm:text-sm">GES AI Setup</span>
+            </Button>
+            <Button size="sm" onClick={openAddYear}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              <span className="text-xs sm:text-sm">New Academic Year</span>
+            </Button>
+          </div>
+        }
       />
 
       {loading ? (
@@ -436,8 +487,17 @@ const AcademicYearManagement = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editYear ? 'Edit Academic Year' : 'New Academic Year'}</DialogTitle>
+            <DialogDescription>
+              Add dates manually or generate a GES-style proposal for review before saving.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {!editYear && (
+              <Button type="button" variant="outline" className="w-full" onClick={suggestGesCalendar} disabled={aiCalendarLoading}>
+                {aiCalendarLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                Suggest GES Calendar with AI
+              </Button>
+            )}
             <div>
               <Label>Year Name <span className="text-destructive">*</span></Label>
               <Input
@@ -457,6 +517,18 @@ const AcademicYearManagement = () => {
                 <Input type="date" value={yearForm.end_date} onChange={e => setYearForm(f => ({ ...f, end_date: e.target.value }))} className="mt-1" />
               </div>
             </div>
+            {aiTerms.length === 3 && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-3 space-y-2">
+                <p className="text-sm font-semibold text-[#0f2a5e]">Proposed GES term dates</p>
+                {aiTerms.map(term => (
+                  <div key={term.name} className="flex items-center justify-between gap-2 text-xs text-[#0f2a5e]">
+                    <span className="font-medium">{TERM_LABELS[term.name]}</span>
+                    <span>{term.start_date} to {term.end_date} ({term.total_days} days)</span>
+                  </div>
+                ))}
+                <p className="text-[11px] text-slate-600">{aiSourceNote}</p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setYearModal(false)}>Cancel</Button>
@@ -473,6 +545,7 @@ const AcademicYearManagement = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editTerm ? 'Edit Term' : 'New Term'}</DialogTitle>
+            <DialogDescription>Configure the term dates and school-day total.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>

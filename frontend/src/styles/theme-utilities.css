@@ -52,7 +52,7 @@
   
   /* Button Classes */
   .theme-button {
-    @apply font-theme-button;
+    @apply font-theme-button whitespace-normal break-words leading-snug;
   }
   
   /* Text Hierarchy Classes */

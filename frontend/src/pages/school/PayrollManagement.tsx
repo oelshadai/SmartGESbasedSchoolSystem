@@ -11,6 +11,9 @@ interface PayrollRecord {
   staff_name: string;
   month: number;
   year: number;
+  payroll_frequency?: 'MONTHLY' | 'WEEKLY';
+  period_start?: string | null;
+  period_end?: string | null;
   basic_salary: number;
   allowances: number;
   deductions: number;
@@ -24,6 +27,7 @@ const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep
 export default function PayrollManagement() {
   const { toast } = useToast();
   const [payroll, setPayroll] = useState<PayrollRecord[]>([]);
+  const [recordFilter, setRecordFilter] = useState<'ALL' | 'MONTHLY' | 'WEEKLY'>('ALL');
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
   const [generating, setGenerating] = useState(false);
@@ -31,8 +35,14 @@ export default function PayrollManagement() {
   const [markPaidId, setMarkPaidId] = useState<number | null>(null);
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMethod, setPaymentMethod] = useState('BANK_TRANSFER');
+  const [frequency, setFrequency] = useState<'MONTHLY' | 'WEEKLY'>('MONTHLY');
+  const [periodStart, setPeriodStart] = useState(new Date().toISOString().split('T')[0]);
+  const [periodEnd, setPeriodEnd] = useState(new Date(Date.now() + 6 * 86400000).toISOString().split('T')[0]);
 
   useEffect(() => { fetchPayroll(); }, []);
+  useEffect(() => {
+    api.get('/schools/settings/').then((settings: any) => setFrequency(settings.payroll_frequency || 'MONTHLY')).catch(() => undefined);
+  }, []);
 
   const fetchPayroll = async () => {
     try {
@@ -44,7 +54,9 @@ export default function PayrollManagement() {
   const generatePayroll = async () => {
     setGenerating(true);
     try {
-      const result = await api.post('/schools/financial/payroll/generate_monthly/', { month, year });
+      const result = frequency === 'WEEKLY'
+        ? await api.post('/schools/financial/payroll/generate_weekly/', { period_start: periodStart, period_end: periodEnd })
+        : await api.post('/schools/financial/payroll/generate_monthly/', { month, year });
       fetchPayroll();
       toast({ title: 'Payroll generated', description: `Created: ${result.created}, Skipped: ${result.skipped}` });
     } catch (error: any) {
@@ -84,6 +96,12 @@ export default function PayrollManagement() {
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700/40 dark:text-foreground/60';
     }
   };
+
+  const getRecordFrequency = (record: PayrollRecord) =>
+    record.payroll_frequency || (record.period_start && record.period_end ? 'WEEKLY' : 'MONTHLY');
+  const visiblePayroll = payroll.filter(record => recordFilter === 'ALL' || getRecordFrequency(record) === recordFilter);
+  const countByFrequency = (filter: 'MONTHLY' | 'WEEKLY') =>
+    payroll.filter(record => getRecordFrequency(record) === filter).length;
 
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
@@ -132,41 +150,45 @@ export default function PayrollManagement() {
       {/* Generate card */}
       <Card>
         <CardHeader>
-          <CardTitle className="theme-card-title">Generate Monthly Payroll</CardTitle>
+          <CardTitle className="theme-card-title">Generate {frequency === 'WEEKLY' ? 'Weekly' : 'Monthly'} Payroll</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
-            <div className="flex-1">
-              <label className="theme-label block mb-1.5 text-sm">Month</label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 theme-input"
-                value={month}
-                onChange={(e) => setMonth(Number(e.target.value))}
-              >
-                {monthNames.map((name, idx) => (
-                  <option key={idx} value={idx + 1}>{name}</option>
-                ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+            <div className="min-w-0">
+              <label className="theme-label block mb-1.5 text-sm">Pay frequency</label>
+              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 theme-input" value={frequency} onChange={async (e) => {
+                const value = e.target.value as 'MONTHLY' | 'WEEKLY';
+                try { await api.patch('/schools/settings/', { payroll_frequency: value }); setFrequency(value); }
+                catch (error: any) { toast({ title: 'Error', description: error.message || 'Failed to save payroll frequency', variant: 'destructive' }); }
+              }}>
+                <option value="MONTHLY">Monthly</option>
+                <option value="WEEKLY">Weekly</option>
               </select>
             </div>
-            <div className="flex-1">
-              <label className="theme-label block mb-1.5 text-sm">Year</label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 theme-input"
-                value={year}
-                onChange={(e) => setYear(Number(e.target.value))}
-              >
-                {[2024, 2025, 2026].map((y) => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
-            </div>
-            <Button onClick={generatePayroll} disabled={generating} className="theme-button w-full sm:w-auto">
-              <DollarSign className="h-4 w-4 mr-2" />
-              {generating ? 'Generating...' : 'Generate Payroll'}
-            </Button>
+            {frequency === 'WEEKLY' ? (
+              <>
+                <div className="min-w-0"><label className="theme-label block mb-1.5 text-sm">Period start</label><Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} className="theme-input min-w-0" /></div>
+                <div className="min-w-0"><label className="theme-label block mb-1.5 text-sm">Period end</label><Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} className="theme-input min-w-0" /></div>
+              </>
+            ) : (
+              <>
+                <div className="min-w-0"><label className="theme-label block mb-1.5 text-sm">Month</label><select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 theme-input" value={month} onChange={(e) => setMonth(Number(e.target.value))}>{monthNames.map((name, idx) => <option key={idx} value={idx + 1}>{name}</option>)}</select></div>
+                <div className="min-w-0"><label className="theme-label block mb-1.5 text-sm">Year</label><select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 theme-input" value={year} onChange={(e) => setYear(Number(e.target.value))}>{[2024, 2025, 2026].map((y) => <option key={y} value={y}>{y}</option>)}</select></div>
+              </>
+            )}
+            <Button onClick={generatePayroll} disabled={generating} className="theme-button w-full min-w-0 sm:col-span-2 lg:col-span-1"><DollarSign className="h-4 w-4 mr-2" />{generating ? 'Generating...' : 'Generate Payroll'}</Button>
           </div>
         </CardContent>
       </Card>
+
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter payroll records">
+        <span className="text-sm font-semibold text-foreground mr-1">Payroll records:</span>
+        {(['ALL', 'MONTHLY', 'WEEKLY'] as const).map(filter => (
+          <Button key={filter} size="sm" variant={recordFilter === filter ? 'default' : 'outline'} onClick={() => setRecordFilter(filter)} className={recordFilter === filter ? 'theme-button' : ''}>
+            {filter === 'ALL' ? `All (${payroll.length})` : `${filter[0]}${filter.slice(1).toLowerCase()} (${countByFrequency(filter)})`}
+          </Button>
+        ))}
+      </div>
 
       {/* Desktop table */}
       <Card className="hidden md:block">
@@ -191,10 +213,16 @@ export default function PayrollManagement() {
               <tbody>
                 {payroll.length === 0 ? (
                   <tr><td colSpan={8} className="text-center py-8 text-muted-foreground text-sm">No payroll records yet.</td></tr>
-                ) : payroll.map((record) => (
+                ) : visiblePayroll.length === 0 ? (
+                  <tr><td colSpan={8} className="text-center py-8 text-muted-foreground text-sm">No records match this filter.</td></tr>
+                ) : visiblePayroll.map((record) => (
                   <tr key={record.id} className="border-b hover:bg-muted/30 transition-colors">
                     <td className="theme-table-cell p-2">{record.staff_name}</td>
-                    <td className="theme-table-cell p-2">{monthNames[record.month - 1]} {record.year}</td>
+                    <td className="theme-table-cell p-2">
+                      {getRecordFrequency(record) === 'WEEKLY' && record.period_start && record.period_end
+                        ? `${record.period_start} to ${record.period_end}`
+                        : `${monthNames[record.month - 1]} ${record.year}`}
+                    </td>
                     <td className="theme-table-cell text-right p-2">₵{Number(record.basic_salary).toLocaleString()}</td>
                     <td className="theme-table-cell text-right p-2">₵{Number(record.allowances).toLocaleString()}</td>
                     <td className="theme-table-cell text-right p-2">₵{Number(record.deductions).toLocaleString()}</td>
@@ -205,10 +233,10 @@ export default function PayrollManagement() {
                     <td className="p-2">
                       <div className="flex gap-2">
                         {record.status === 'DRAFT' && (
-                          <Button size="sm" onClick={() => approvePayroll(record.id)} className="theme-button">Approve</Button>
+                          <Button size="sm" onClick={() => approvePayroll(record.id)} className="theme-button whitespace-normal break-words leading-snug">Approve</Button>
                         )}
                         {record.status === 'APPROVED' && (
-                          <Button size="sm" onClick={() => { setMarkPaidId(record.id); setPaymentDate(new Date().toISOString().split('T')[0]); }} className="theme-button">
+                          <Button size="sm" onClick={() => { setMarkPaidId(record.id); setPaymentDate(new Date().toISOString().split('T')[0]); }} className="theme-button whitespace-normal break-words leading-snug">
                             <CheckCircle className="h-4 w-4 mr-1" /> Mark Paid
                           </Button>
                         )}
@@ -225,15 +253,19 @@ export default function PayrollManagement() {
       {/* Mobile cards */}
       <div className="md:hidden space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide px-1">Payroll Records</h2>
-        {payroll.length === 0 ? (
+        {visiblePayroll.length === 0 ? (
           <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">No payroll records yet.</CardContent></Card>
-        ) : payroll.map((record) => (
+        ) : visiblePayroll.map((record) => (
           <Card key={record.id}>
             <CardContent className="pt-4 pb-3 space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="font-semibold text-sm">{record.staff_name}</p>
-                  <p className="text-xs text-muted-foreground">{monthNames[record.month - 1]} {record.year}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {getRecordFrequency(record) === 'WEEKLY' && record.period_start && record.period_end
+                      ? `${record.period_start} to ${record.period_end}`
+                      : `${monthNames[record.month - 1]} ${record.year}`}
+                  </p>
                 </div>
                 <span className={`px-2 py-0.5 rounded text-xs font-semibold shrink-0 ${getStatusColor(record.status)}`}>{record.status}</span>
               </div>
