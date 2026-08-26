@@ -300,7 +300,7 @@ const StudentDashboard = () => {
         <p className="text-xs font-semibold text-foreground/60 uppercase tracking-wide mb-2">Assignments</p>
         <div className="grid grid-cols-2 gap-2">
           {assignmentCards.map((s) => (
-            <div key={s.label} className={`relative rounded-xl border ${s.bg.replace('/10', '/20').replace('bg-', 'border-')} ${s.bg.replace('bg-', 'bg-').replace('/10', '/5')} p-2.5 sm:p-3 overflow-hidden`}>
+            <div key={s.label} className={`dashboard-pop-card relative rounded-xl border ${s.bg.replace('/10', '/20').replace('bg-', 'border-')} ${s.bg.replace('bg-', 'bg-').replace('/10', '/5')} p-2.5 sm:p-3 overflow-hidden`}>
               <div className={`absolute top-0 left-0 right-0 h-0.5 ${s.bg.replace('bg-', 'bg-gradient-to-r from-').replace('/10', '')} opacity-70`} />
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] font-medium text-muted-foreground">{s.label}</span>
@@ -318,7 +318,7 @@ const StudentDashboard = () => {
         <p className="text-xs font-semibold text-foreground/60 uppercase tracking-wide mb-2">Attendance (Last 90 Days)</p>
         <div className="grid grid-cols-2 gap-2">
           {attendanceCards.map((s) => (
-            <div key={s.label} className={`relative rounded-xl border ${s.bg.replace('/10', '/20').replace('bg-', 'border-')} ${s.bg.replace('bg-', 'bg-').replace('/10', '/5')} p-2.5 sm:p-3 overflow-hidden`}>
+            <div key={s.label} className={`dashboard-pop-card relative rounded-xl border ${s.bg.replace('/10', '/20').replace('bg-', 'border-')} ${s.bg.replace('bg-', 'bg-').replace('/10', '/5')} p-2.5 sm:p-3 overflow-hidden`}>
               <div className={`absolute top-0 left-0 right-0 h-0.5 ${s.bg.replace('bg-', 'bg-gradient-to-r from-').replace('/10', '')} opacity-70`} />
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] font-medium text-muted-foreground">{s.label}</span>

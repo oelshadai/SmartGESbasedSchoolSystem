@@ -236,6 +236,67 @@ textarea::placeholder {
   color: #0f2a5e !important;
 }
 
+.professional-theme-content .teacher-dashboard-page {
+  background: #d1d5db !important;
+  border-radius: 1rem;
+}
+
+.professional-theme-content .teacher-dashboard-stat-card {
+  position: relative;
+  background: #ffffff !important;
+  border-color: #94a3b8 !important;
+  box-shadow:
+    0 12px 0 #94a3b8,
+    0 18px 24px rgba(15, 23, 42, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform: translateY(-3px);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.professional-theme-content .teacher-dashboard-stat-card:hover {
+  box-shadow:
+    0 16px 0 #94a3b8,
+    0 24px 30px rgba(15, 23, 42, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform: translateY(-7px);
+}
+
+.professional-theme-content .teacher-dashboard-panel {
+  background: #ffffff !important;
+  border-color: #94a3b8 !important;
+  box-shadow:
+    0 10px 0 #94a3b8,
+    0 16px 24px rgba(15, 23, 42, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform: translateY(-2px);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.professional-theme-content .teacher-dashboard-panel:hover {
+  box-shadow:
+    0 14px 0 #94a3b8,
+    0 22px 30px rgba(15, 23, 42, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform: translateY(-5px);
+}
+
+.professional-theme-content .dashboard-pop-card {
+  box-shadow:
+    0 7px 0 rgba(148, 163, 184, 0.7),
+    0 14px 22px rgba(15, 23, 42, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transform: translateY(-2px);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.professional-theme-content .dashboard-pop-card:hover {
+  box-shadow:
+    0 10px 0 rgba(148, 163, 184, 0.7),
+    0 20px 28px rgba(15, 23, 42, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform: translateY(-5px);
+}
+
 .teacher-dashboard-panel h3,
 .teacher-dashboard-panel h4,
 .teacher-dashboard-panel p,

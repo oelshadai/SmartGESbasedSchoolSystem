@@ -59,6 +59,12 @@ const ROLE_CONFIGS: RoleConfig[] = [
   },
 ];
 
+const roleStats = [
+  { label: 'Teachers', value: '120', accent: 'bg-gradient-to-r from-blue-500 to-cyan-400' },
+  { label: 'Students', value: '3.4K', accent: 'bg-gradient-to-r from-indigo-500 to-violet-400' },
+  { label: 'Parents', value: '2.1K', accent: 'bg-gradient-to-r from-emerald-500 to-teal-400' },
+];
+
 const ProfessionalLoginPage = () => {
   const [loginRole, setLoginRole] = useState<LoginRole>('student');
   const [identifier, setIdentifier] = useState('');
@@ -131,84 +137,95 @@ const ProfessionalLoginPage = () => {
   };
 
   return (
-    <div className="login-page min-h-[100dvh] bg-slate-50 flex flex-col overflow-y-auto px-3 py-4 sm:px-4 sm:py-6 relative">
+    <div className="login-page min-h-[100dvh] bg-[#e5e7eb] flex flex-col overflow-y-auto px-3 py-4 sm:px-4 sm:py-6 relative">
       <div className="fixed inset-0 bg-[linear-gradient(to_right,#0f172a08_1px,transparent_1px),linear-gradient(to_bottom,#0f172a08_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
 
       <div className="relative w-full max-w-6xl mx-auto my-auto">
-        <div className="grid lg:grid-cols-2 gap-6 lg:gap-12 items-center">
+        <div
+          className="overflow-hidden rounded-[28px] border border-slate-200 bg-[#f7f9fc] ring-1 ring-slate-200/80"
+          style={{
+            boxShadow: '0 28px 70px rgba(15, 23, 42, 0.16), 0 10px 24px rgba(15, 23, 42, 0.08)',
+            backgroundColor: '#f7f9fc'
+          }}
+        >
+          <div className="grid lg:grid-cols-[1.14fr_0.86fr]">
 
-          {/* Left side - Branding (desktop only) */}
-          <div className="hidden lg:flex flex-col justify-center p-4 xl:p-8">
-            <div className="flex flex-col items-center space-y-8 text-center">
-              {/* Logo */}
-              <div className="flex items-center justify-center gap-4">
-                <div className="relative flex h-36 w-36 items-center justify-center rounded-[50%] bg-slate-900 p-3 shadow-lg shadow-slate-900/20">
-                  <img
-                    src="/EliteTech logo with 3D cube design.png"
-                    alt="Smart School Management System"
-                    className="h-32 w-32 object-contain drop-shadow-[0_0_20px_rgba(37,99,235,0.25)]"
-                  />
+            {/* Left side - Branding (desktop only) */}
+            <div className="hidden lg:flex flex-col justify-center p-4 xl:p-8 bg-[#e5e7eb]">
+              <div className="flex flex-col items-center space-y-8 text-center">
+                <div className="flex items-center justify-center gap-4">
+                  <div className="relative flex h-36 w-36 items-center justify-center rounded-[50%] bg-slate-900 p-3 shadow-lg shadow-slate-900/20">
+                    <img
+                      src="/EliteTech logo with 3D cube design.png"
+                      alt="Smart School Management System"
+                      className="h-32 w-32 object-contain drop-shadow-[0_0_20px_rgba(37,99,235,0.25)]"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h2 className="text-4xl xl:text-5xl font-extrabold leading-[1.15]">
+                    <span className="text-slate-900">Smart School</span>
+                    <br />
+                    <span className="login-gradient-text">Management System</span>
+                  </h2>
+                  <p className="login-navy-text text-base leading-relaxed max-w-md">
+                    Streamline your educational institution with our comprehensive platform for assignments, grading, and reporting.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {[
+                    'Real-time grade tracking and analytics',
+                    'Automated assignment management',
+                    'Professional report generation',
+                    'Secure cloud-based platform'
+                  ].map((feature, index) => (
+                    <div key={index} className="flex items-center gap-3 group">
+                      <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-[#0f2a5e] border border-[#0b1f47] flex items-center justify-center shadow-md shadow-slate-900/25 transition-all">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                      </div>
+                      <span className="login-navy-text text-sm">{feature}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              {/* Headline */}
-              <div className="space-y-4">
-                <h2 className="text-4xl xl:text-5xl font-extrabold leading-[1.15]">
-                  <span className="text-slate-900">Smart School</span>
-                  <br />
-                    <span className="login-gradient-text">
-                    Management System
-                  </span>
-                </h2>
-                <p className="text-base text-slate-600 leading-relaxed max-w-md">
-                  Streamline your educational institution with our comprehensive platform for assignments, grading, and reporting.
-                </p>
-              </div>
-
-              {/* Features */}
-              <div className="space-y-3">
-                {[
-                  'Real-time grade tracking and analytics',
-                  'Automated assignment management',
-                  'Professional report generation',
-                  'Secure cloud-based platform'
-                ].map((feature, index) => (
-                  <div key={index} className="flex items-center gap-3 group">
-                    <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-sky-100 border border-sky-200 flex items-center justify-center transition-all">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-slate-700" />
-                    </div>
-                    <span className="text-sm text-slate-700">{feature}</span>
-                  </div>
-                ))}
-              </div>
-
-
             </div>
-          </div>
 
-          {/* Right side - Login Form */}
-          <div className="relative flex justify-center">
-            <div className="login-glow-card w-full max-w-md">
-              <div className="login-glow-card-inner p-5 sm:p-8">
+            {/* Right side - Login Form */}
+            <div
+              className="bg-[#f8fafc] p-6 sm:p-8 lg:p-10 border-l border-slate-200"
+              style={{
+                boxShadow: '0 12px 0 rgba(148, 163, 184, 0.8), 0 24px 36px rgba(15, 23, 42, 0.18), 0 10px 18px rgba(15, 23, 42, 0.10)',
+                backgroundColor: '#f8fafc',
+                transform: 'translateY(-3px)'
+              }}
+            >
+              <div className="mx-auto max-w-md">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="login-navy-text text-[11px] font-bold uppercase tracking-[0.22em]">Access portal</p>
+                    <h2 className="mt-2 text-3xl font-bold text-slate-900">Sign in</h2>
+                  </div>
+                </div>
 
                 {/* Mobile: logo + title in one compact row */}
-                <div className="lg:hidden flex items-center gap-2 mb-5 sm:mb-5">
+                <div className="lg:hidden flex items-center gap-2 mt-5 mb-5">
                   <img
                     src="/EliteTech logo with 3D cube design.png"
                     alt="Smart School Management System"
-                    className="h-14 w-14 sm:h-16 sm:w-16 flex-shrink-0 object-contain drop-shadow-[0_0_12px_rgba(37,99,235,0.18)]"
+                    className="h-14 w-14 flex-shrink-0 object-contain drop-shadow-[0_0_12px_rgba(37,99,235,0.18)]"
                   />
                   <div>
-                    <h3 className="text-[13px] sm:text-xl font-extrabold leading-tight">
-                      <span className="text-slate-900">Smart School </span>
-                      <span className="login-gradient-text">Management System</span>
+                    <h3 className="text-[13px] sm:text-xl font-extrabold leading-tight text-slate-900">
+                      Smart School
                     </h3>
                     <p className="text-slate-600 text-[9px] sm:text-sm">Sign in to access your dashboard</p>
                   </div>
                 </div>
 
                 {/* Role Selection */}
-                <div className="mb-5 sm:mb-5">
+                <div className="mt-8 mb-5 sm:mb-5">
                   <Label className="text-blue-700 text-[9px] sm:text-xs font-medium mb-2 sm:mb-2.5 block tracking-wide uppercase">Select Your Role</Label>
                   <div className="grid grid-cols-4 gap-1 sm:gap-2">
                     {ROLE_CONFIGS.map((role) => {
@@ -219,15 +236,22 @@ const ProfessionalLoginPage = () => {
                           key={role.key}
                           type="button"
                           onClick={() => handleRoleChange(role.key)}
-                          className={`relative group px-1 py-1 sm:py-3 rounded-xl transition-all duration-200 ${
+                          className={`relative group px-1 py-1 sm:py-3 rounded-xl border transition-all duration-200 ${
                             isActive
-                              ? 'bg-slate-900 text-white shadow-sm scale-[1.02]'
-                              : 'bg-slate-100 hover:bg-slate-200 border border-slate-200 hover:border-slate-300'
+                              ? 'border-[#0f2a5e] bg-[#0f2a5e] text-white scale-[1.02]'
+                              : 'border-slate-500 bg-slate-500 text-white hover:bg-slate-600 hover:border-slate-600'
                           }`}
+                          style={{
+                            backgroundColor: isActive ? '#0f2a5e' : '#6b7280',
+                            borderColor: isActive ? '#0f2a5e' : '#6b7280',
+                            boxShadow: '0 10px 20px rgba(15, 42, 94, 0.18)',
+                            color: '#ffffff',
+                            fontWeight: 700
+                          }}
                         >
                           <div className="flex flex-col items-center gap-0.5 sm:gap-1">
-                            <RoleIcon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${isActive ? 'text-white' : 'text-slate-600 group-hover:text-slate-800'}`} />
-                            <span className={`text-[9px] sm:text-[11px] font-medium ${isActive ? 'text-white' : 'text-slate-700 group-hover:text-slate-900'}`}>
+                            <RoleIcon className="h-3.5 w-3.5 text-white sm:h-4 sm:w-4" />
+                            <span className="text-[9px] font-bold text-white sm:text-[11px]">
                               {role.label}
                             </span>
                           </div>
@@ -241,7 +265,7 @@ const ProfessionalLoginPage = () => {
                 {/* Login Form */}
                 <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-4">
                   {error && (
-                    <div className="p-2 sm:p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-start gap-2">
+                    <div className="p-2 sm:p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-start gap-2">
                       <div className="flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-red-500/20 flex items-center justify-center mt-0.5">
                         <span className="text-[9px] sm:text-[10px] font-bold">!</span>
                       </div>
@@ -262,7 +286,7 @@ const ProfessionalLoginPage = () => {
                         value={identifier}
                         onChange={(e) => setIdentifier(e.target.value)}
                         required
-                        className="pl-9 h-11 sm:h-11 bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:ring-sky-200 rounded-xl text-xs sm:text-sm"
+                        className="pl-9 h-11 sm:h-11 bg-slate-50 border-slate-400 text-slate-900 placeholder:text-slate-400 focus:border-[#0f2a5e] focus:ring-4 focus:ring-blue-100 rounded-xl text-xs sm:text-sm shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)]"
                       />
                     </div>
                   </div>
@@ -271,12 +295,12 @@ const ProfessionalLoginPage = () => {
                     <div className="flex items-center justify-between mb-0.5">
                       <Label htmlFor="password" className="text-slate-700 text-[10px] sm:text-sm font-medium">Password</Label>
                       {loginRole === 'student' || loginRole === 'parent' ? (
-                        <span className="text-[9px] sm:text-[11px] text-slate-500">Contact admin to reset</span>
+                        <span className="login-navy-text text-[9px] font-bold sm:text-[11px]">Contact admin to reset</span>
                       ) : (
                         <button
                           type="button"
                           onClick={() => { setShowForgot(true); setForgotMessage(''); setForgotError(''); }}
-                          className="text-[9px] sm:text-[11px] text-sky-600 hover:text-sky-700 transition-colors"
+                          className="text-[9px] sm:text-[11px] text-[#0f2a5e] hover:text-blue-700 transition-colors"
                         >
                           Forgot Password?
                         </button>
@@ -291,7 +315,7 @@ const ProfessionalLoginPage = () => {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
-                        className="pl-9 pr-9 h-11 sm:h-11 bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:ring-sky-200 rounded-xl text-xs sm:text-sm"
+                        className="pl-9 pr-9 h-11 sm:h-11 bg-slate-50 border-slate-400 text-slate-900 placeholder:text-slate-400 focus:border-[#0f2a5e] focus:ring-4 focus:ring-blue-100 rounded-xl text-xs sm:text-sm shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)]"
                       />
                       <button
                         type="button"
@@ -306,7 +330,12 @@ const ProfessionalLoginPage = () => {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="w-full h-10 sm:h-11 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl shadow-sm transition-all duration-200 text-xs sm:text-sm"
+                    className="w-full h-10 sm:h-11 bg-[#0f2a5e] hover:bg-[#143873] text-white font-semibold rounded-xl transition-all duration-200 text-xs sm:text-sm"
+                    style={{
+                      backgroundColor: '#0f2a5e',
+                      boxShadow: '0 12px 25px rgba(15, 42, 94, 0.25)',
+                      color: '#ffffff'
+                    }}
                   >
                     {loading ? (
                       <>
@@ -325,38 +354,39 @@ const ProfessionalLoginPage = () => {
                 {/* Divider */}
                 <div className="relative my-4 sm:my-5">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-slate-200" />
+                    <div className="w-full border-t-2 border-slate-300" />
                   </div>
                   <div className="relative flex justify-center text-[10px]">
-                    <span className="bg-white px-3 text-slate-500">New to the platform?</span>
+                    <span className="login-navy-text bg-white px-3 font-bold uppercase tracking-[0.2em]">New to the platform?</span>
                   </div>
                 </div>
 
-                {/* Register Button */}
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => navigate('/register')}
-                  className="w-full h-10 sm:h-11 bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 rounded-xl transition-all duration-200 text-xs sm:text-sm"
+                  className="w-full h-10 sm:h-11 bg-gray-500 border-gray-600 text-white hover:bg-gray-600 hover:text-white hover:border-gray-700 rounded-xl transition-all duration-200 text-xs sm:text-sm font-bold"
+                  style={{
+                    backgroundColor: '#6b7280',
+                    borderColor: '#6b7280',
+                    boxShadow: '0 2px 3px rgba(15, 23, 42, 0.1), 0 6px 10px rgba(15, 23, 42, 0.08)',
+                    color: '#ffffff',
+                    fontWeight: 700
+                  }}
                 >
                   Register Your School
                 </Button>
 
-                {/* Footer */}
-                <div className="mt-1.5 sm:mt-5 text-center hidden sm:block">
-                  <p className="text-[10px] text-slate-500">
-                    By signing in, you agree to our{' '}
-                    <a href="#" className="text-sky-600 hover:text-sky-700 transition-colors">Terms</a>
-                    {' '}and{' '}
-                    <a href="#" className="text-sky-600 hover:text-sky-700 transition-colors">Privacy Policy</a>
-                  </p>
-                </div>
+                <p className="login-navy-text mt-8 text-center text-sm font-bold">
+                  Need access?{' '}
+                  <button type="button" onClick={() => navigate('/register')} className="font-bold text-[#0f2a5e] hover:text-blue-700">
+                    Contact admin
+                  </button>
+                </p>
               </div>
             </div>
           </div>
         </div>
-
-
       </div>
 
       {/* Forgot Password Modal */}

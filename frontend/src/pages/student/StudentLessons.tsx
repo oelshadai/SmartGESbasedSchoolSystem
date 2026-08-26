@@ -254,7 +254,7 @@ const StudentLessons = () => {
               <p className="text-sm text-muted-foreground mb-4">Files shared with the whole class.</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 {classResources.map((resource) => (
-                  <div key={resource.id} className="rounded-2xl border border-border p-4 hover:bg-slate-800">
+                  <div key={resource.id} className="dashboard-pop-card rounded-2xl border border-border bg-white p-4 hover:bg-slate-50">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
                         <p className="font-semibold text-foreground truncate">{resource.title || resource.original_filename}</p>
@@ -386,7 +386,7 @@ const StudentLessons = () => {
                 <div key={dayGroup.day} className={`rounded-3xl border overflow-hidden ${isToday ? 'border-primary/40' : 'border-border'} bg-card`}>
                   <button
                     type="button"
-                    className="w-full flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-slate-800/50"
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-slate-100"
                     onClick={() => setExpandedDay(isOpen ? null : dayGroup.day)}
                   >
                     <div className="flex items-center gap-3">
@@ -425,7 +425,7 @@ const StudentLessons = () => {
                                     <p className="text-sm font-semibold text-foreground mb-3">Lesson resources</p>
                                     <div className="space-y-2">
                                       {slot.resources.map((resource) => (
-                                        <div key={resource.id} className="flex flex-col gap-2 rounded-2xl border border-border bg-slate-900/80 p-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div key={resource.id} className="dashboard-pop-card flex flex-col gap-2 rounded-2xl border border-border bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
                                           <div className="min-w-0">
                                             <p className="truncate font-medium text-foreground">{resource.title || resource.original_filename}</p>
                                             {resource.description && (

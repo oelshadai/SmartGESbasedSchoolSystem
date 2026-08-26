@@ -173,7 +173,7 @@ const ParentDashboard = () => {
       {/* Aggregate Stats */}
       {!loading && children.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Card variant="elevated" className="border-blue-500/20 bg-blue-500/5">
+          <Card variant="elevated" className="dashboard-pop-card border-blue-500/20 bg-blue-500/5">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                 <Users className="h-3.5 w-3.5 text-blue-500" /> Children
@@ -182,7 +182,7 @@ const ParentDashboard = () => {
               <div className="text-xs text-muted-foreground mt-0.5">enrolled</div>
             </CardContent>
           </Card>
-          <Card variant="elevated" className="border-emerald-500/20 bg-emerald-500/5">
+          <Card variant="elevated" className="dashboard-pop-card border-emerald-500/20 bg-emerald-500/5">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                 <CalendarCheck className="h-3.5 w-3.5 text-emerald-500" /> Avg Attendance
@@ -191,7 +191,7 @@ const ParentDashboard = () => {
               <div className="text-xs text-muted-foreground mt-0.5">across all children</div>
             </CardContent>
           </Card>
-          <Card variant="elevated" className="border-green-500/20 bg-green-500/5">
+          <Card variant="elevated" className="dashboard-pop-card border-green-500/20 bg-green-500/5">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                 <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> Total Fees Paid
@@ -200,7 +200,7 @@ const ParentDashboard = () => {
               <div className="text-xs text-muted-foreground mt-0.5">all children</div>
             </CardContent>
           </Card>
-          <Card variant="elevated" className={totalBalance > 0 ? 'border-red-500/20 bg-red-500/5' : 'border-green-500/20 bg-green-500/5'}>
+          <Card variant="elevated" className={`dashboard-pop-card ${totalBalance > 0 ? 'border-red-500/20 bg-red-500/5' : 'border-green-500/20 bg-green-500/5'}`}>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                 <TrendingDown className={`h-3.5 w-3.5 ${totalBalance > 0 ? 'text-red-500' : 'text-green-500'}`} /> Total Balance

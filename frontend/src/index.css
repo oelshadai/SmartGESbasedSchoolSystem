@@ -959,6 +959,11 @@ html.dark .student-form-dialog h3 {
   color: #94a3b8 !important;
 }
 
+.login-page .login-navy-text {
+  color: #0f2a5e !important;
+  font-weight: 700 !important;
+}
+
 .login-page button:not([type='submit']) {
   color: #334155;
 }
@@ -1586,6 +1591,29 @@ html.dark .student-form-dialog h3 {
   box-shadow: 0 12px 30px rgba(15, 42, 94, 0.2), 0 0 18px rgba(var(--theme-animation-rgb), 0.28);
 }
 
+.professional-theme-content .animated-border,
+.professional-theme-content .animated-border-subtle,
+.professional-theme-content .animated-quick-action,
+.professional-theme-content .stat-card {
+  box-shadow:
+    0 7px 0 rgba(148, 163, 184, 0.62),
+    0 14px 22px rgba(15, 23, 42, 0.14),
+    0 0 12px rgba(var(--theme-animation-rgb), 0.12);
+  transform: translateY(-2px);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.professional-theme-content .animated-border:hover,
+.professional-theme-content .animated-border-subtle:hover,
+.professional-theme-content .animated-quick-action:hover,
+.professional-theme-content .stat-card:hover {
+  box-shadow:
+    0 10px 0 rgba(148, 163, 184, 0.62),
+    0 20px 28px rgba(15, 23, 42, 0.2),
+    0 0 18px rgba(var(--theme-animation-rgb), 0.2);
+  transform: translateY(-5px);
+}
+
 .professional-theme-content .bg-card\/100 {
   background-color: #f1f5f9 !important;
 }
@@ -1719,4 +1747,38 @@ body.dark .professional-dialog span {
   font-size: 0.875rem !important;
   line-height: 1.25rem !important;
   letter-spacing: 0 !important;
+}
+
+/* Shared raised surfaces for professional role pages. */
+.professional-theme-content .stat-card,
+.professional-theme-content .bg-card,
+.professional-theme-content .bg-card\/60,
+.professional-theme-content .bg-card\/100,
+.professional-theme-content .animated-border-content,
+.professional-theme-content .animated-border-subtle-content,
+.professional-theme-content .animated-quick-action-content,
+.professional-theme-content .animated-stats-card-content,
+.professional-theme-content .animated-assignment-card-content {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow:
+    0 7px 0 rgba(148, 163, 184, 0.62),
+    0 14px 22px rgba(15, 23, 42, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform: translateY(-2px);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.professional-theme-content .stat-card:hover,
+.professional-theme-content .bg-card:hover,
+.professional-theme-content .animated-border-content:hover,
+.professional-theme-content .animated-border-subtle-content:hover,
+.professional-theme-content .animated-quick-action-content:hover,
+.professional-theme-content .animated-stats-card-content:hover,
+.professional-theme-content .animated-assignment-card-content:hover {
+  box-shadow:
+    0 10px 0 rgba(148, 163, 184, 0.62),
+    0 20px 28px rgba(15, 23, 42, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  transform: translateY(-5px);
 }

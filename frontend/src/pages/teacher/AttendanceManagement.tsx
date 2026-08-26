@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { feeService, type FeeType, type TeacherCollectionRosterEntry } from "@/services/feeService";
 import { staffPermissionService } from "@/services/staffPermissionService";
+import { useSearchParams } from "react-router-dom";
 
 interface Student {
   id: number;
@@ -51,6 +52,7 @@ const AttendanceManagement = () => {
   const [coverAlreadyTaken, setCoverAlreadyTaken] = useState(false);
   const [coverLoading, setCoverLoading] = useState(false);
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     fetchClasses();
@@ -70,8 +72,14 @@ const AttendanceManagement = () => {
       const classesData = response.classes || [];
       setClasses(classesData);
       
-      // Auto-select the first class if only one
-      if (classesData.length === 1) {
+      const requestedClassId = searchParams.get('class_id');
+      const requestedClass = classesData.find(
+        (classItem: Class) => classItem.id.toString() === requestedClassId
+      );
+
+      if (requestedClass) {
+        setSelectedClass(requestedClass.id.toString());
+      } else if (classesData.length === 1) {
         setSelectedClass(classesData[0].id.toString());
       }
     } catch (error) {

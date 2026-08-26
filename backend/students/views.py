@@ -87,11 +87,11 @@ class StudentViewSet(StudentValidationMixin, viewsets.ModelViewSet):
                     raise permissions.PermissionDenied("Invalid class for this school")
                 if cls.class_teacher_id != user.id:
                     raise permissions.PermissionDenied("You can only add students to your assigned class")
-                serializer.save(school=user.school)
+                    serializer.save(school=user.school, is_active=True)
             else:
                 # Auto-assign if teacher has exactly one class; otherwise require explicit selection
                 if len(teacher_classes) == 1:
-                    serializer.save(school=user.school, current_class=teacher_classes[0])
+                    serializer.save(school=user.school, current_class=teacher_classes[0], is_active=True)
                 else:
                     raise permissions.PermissionDenied("Please choose a class to add the student to")
         else:

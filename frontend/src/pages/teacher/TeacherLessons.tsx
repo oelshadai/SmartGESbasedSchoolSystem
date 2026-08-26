@@ -358,7 +358,7 @@ const TeacherLessons = () => {
               type="button"
               onClick={() => setSelectedClass(cls.id)}
               className={`shrink-0 rounded-2xl px-3 py-2 text-sm font-medium transition ${
-                selectedClass === cls.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-slate-800'
+                selectedClass === cls.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-slate-200'
               }`}
             >
               {cls.name}
@@ -394,7 +394,7 @@ const TeacherLessons = () => {
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {classResources.map((resource) => (
-              <div key={resource.id} className="rounded-2xl border border-border p-4 hover:bg-slate-800">
+              <div key={resource.id} className="dashboard-pop-card rounded-2xl border border-border bg-white p-4 hover:bg-slate-50">
                 <div className="flex flex-col gap-3">
                   <div className="min-w-0">
                     <p className="font-semibold text-foreground truncate">{resource.title || resource.original_filename}</p>
@@ -556,7 +556,7 @@ const TeacherLessons = () => {
             />
           </div>
         ) : (
-          <div className="mt-4 rounded-3xl border border-dashed border-border bg-slate-950/70 p-6 text-center text-sm text-muted-foreground">
+          <div className="mt-4 rounded-3xl border border-dashed border-border bg-[#0B1F4D] p-6 text-center text-sm text-white">
             Select a lesson below to embed the live video meeting inside the app.
           </div>
         )}
@@ -581,7 +581,7 @@ const TeacherLessons = () => {
               <div key={dayGroup.day} className="rounded-3xl border border-border overflow-hidden bg-card">
                 <button
                   type="button"
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-800/50"
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-100"
                   onClick={() => setExpandedDay(isOpen ? null : dayGroup.day)}
                 >
                   <div className="flex items-center gap-3">
@@ -674,7 +674,7 @@ const TeacherLessons = () => {
                                 <p className="text-xs text-muted-foreground mb-1">Resources</p>
                                 <div className="flex flex-col gap-2">
                                   {slot.resources.map((r: any) => (
-                                    <div key={r.id} className="inline-flex flex-col gap-2 rounded-xl border border-border p-3 hover:bg-slate-800">
+                                    <div key={r.id} className="dashboard-pop-card inline-flex flex-col gap-2 rounded-xl border border-border bg-white p-3 hover:bg-slate-50">
                                       <div className="flex items-center justify-between gap-2">
                                         <a
                                           href={r.url}

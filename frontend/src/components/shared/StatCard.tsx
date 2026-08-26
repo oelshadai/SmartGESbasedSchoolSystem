@@ -74,7 +74,7 @@ const StatCard = ({ label, value, icon, color = 'text-primary', trend }: StatCar
     : rawStr;
 
   return (
-    <div className={`relative group rounded-2xl border ${style.border} bg-card/60 backdrop-blur-sm p-3.5 sm:p-5 shadow-lg ${style.shadow} hover:scale-[1.02] transition-all duration-200 overflow-hidden`}>
+    <div className={`dashboard-pop-card relative group rounded-2xl border ${style.border} bg-card/60 backdrop-blur-sm p-3.5 sm:p-5 shadow-lg ${style.shadow} hover:scale-[1.02] transition-all duration-200 overflow-hidden`}>
       {/* Top accent bar */}
       <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${style.bar} opacity-60 group-hover:opacity-100 transition-opacity`} />
       {/* Background glow */}

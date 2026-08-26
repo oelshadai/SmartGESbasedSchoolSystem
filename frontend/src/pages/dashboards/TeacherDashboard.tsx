@@ -179,7 +179,7 @@ const TeacherDashboard = () => {
   ];
 
   return (
-    <div className="w-full p-4 sm:p-6 overflow-y-auto">
+    <div className="teacher-dashboard-page w-full p-4 sm:p-6 overflow-y-auto">
       <div className="space-y-5 sm:space-y-6">
         <div>
           <h1 className="teacher-dashboard-title text-xl sm:text-2xl font-bold tracking-wide">Teacher Dashboard</h1>
