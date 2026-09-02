@@ -241,6 +241,10 @@ textarea::placeholder {
   border-radius: 1rem;
 }
 
+.professional-theme-content {
+  background-color: #d1d5db !important;
+}
+
 .professional-theme-content .teacher-dashboard-stat-card {
   position: relative;
   background: #ffffff !important;

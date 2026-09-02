@@ -1819,6 +1819,17 @@ body.dark .professional-dialog span {
   background: #ffffff !important;
 }
 
+/* Match the teacher dashboard's light gray page surface. */
+.attendance-page,
+.fees-management-page,
+.financial-page {
+  background-color: #f1f5f9 !important;
+}
+
+.financial-dashboard-theme {
+  background: #f1f5f9 !important;
+}
+
 .financial-dashboard-theme .theme-page-title {
   color: #0f172a !important;
   background: none !important;

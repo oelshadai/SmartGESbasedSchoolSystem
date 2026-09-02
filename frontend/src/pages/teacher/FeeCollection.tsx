@@ -275,7 +275,7 @@ const FeeCollection = () => {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-2xl mx-auto">
+    <div className="fees-management-page p-4 md:p-6 space-y-5 max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow">
