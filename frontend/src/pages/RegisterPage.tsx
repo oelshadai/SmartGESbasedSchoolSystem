@@ -29,6 +29,14 @@ const RegisterPage = () => {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
 
+  const passwordChecks = [
+    { label: 'At least 8 characters', valid: formData.password.length >= 8 },
+    { label: 'One uppercase letter', valid: /[A-Z]/.test(formData.password) },
+    { label: 'One lowercase letter', valid: /[a-z]/.test(formData.password) },
+    { label: 'One number', valid: /\d/.test(formData.password) },
+  ];
+  const passwordsMatch = formData.password_confirm.length > 0 && formData.password === formData.password_confirm;
+
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setError('');
@@ -228,6 +236,16 @@ const RegisterPage = () => {
                         className="pl-9 h-9 bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-500 focus:border-blue-700 focus:ring-blue-700/20 rounded-xl text-sm"
                       />
                     </div>
+                    {formData.password.length > 0 && (
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 pt-1 text-[10px] font-semibold">
+                        {passwordChecks.map((check) => (
+                          <span key={check.label} className={check.valid ? 'text-emerald-700' : 'text-slate-600'}>
+                            <span className={`register-password-check ${check.valid ? 'is-valid' : 'is-invalid'}`}>{check.valid ? '✓' : '○'}</span>{' '}
+                            {check.label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Plan Selection */}
@@ -270,6 +288,11 @@ const RegisterPage = () => {
                         className="pl-9 h-9 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-200 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl text-sm"
                       />
                     </div>
+                    {formData.password_confirm.length > 0 && (
+                      <p className={`pt-1 text-[10px] font-semibold ${passwordsMatch ? 'text-emerald-700' : 'text-red-700'}`}>
+                        {passwordsMatch ? '✓ Passwords match' : 'Passwords do not match'}
+                      </p>
+                    )}
                   </div>
 
                   <Button

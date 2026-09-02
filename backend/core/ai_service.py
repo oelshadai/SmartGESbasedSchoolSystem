@@ -839,9 +839,7 @@ def generate_ai_student_report(student, term):
         f"Use simple English. Ghana school context. Maximum 150 words."
     )
 
-    client = _get_gemini_client()
-    response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
-    return response.text.strip()
+    return _gemini_generate_text(prompt).strip()
 
 
 def generate_lesson_plan(subject, topic, class_level, duration_minutes):
@@ -1105,7 +1103,6 @@ def generate_class_insights(class_obj, term):
     )
     weak_subjects = [f"{s['class_subject__subject__name']} ({s['avg']:.1f}%)" for s in subject_avgs]
 
-    from scores.models import StudentRiskProfile  # noqa — may not exist yet
     at_risk_count = 0
     try:
         from core.models import StudentRiskProfile as SRP
@@ -1126,6 +1123,4 @@ def generate_class_insights(class_obj, term):
         f"Keep it concise and actionable. Ghana school context."
     )
 
-    client = _get_gemini_client()
-    response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
-    return response.text.strip()
+    return _gemini_generate_text(prompt).strip()

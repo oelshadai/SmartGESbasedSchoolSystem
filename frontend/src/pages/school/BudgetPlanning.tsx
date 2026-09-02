@@ -83,7 +83,7 @@ export default function BudgetPlanning() {
     (budget.items || []).reduce((sum, item) => sum + Number(item.spent_amount), 0);
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="financial-page p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>

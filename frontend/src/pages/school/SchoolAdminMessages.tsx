@@ -219,7 +219,7 @@ export default function SchoolAdminMessages() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="messages-tabs-list grid w-full grid-cols-3">
           <TabsTrigger value="inbox" className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
             Inbox

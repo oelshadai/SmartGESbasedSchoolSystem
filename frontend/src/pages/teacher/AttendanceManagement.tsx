@@ -322,7 +322,7 @@ const AttendanceManagement = () => {
   const summary = getAttendanceSummary();
 
   return (
-    <div className="min-h-full w-full max-w-full overflow-x-hidden">
+    <div className="attendance-page min-h-full w-full max-w-full overflow-x-hidden">
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
       <Card variant="elevated">
         <CardHeader className="p-4 sm:p-6">

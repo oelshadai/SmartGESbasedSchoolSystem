@@ -116,7 +116,7 @@ const AdminAttendanceOverview = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="attendance-page space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Admin Attendance Overview</h1>

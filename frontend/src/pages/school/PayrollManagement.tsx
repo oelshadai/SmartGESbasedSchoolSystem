@@ -104,7 +104,7 @@ export default function PayrollManagement() {
     payroll.filter(record => getRecordFrequency(record) === filter).length;
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="financial-page p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
         <h1 className="theme-page-title">Payroll Management</h1>
