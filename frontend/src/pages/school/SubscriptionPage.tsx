@@ -225,7 +225,7 @@ const SubscriptionPage = () => {
 
           <p className="text-xs text-foreground/60 mt-4 text-center">
             After choosing a plan, our team will contact you to confirm payment.
-            Contact us: <a href="mailto:support@smartges.com" className="text-primary hover:underline">support@smartges.com</a>
+            Contact us: <a href="mailto:oelshadai565@gmail.com,elitechconsult@gmail.com" className="text-primary hover:underline">oelshadai565@gmail.com / elitechconsult@gmail.com</a>
           </p>
         </div>
       )}

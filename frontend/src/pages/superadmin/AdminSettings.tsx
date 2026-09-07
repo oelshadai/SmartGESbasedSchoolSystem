@@ -98,7 +98,7 @@ export default function AdminSettings() {
 
   const [settings, setSettings] = useState<Settings>({
     platformName: 'SmartGES',
-    supportEmail: 'support@smartges.com',
+    supportEmail: 'oelshadai565@gmail.com',
     maxSchools: '500',
     maintenanceMode: false,
     registrationOpen: true,
