@@ -190,6 +190,7 @@ const App = () => {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/system" element={<SuperAdminLoginPage />} />
             <Route path="/login/system" element={<SuperAdminLoginPage />} />
+            <Route path="/admin" element={<Navigate to="/system" replace />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/auth-demo" element={<AuthShowcase />} />
@@ -215,6 +216,7 @@ const App = () => {
           {/* School Admin / Principal */}
           <Route element={<ProtectedRoute allowedRoles={['SCHOOL_ADMIN', 'PRINCIPAL']}><ProfessionalAdminLayout /></ProtectedRoute>}>
             <Route path="/school/dashboard" element={<SchoolAdminDashboard />} />
+            <Route path="/school/subscription" element={<SubscriptionPage />} />
             <Route path="/school/academic-years" element={<AcademicYearManagement />} />
             <Route path="/school/classes" element={<ClassesManagement />} />
             <Route path="/school/teachers" element={<TeachersManagement />} />

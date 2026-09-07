@@ -72,6 +72,12 @@ const getNavItems = (role: UserRole) => {
       description: 'School overview',
     },
     {
+      path: '/school/subscription',
+      label: 'Subscription',
+      icon: CreditCard,
+      description: 'View days left and renew plan',
+    },
+    {
       path: '/school/academic-years',
       label: 'Academic Years',
       icon: CalendarDays,
@@ -477,8 +483,8 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
   const navItems = getNavItems(user?.role || 'SCHOOL_ADMIN');
   const mobileNavLabels: Record<string, string[]> = {
     SUPER_ADMIN: ['Dashboard', 'Schools', 'Users', 'Analytics', 'Settings'],
-    SCHOOL_ADMIN: ['Dashboard', 'Students', 'Teachers', 'Fees', 'Profile'],
-    PRINCIPAL: ['Dashboard', 'Students', 'Teachers', 'Fees', 'Profile'],
+    SCHOOL_ADMIN: ['Dashboard', 'Subscription', 'Students', 'Teachers', 'Fees', 'Profile'],
+    PRINCIPAL: ['Dashboard', 'Subscription', 'Students', 'Teachers', 'Fees', 'Profile'],
     TEACHER: ['Dashboard', 'Classes', 'Assignments', 'Grade Book', 'Profile'],
     STUDENT: ['Dashboard', 'Assignments', 'Grades', 'Attendance', 'Profile'],
     PARENT: ['Dashboard', 'Attendance', 'Grades', 'Bills', 'Profile'],

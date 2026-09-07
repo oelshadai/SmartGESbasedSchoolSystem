@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
   CheckCircle2, Calendar, Loader2, ArrowRight, Crown, AlertTriangle
@@ -25,10 +25,11 @@ const PLAN_LABELS: Record<string, string> = {
 };
 
 const SubscriptionPage = () => {
-  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [status, setStatus] = useState<SubscriptionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [upgrading, setUpgrading] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
 
   const fetchStatus = async () => {
     try {
@@ -42,18 +43,36 @@ const SubscriptionPage = () => {
   };
 
   useEffect(() => {
-    fetchStatus();
-  }, []);
+    const reference = searchParams.get('paystack_ref');
+    if (!reference) {
+      fetchStatus();
+      return;
+    }
+
+    setSearchParams({}, { replace: true });
+    setVerifying(true);
+    secureApiClient.get<{ success: boolean; message?: string; subscription?: SubscriptionStatus }>(
+      `/subscriptions/payment/verify/?reference=${encodeURIComponent(reference)}`,
+    ).then((data) => {
+      if (data.subscription) setStatus(data.subscription);
+      toast[data.success ? 'success' : 'error'](data.message || 'Payment verification complete.');
+    }).catch((err: any) => {
+      toast.error(err.message || 'Could not verify payment.');
+      fetchStatus();
+    }).finally(() => {
+      setLoading(false);
+      setVerifying(false);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUpgrade = async (plan: 'MONTHLY' | 'YEARLY') => {
     setUpgrading(plan);
     try {
-      const data = await secureApiClient.post<{ message: string; subscription: SubscriptionStatus }>(
-        '/subscriptions/upgrade/',
+      const data = await secureApiClient.post<{ authorization_url: string }>(
+        '/subscriptions/payment/initiate/',
         { plan }
       );
-      setStatus(data.subscription);
-      toast.success(data.message || `Upgraded to ${PLAN_LABELS[plan]}!`);
+      window.location.href = data.authorization_url;
     } catch (err: any) {
       toast.error(err.message || 'Upgrade failed. Please contact support.');
     } finally {
@@ -65,6 +84,15 @@ const SubscriptionPage = () => {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (verifying) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p>Verifying your Paystack payment...</p>
       </div>
     );
   }
