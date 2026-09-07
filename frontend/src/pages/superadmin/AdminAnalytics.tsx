@@ -165,7 +165,7 @@ export default function AdminAnalytics() {
   };
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="role-dashboard-theme space-y-6 p-4 sm:p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>

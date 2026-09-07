@@ -87,7 +87,7 @@ const SchoolsManagement = () => {
   ];
 
   return (
-    <div className="flex flex-col w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative">
+    <div className="role-dashboard-theme flex flex-col w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative">
       {/* Background Elements - Mobile optimized */}
       <div className="hidden sm:block absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />

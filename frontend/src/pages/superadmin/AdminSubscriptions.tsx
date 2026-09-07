@@ -124,7 +124,7 @@ export default function AdminSubscriptions() {
   );
 
   return (
-    <div className="flex flex-col w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 min-h-full relative">
+    <div className="role-dashboard-theme flex flex-col w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 min-h-full relative">
       <div className="hidden sm:block absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
@@ -247,18 +247,18 @@ export default function AdminSubscriptions() {
                     </div>
                     <Badge className={`text-xs border flex-shrink-0 ${statusStyle(sub.status)}`}>{sub.status}</Badge>
                   </div>
-                  <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-slate-800/60">
+                  <div className="grid grid-cols-2 sm:flex items-center gap-1.5 pt-2 border-t border-slate-800/60">
                     {sub.status === 'ACTIVE' && (
                       <>
-                        <Button size="sm" variant="outline" className="h-7 text-xs px-2 bg-slate-800/50 border-slate-700/50 text-slate-300 hover:text-white" onClick={() => handleExtend(sub.id, 30)}>+30d</Button>
-                        <Button size="sm" variant="outline" className="h-7 text-xs px-2 bg-slate-800/50 border-slate-700/50 text-slate-300 hover:text-white" onClick={() => handleExtend(sub.id, 90)}>+90d</Button>
-                        <Button size="sm" variant="outline" className="h-7 text-xs px-2 bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20" onClick={() => handleStatusChange(sub.id, 'SUSPENDED')}>Suspend</Button>
+                        <Button size="sm" variant="outline" className="h-9 w-full sm:w-auto text-xs px-2 bg-slate-800/50 border-slate-700/50 text-slate-300 hover:text-white" onClick={() => handleExtend(sub.id, 30)}>+30d</Button>
+                        <Button size="sm" variant="outline" className="h-9 w-full sm:w-auto text-xs px-2 bg-slate-800/50 border-slate-700/50 text-slate-300 hover:text-white" onClick={() => handleExtend(sub.id, 90)}>+90d</Button>
+                        <Button size="sm" variant="outline" className="h-9 w-full sm:w-auto text-xs px-2 bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20" onClick={() => handleStatusChange(sub.id, 'SUSPENDED')}>Suspend</Button>
                       </>
                     )}
                     {['EXPIRED', 'SUSPENDED', 'CANCELLED'].includes(sub.status) && (
-                      <Button size="sm" variant="outline" className="h-7 text-xs px-2 bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20" onClick={() => handleStatusChange(sub.id, 'ACTIVE')}>Reactivate</Button>
+                      <Button size="sm" variant="outline" className="h-9 w-full sm:w-auto text-xs px-2 bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20" onClick={() => handleStatusChange(sub.id, 'ACTIVE')}>Reactivate</Button>
                     )}
-                    <Button size="sm" variant="outline" title="Delete subscription" aria-label="Delete subscription" className="h-7 px-2 bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20" onClick={() => handleDelete(sub.id)}>
+                    <Button size="sm" variant="outline" title="Delete subscription" aria-label="Delete subscription" className="h-9 w-full sm:w-auto px-2 bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20" onClick={() => handleDelete(sub.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>

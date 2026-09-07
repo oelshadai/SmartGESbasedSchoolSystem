@@ -71,7 +71,7 @@ const SectionCard = ({
   accent: { gradient: string; border: string; bg: string; iconColor: string; topBar: string };
   children: React.ReactNode;
 }) => (
-  <div className={`relative rounded-2xl border ${accent.border} bg-slate-900/60 backdrop-blur-sm overflow-hidden`}>
+  <div className={`role-dashboard-theme relative rounded-2xl border ${accent.border} bg-slate-900/60 backdrop-blur-sm overflow-hidden`}>
     <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${accent.topBar} opacity-60`} />
     <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-800/50 bg-slate-800/20">
       <div className={`p-2 rounded-xl ${accent.bg} border ${accent.border}`}>

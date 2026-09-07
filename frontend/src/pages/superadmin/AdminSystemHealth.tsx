@@ -87,7 +87,7 @@ export default function AdminSystemHealth() {
   const overallGradient = health.overall_status === 'HEALTHY' ? 'from-green-500 to-emerald-400' : health.overall_status === 'WARNING' ? 'from-amber-500 to-yellow-400' : 'from-red-500 to-orange-400';
 
   return (
-    <div className="flex flex-col w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 min-h-full relative">
+    <div className="role-dashboard-theme flex flex-col w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 min-h-full relative">
       <div className="hidden sm:block absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000" />

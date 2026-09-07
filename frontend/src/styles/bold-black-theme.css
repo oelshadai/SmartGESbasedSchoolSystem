@@ -389,6 +389,72 @@ textarea::placeholder {
   color: #0f2a5e !important;
 }
 
+/* Keep admin workspaces in the same readable visual language as teacher pages. */
+.professional-theme-content .role-dashboard-theme {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  min-height: 100%;
+}
+
+.professional-theme-content .role-dashboard-theme > .absolute {
+  display: none !important;
+}
+
+.professional-theme-content .role-dashboard-theme .bg-slate-900\/60,
+.professional-theme-content .role-dashboard-theme .bg-slate-900\/50,
+.professional-theme-content .role-dashboard-theme .bg-slate-800\/60,
+.professional-theme-content .role-dashboard-theme .bg-slate-800\/50,
+.professional-theme-content .role-dashboard-theme .bg-slate-800\/30 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  backdrop-filter: none !important;
+}
+
+.professional-theme-content .role-dashboard-theme .border-slate-800\/60,
+.professional-theme-content .role-dashboard-theme .border-slate-800\/50,
+.professional-theme-content .role-dashboard-theme .border-slate-700\/50,
+.professional-theme-content .role-dashboard-theme .border-slate-700\/30,
+.professional-theme-content .role-dashboard-theme .border-slate-600\/30 {
+  border-color: #cbd5e1 !important;
+}
+
+.professional-theme-content .role-dashboard-theme .text-white,
+.professional-theme-content .role-dashboard-theme .text-slate-300,
+.professional-theme-content .role-dashboard-theme .text-slate-400,
+.professional-theme-content .role-dashboard-theme .text-slate-500,
+.professional-theme-content .role-dashboard-theme .text-slate-600,
+.professional-theme-content .role-dashboard-theme .text-foreground\/60,
+.professional-theme-content .role-dashboard-theme .text-foreground\/70 {
+  color: #334155 !important;
+}
+
+.professional-theme-content .role-dashboard-theme h1,
+.professional-theme-content .role-dashboard-theme h2,
+.professional-theme-content .role-dashboard-theme h3,
+.professional-theme-content .role-dashboard-theme h4,
+.professional-theme-content .role-dashboard-theme label {
+  color: #0f172a !important;
+}
+
+.professional-theme-content .role-dashboard-theme input,
+.professional-theme-content .role-dashboard-theme textarea,
+.professional-theme-content .role-dashboard-theme select {
+  background-color: #ffffff !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+.professional-theme-content .role-dashboard-theme input::placeholder,
+.professional-theme-content .role-dashboard-theme textarea::placeholder {
+  color: #64748b !important;
+}
+
+.professional-theme-content .role-dashboard-theme .shadow-xl,
+.professional-theme-content .role-dashboard-theme .shadow-lg {
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1) !important;
+}
+
 .professional-theme-content div.text-purple-700,
 .professional-theme-content div.text-emerald-700,
 .professional-theme-content div.text-orange-700,

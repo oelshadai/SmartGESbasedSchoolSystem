@@ -63,7 +63,7 @@ export default function AdminSchools() {
   );
 
   return (
-    <div className="flex flex-col w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 min-h-full relative">
+    <div className="role-dashboard-theme flex flex-col w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 min-h-full relative">
       {/* Background */}
       <div className="hidden sm:block absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
@@ -158,7 +158,7 @@ export default function AdminSchools() {
 
                   {/* Stats + Actions */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-800/60">
-                    <div className="flex items-center gap-4 text-xs text-slate-500">
+                    <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-4 text-xs text-slate-500">
                       <span className="flex items-center gap-1.5">
                         <GraduationCap className="h-3.5 w-3.5 text-purple-400" />
                         <span className="text-slate-300">{school.student_count}</span> students
@@ -172,12 +172,12 @@ export default function AdminSchools() {
                         <span className="text-slate-300">{school.admin_count}</span> admins
                       </span>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="grid grid-cols-2 gap-2 sm:flex">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => toggleActive(school)}
-                        className={`h-8 text-xs px-3 border ${school.is_active
+                        className={`h-9 w-full sm:w-auto text-xs px-3 border ${school.is_active
                           ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20'
                           : 'bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20'}`}
                       >
@@ -187,7 +187,7 @@ export default function AdminSchools() {
                         variant="outline"
                         size="sm"
                         onClick={() => navigate(`/admin/schools/${school.id}`)}
-                        className="h-8 text-xs px-3 bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-700/50 hover:text-white"
+                        className="h-9 w-full sm:w-auto text-xs px-3 bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-700/50 hover:text-white"
                       >
                         Details <ChevronRight className="h-3.5 w-3.5 ml-1" />
                       </Button>

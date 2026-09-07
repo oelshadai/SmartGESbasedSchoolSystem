@@ -142,36 +142,26 @@ const ProfessionalSuperAdminDashboard = () => {
   ];
 
   return (
-    <div className="flex flex-col w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative">
-      {/* Background Elements - Mobile optimized */}
-      <div className="hidden sm:block absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
-      </div>
-
-      {/* Grid Pattern - Mobile optimized */}
-      <div className="hidden sm:block absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
-
-      <div className="relative p-4 sm:p-6 space-y-6 sm:space-y-8">
+    <div className="teacher-dashboard-page w-full p-4 sm:p-6 overflow-y-auto">
+      <div className="space-y-5 sm:space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl sm:text-4xl font-bold text-white mb-1">
+            <h1 className="teacher-dashboard-title text-xl sm:text-2xl font-bold tracking-wide">
               Super Admin Dashboard
             </h1>
-            <p className="text-foreground/70 text-sm sm:text-lg">
+            <p className="text-sm text-foreground/70 mt-1">
               Platform overview · {data.superadmin.name}
             </p>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="bg-slate-900/50 backdrop-blur-xl rounded-xl border border-slate-800/50 px-3 py-1.5 sm:px-4 sm:py-2">
+            <div className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 sm:px-4 sm:py-2 shadow-md">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                <span className="text-xs sm:text-sm text-foreground/60">System Online</span>
+                <span className="text-xs sm:text-sm text-foreground/70">System Online</span>
               </div>
             </div>
-            <Button className="hidden sm:flex bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white">
+            <Button className="hidden sm:flex bg-primary text-primary-foreground">
               <Activity className="h-4 w-4 mr-2" />
               View Analytics
             </Button>
@@ -179,26 +169,24 @@ const ProfessionalSuperAdminDashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="teacher-dashboard-stats grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (
-              <div key={stat.label} className={`dashboard-pop-card relative group rounded-2xl border ${stat.border} bg-slate-900/60 backdrop-blur-xl p-6 shadow-xl ${stat.glow} hover:scale-[1.02] transition-all duration-300 overflow-hidden`}>
+              <div key={stat.label} className="teacher-dashboard-stat-card rounded-xl border border-slate-200 bg-slate-100 p-2.5 sm:p-4 flex flex-col gap-1 shadow-md">
                 {/* Top accent line */}
                 <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${stat.gradient} opacity-70 group-hover:opacity-100 transition-opacity`} />
                 {/* Background glow bubble */}
                 <div className={`absolute -top-8 -right-8 w-24 h-24 ${stat.bg} rounded-full blur-2xl opacity-70 group-hover:opacity-100 transition-opacity`} />
 
                 <div className="relative">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`p-2.5 rounded-xl ${stat.bg} border ${stat.border}`}>
-                      <Icon className={`h-5 w-5 ${stat.iconColor}`} />
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">{stat.label}</span>
+                    <Icon className={`h-5 w-5 ${stat.iconColor}`} />
                   </div>
-                  <p className={`text-4xl font-bold bg-gradient-to-br ${stat.gradient} bg-clip-text text-transparent mb-1 leading-none`}>
+                  <p className="text-lg sm:text-2xl font-bold text-foreground leading-none">
                     {stat.value.toLocaleString()}
                   </p>
-                  <p className="text-foreground/70 text-sm font-medium">{stat.label}</p>
                 </div>
               </div>
             );
@@ -209,14 +197,14 @@ const ProfessionalSuperAdminDashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Schools Overview */}
           <div className="lg:col-span-2">
-            <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-800/50 p-6">
+            <div className="teacher-dashboard-panel rounded-xl border border-slate-200 bg-slate-100 shadow-md p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-blue-500/20">
                     <School className="h-5 w-5 text-blue-400" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-white">Schools Overview</h3>
+                    <h3 className="font-semibold text-foreground">Schools Overview</h3>
                     <p className="text-foreground/70 text-sm">Manage and monitor all schools</p>
                   </div>
                 </div>
@@ -228,14 +216,14 @@ const ProfessionalSuperAdminDashboard = () => {
               <div className="space-y-4">
                 {data.recent_schools.length > 0 ? (
                   data.recent_schools.map((school) => (
-                    <div key={school.id} className="group bg-slate-800/30 rounded-xl p-4 hover:bg-slate-800/50 transition-all duration-200 border border-slate-700/30 hover:border-slate-600/50">
+                    <div key={school.id} className="group rounded-lg border border-border bg-muted/30 p-3 hover:bg-muted/60 transition-colors">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
                             <School className="h-6 w-6 text-blue-400" />
                           </div>
                           <div>
-                            <h4 className="font-semibold text-white group-hover:text-blue-400 transition-colors">
+                            <h4 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
                               {school.name}
                             </h4>
                             <div className="flex flex-col sm:flex-row sm:flex-wrap gap-1 sm:gap-x-3 text-xs sm:text-sm text-foreground/70 mt-1">
@@ -274,13 +262,13 @@ const ProfessionalSuperAdminDashboard = () => {
 
           {/* System Statistics */}
           <div className="space-y-6">
-            <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-800/50 p-6">
+            <div className="teacher-dashboard-panel rounded-xl border border-slate-200 bg-slate-100 shadow-md p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 rounded-lg bg-purple-500/20">
                   <BarChart3 className="h-5 w-5 text-purple-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white">System Stats</h3>
+                  <h3 className="font-semibold text-foreground">System Stats</h3>
                   <p className="text-foreground/70 text-sm">Platform metrics</p>
                 </div>
               </div>
@@ -295,14 +283,14 @@ const ProfessionalSuperAdminDashboard = () => {
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.label} className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-slate-800/50 transition-colors group">
+                    <div key={item.label} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-muted/60 transition-colors group">
                       <div className="flex items-center gap-3">
                         <div className={`p-1.5 rounded-lg ${item.bg}`}>
                           <Icon className={`h-3.5 w-3.5 ${item.color}`} />
                         </div>
                         <span className="text-sm text-foreground/70 group-hover:text-foreground/60 transition-colors">{item.label}</span>
                       </div>
-                      <span className="font-bold text-white text-sm">{item.value.toLocaleString()}</span>
+                      <span className="font-bold text-foreground text-sm">{item.value.toLocaleString()}</span>
                     </div>
                   );
                 })}
@@ -310,13 +298,13 @@ const ProfessionalSuperAdminDashboard = () => {
             </div>
 
             {/* Admin Profile */}
-            <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-800/50 p-6">
+            <div className="teacher-dashboard-panel rounded-xl border border-slate-200 bg-slate-100 shadow-md p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 rounded-lg bg-cyan-500/20">
                   <Shield className="h-5 w-5 text-cyan-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white">Admin Profile</h3>
+                  <h3 className="font-semibold text-foreground">Admin Profile</h3>
                   <p className="text-foreground/70 text-sm">Your account details</p>
                 </div>
               </div>
@@ -324,11 +312,11 @@ const ProfessionalSuperAdminDashboard = () => {
               <div className="space-y-4">
                 <div className="flex justify-between items-center py-2">
                   <span className="text-foreground/70 text-sm">Name</span>
-                  <span className="text-white font-medium">{data.superadmin.name}</span>
+                  <span className="text-foreground font-medium">{data.superadmin.name}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-t border-slate-800/50">
                   <span className="text-foreground/70 text-sm">Email</span>
-                  <span className="text-white font-medium">{data.superadmin.email}</span>
+                  <span className="text-foreground font-medium">{data.superadmin.email}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-t border-slate-800/50">
                   <span className="text-foreground/70 text-sm">Role</span>
@@ -342,8 +330,8 @@ const ProfessionalSuperAdminDashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-800/50 p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
+        <div className="teacher-dashboard-panel rounded-xl border border-slate-200 bg-slate-100 shadow-md p-6">
+          <h3 className="font-semibold text-foreground mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: 'Manage Schools', icon: School, color: 'from-blue-500 to-cyan-500' },
@@ -356,12 +344,12 @@ const ProfessionalSuperAdminDashboard = () => {
                 <Button
                   key={action.label}
                   variant="outline"
-                  className="h-auto p-4 bg-slate-800/30 border-slate-700/50 hover:bg-slate-800/50 hover:border-slate-600/50 text-left justify-start group"
+                  className="h-auto p-4 bg-muted/30 border-border hover:bg-muted/60 text-left justify-start group"
                 >
                   <div className={`p-2 rounded-lg bg-gradient-to-br ${action.color} bg-opacity-20 mr-3`}>
-                    <Icon className="h-4 w-4 text-white" />
+                    <Icon className="h-4 w-4 text-primary" />
                   </div>
-                  <span className="text-foreground/60 group-hover:text-white transition-colors">
+                  <span className="text-foreground group-hover:text-primary transition-colors">
                     {action.label}
                   </span>
                 </Button>
