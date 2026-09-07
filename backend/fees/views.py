@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.conf import settings as django_settings
+from django.db import transaction
 from django.db.models import Q, Sum, Count
 from .models import FeeType, FeeStructure, StudentFee, FeePayment, FeeCollection, TermBill, StudentFeeSubType, WeeklyBill
 from .serializers import (
@@ -345,6 +346,64 @@ class FeePaymentViewSet(viewsets.ModelViewSet):
         if self.action == 'create':
             return FeePaymentCreateSerializer
         return FeePaymentSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        if getattr(request.user, 'role', '') not in ('SUPER_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL'):
+            return Response(
+                {'error': 'Only school administrators can delete payment records.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        payment = self.get_object()
+        with transaction.atomic():
+            fee_type = payment.fee_type
+            if fee_type.collection_frequency in ('TERM', 'YEAR'):
+                current_term = TermBill._meta.get_field('term').related_model.objects.filter(
+                    academic_year__school=payment.school,
+                    is_current=True,
+                ).first()
+                if current_term:
+                    bill = TermBill.objects.select_for_update().filter(
+                        student=payment.student,
+                        school=payment.school,
+                        term=current_term,
+                        fee_type=fee_type,
+                    ).first()
+                    if bill:
+                        bill.amount_paid = max(0, bill.amount_paid - payment.amount_paid)
+                        bill.save()
+            elif fee_type.collection_frequency == 'WEEKLY':
+                from django.utils import timezone
+                payment_date = timezone.localdate(payment.payment_date)
+                week_start = payment_date - timezone.timedelta(days=payment_date.weekday())
+                bill = WeeklyBill.objects.select_for_update().filter(
+                    student=payment.student,
+                    school=payment.school,
+                    fee_type=fee_type,
+                    week_start=week_start,
+                ).first()
+                if bill:
+                    bill.amount_paid = max(0, bill.amount_paid - payment.amount_paid)
+                    bill.save()
+
+            student_fee = StudentFee.objects.select_for_update().filter(
+                student=payment.student,
+                school=payment.school,
+            ).first()
+            if student_fee:
+                student_fee.amount_paid = max(0, student_fee.amount_paid - payment.amount_paid)
+                student_fee.balance = max(0, student_fee.total_amount - student_fee.amount_paid)
+                if student_fee.amount_paid <= 0:
+                    student_fee.status = 'NOT_STARTED'
+                elif student_fee.total_amount > 0 and student_fee.balance <= 0:
+                    student_fee.status = 'PAID'
+                else:
+                    student_fee.status = 'PARTIAL'
+                student_fee.save()
+
+            payment.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
     
     @action(detail=False, methods=['post'])
     def collect_fee(self, request):
@@ -369,8 +428,17 @@ class FeePaymentViewSet(viewsets.ModelViewSet):
         )
 
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            payment = serializer.save()
+            sms_sent = False
+            try:
+                from notifications.sms_service import SmsService
+                sms_sent = SmsService.send_payment_receipt(payment, request.user.school)
+            except Exception:
+                logger.exception('Payment receipt SMS failed for payment %s', payment.id)
+
+            response_data = FeePaymentSerializer(payment).data
+            response_data['receipt_sms_sent'] = sms_sent
+            return Response(response_data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
@@ -1374,6 +1442,14 @@ class TermBillViewSet(viewsets.ModelViewSet):
         amount_paid_smallest = data['data']['amount']
         amount_paid = Decimal(str(amount_paid_smallest)) / 100
 
+        if bill.status in ('PAID', 'WAIVED') or amount_paid <= 0:
+            return Response({'error': 'This bill cannot accept another payment.'}, status=status.HTTP_400_BAD_REQUEST)
+        if amount_paid > bill.balance:
+            return Response(
+                {'error': f'Payment cannot exceed the outstanding balance of GH₵{bill.balance:.2f}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # Record the payment
         FeePayment.objects.create(
             student=bill.student,
@@ -2032,8 +2108,11 @@ class StudentPaymentViewSet(viewsets.ViewSet):
         if amount_to_pay <= 0:
             return Response({'error': 'No outstanding balance to pay.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Clamp to balance
-        amount_to_pay = min(amount_to_pay, float(bill.balance))
+        if amount_to_pay > float(bill.balance):
+            return Response(
+                {'error': f'Payment cannot exceed the outstanding balance of GH₵{bill.balance:.2f}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Paystack expects amount in smallest currency unit (pesewas for GHS)
         amount_smallest = int(amount_to_pay * 100)
@@ -2150,6 +2229,16 @@ class StudentPaymentViewSet(viewsets.ViewSet):
                 bill = WeeklyBill.objects.get(pk=bill_id, student=student, school=school)
             except WeeklyBill.DoesNotExist:
                 return Response({'error': 'Weekly bill not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if bill is None:
+            return Response({'error': 'Bill not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if bill.status in ('PAID', 'WAIVED') or amount_paid <= 0:
+            return Response({'error': 'This bill cannot accept another payment.'}, status=status.HTTP_400_BAD_REQUEST)
+        if amount_paid > bill.balance:
+            return Response(
+                {'error': f'Payment cannot exceed the outstanding balance of GH₵{bill.balance:.2f}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Record the payment
         FeePayment.objects.create(

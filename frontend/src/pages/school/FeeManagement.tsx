@@ -19,7 +19,7 @@ import {
   DollarSign, TrendingUp, AlertCircle, Search, Receipt, Users,
   Loader2, RefreshCw, CheckCircle, XCircle, Settings, Pencil,
   Trash2, Plus, Zap, BarChart3, Filter, Download, CalendarDays, Award,
-  BellRing, MessageSquare, ChevronDown, ChevronUp, Send,
+  BellRing, MessageSquare, ChevronDown, ChevronUp, Send, Printer,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
@@ -153,6 +153,7 @@ const FeeManagement = () => {
   const [pfMethod, setPfMethod] = useState('all');
   const [pfVerified, setPfVerified] = useState('all');
   const [verifyingId, setVerifyingId] = useState<number | null>(null);
+  const [deletingPaymentId, setDeletingPaymentId] = useState<number | null>(null);
 
   // ------ Setup tab state ------
   type SetupSection = 'types' | 'structures' | 'bills';
@@ -425,7 +426,7 @@ const FeeManagement = () => {
       setPaymentLoading(true);
       setValidationErrors({});
       
-      await feeService.createFeePayment({
+      const payment = await feeService.createFeePayment({
         student: selectedStudent!.id,
         fee_type: parseInt(selectedFeeType),
         amount_paid: amount,
@@ -437,7 +438,10 @@ const FeeManagement = () => {
       toast.success(
         <div className="flex items-center gap-2">
           <CheckCircle className="h-4 w-4" />
-          <span>Fee payment of GH₵ {amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} recorded successfully</span>
+          <span>
+            Fee payment of GH₵ {amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} recorded.
+            {payment.receipt_sms_sent ? ' SMS receipt sent to parent.' : ' Receipt ready to print.'}
+          </span>
         </div>
       );
       
@@ -652,6 +656,53 @@ const FeeManagement = () => {
       toast.error(e.message || 'Failed to verify payment');
     } finally {
       setVerifyingId(null);
+    }
+  };
+
+  const printPaymentReceipt = (payment: FeePayment) => {
+    const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>'"]/g, character => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    }[character] || character));
+    const paymentDate = payment.payment_date
+      ? new Date(payment.payment_date).toLocaleString()
+      : 'Not available';
+    const logo = payment.school_logo
+      ? `<img src="${escapeHtml(payment.school_logo)}" alt="School logo" class="logo" />`
+      : '';
+    const receiptHtml = `<!doctype html><html><head><meta charset="utf-8"><title>Fee Receipt ${escapeHtml(payment.reference_number || '')}</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#172033;background:#f1f5f9;margin:0;padding:28px}.receipt{max-width:760px;margin:auto;background:#fff;border:1px solid #dbe3ed;box-shadow:0 8px 30px rgba(15,23,42,.08)}.topbar{height:8px;background:#0f766e}.content{padding:38px 46px}.school{display:flex;align-items:center;gap:18px}.logo{width:78px;height:78px;object-fit:contain}.school-name{margin:0;color:#0f3d3a;font-size:25px;letter-spacing:.2px}.motto{margin:5px 0 0;color:#64748b;font-size:12px;font-style:italic}.contact{margin:16px 0 0;color:#64748b;font-size:11px;line-height:1.6}.title-row{display:flex;justify-content:space-between;align-items:end;border-bottom:1px solid #dbe3ed;margin-top:30px;padding-bottom:16px}.title{margin:0;color:#0f766e;font-size:20px;letter-spacing:.8px;text-transform:uppercase}.receipt-no{color:#64748b;font-size:11px;text-align:right}.receipt-no strong{display:block;color:#172033;font-size:13px;margin-top:4px}.section-title{margin:28px 0 10px;color:#64748b;font-size:10px;font-weight:bold;letter-spacing:1.2px;text-transform:uppercase}.details{border:1px solid #e2e8f0;border-radius:4px;overflow:hidden}.row{display:flex;justify-content:space-between;gap:24px;padding:13px 16px;border-bottom:1px solid #e2e8f0;font-size:13px}.row:last-child{border-bottom:0}.label{color:#64748b}.value{font-weight:600;text-align:right}.amount-box{display:flex;justify-content:space-between;align-items:center;margin-top:24px;padding:20px 22px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:4px}.amount-label{color:#166534;font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:.8px}.amount{color:#166534;font-size:26px;font-weight:bold}.note{margin-top:22px;padding:12px 14px;background:#f8fafc;color:#475569;font-size:12px;line-height:1.5}.signatures{display:flex;justify-content:space-between;gap:45px;margin-top:48px}.signature{width:45%;border-top:1px solid #94a3b8;padding-top:8px;color:#64748b;font-size:11px}.footer{border-top:1px solid #e2e8f0;margin-top:38px;padding-top:16px;color:#64748b;font-size:11px;text-align:center}@media print{body{background:#fff;padding:0}.receipt{border:0;box-shadow:none}.content{padding:30px 36px}.topbar{height:6px}}
+    </style></head><body><main class="receipt"><div class="topbar"></div><div class="content"><header class="school">${logo}<div><h1 class="school-name">${escapeHtml(payment.school_name || 'School')}</h1><p class="motto">${escapeHtml(payment.school_motto || 'Official school fee receipt')}</p><div class="contact">${escapeHtml(payment.school_address || '')}${payment.school_phone ? ` &bull; ${escapeHtml(payment.school_phone)}` : ''}${payment.school_email ? ` &bull; ${escapeHtml(payment.school_email)}` : ''}</div></div></header>
+      <div class="title-row"><h2 class="title">Fee payment receipt</h2><div class="receipt-no">Receipt number<strong>${escapeHtml(payment.reference_number || 'Pending')}</strong></div></div>
+      <div class="section-title">Student details</div><section class="details"><div class="row"><span class="label">Student name</span><span class="value">${escapeHtml(payment.student_name || 'Unknown student')}</span></div><div class="row"><span class="label">Student ID</span><span class="value">${escapeHtml(payment.student_id || 'Not available')}</span></div></section>
+      <div class="section-title">Payment details</div><section class="details"><div class="row"><span class="label">Fee type</span><span class="value">${escapeHtml(payment.fee_type_name || 'Fee payment')}</span></div><div class="row"><span class="label">Payment method</span><span class="value">${escapeHtml(payment.payment_method || 'Not available')}</span></div><div class="row"><span class="label">Date issued</span><span class="value">${escapeHtml(paymentDate)}</span></div><div class="row"><span class="label">Issued by / account</span><span class="value">${escapeHtml(payment.collected_by_name || 'School accounts')}</span></div></section>
+      <div class="amount-box"><span class="amount-label">Amount paid</span><span class="amount">${formatCurrency(toAmount(payment.amount_paid))}</span></div>${payment.notes ? `<div class="note"><strong>Note:</strong> ${escapeHtml(payment.notes)}</div>` : ''}
+      <div class="signatures"><div class="signature">Issued by / School accounts</div><div class="signature">Authorised signature</div></div><footer class="footer">This receipt is an official record of payment. Thank you for your payment.</footer></div></main></body></html>`;
+    const receiptUrl = URL.createObjectURL(new Blob([receiptHtml], { type: 'text/html' }));
+    const receiptWindow = window.open(receiptUrl, '_blank', 'width=720,height=760');
+    if (!receiptWindow) {
+      URL.revokeObjectURL(receiptUrl);
+      toast.error('Please allow pop-ups to print receipts.');
+      return;
+    }
+    receiptWindow.focus();
+    receiptWindow.setTimeout(() => {
+      receiptWindow.print();
+      URL.revokeObjectURL(receiptUrl);
+    }, 600);
+  };
+
+  const deletePayment = async (payment: FeePayment) => {
+    if (!confirm(`Delete the ${formatCurrency(toAmount(payment.amount_paid))} payment for ${payment.student_name}? This cannot be undone.`)) return;
+    setDeletingPaymentId(payment.id);
+    try {
+      await feeService.deleteFeePayment(payment.id);
+      setPayments(prev => prev.filter(item => item.id !== payment.id));
+      toast.success('Payment record deleted');
+      fetchInitialData();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to delete payment record');
+    } finally {
+      setDeletingPaymentId(null);
     }
   };
 
@@ -939,6 +990,11 @@ const FeeManagement = () => {
         </span>
       )
     },
+    {
+      key: 'reference_number',
+      label: 'Receipt',
+      render: (payment: FeePayment) => <span className="font-mono text-xs">{payment.reference_number || '—'}</span>
+    },
     { 
       key: 'status', 
       label: 'Status', 
@@ -946,6 +1002,21 @@ const FeeManagement = () => {
         <Badge variant="outline" className={statusColors[fee.status]}>
           {fee.status.replace('_', ' ')}
         </Badge>
+      )
+    },
+    {
+      key: 'actions',
+      label: 'Receipt',
+      render: (payment: FeePayment) => (
+        <Button
+          size="sm"
+          variant="ghost"
+          title="Print receipt"
+          aria-label={`Print receipt ${payment.reference_number || ''}`}
+          onClick={() => printPaymentReceipt(payment)}
+        >
+          <Printer className="h-4 w-4" />
+        </Button>
       )
     }
   ];
@@ -1008,6 +1079,37 @@ const FeeManagement = () => {
               Verify
             </Button>
           )}
+        </div>
+      )
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (payment: FeePayment) => (
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0"
+            title="Print receipt"
+            aria-label={`Print receipt ${payment.reference_number || ''}`}
+            onClick={() => printPaymentReceipt(payment)}
+          >
+            <Printer className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+            title="Delete payment record"
+            aria-label={`Delete payment ${payment.reference_number || payment.id}`}
+            onClick={() => deletePayment(payment)}
+            disabled={deletingPaymentId === payment.id}
+          >
+            {deletingPaymentId === payment.id
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <Trash2 className="h-4 w-4" />}
+          </Button>
         </div>
       )
     }

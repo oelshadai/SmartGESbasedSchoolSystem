@@ -179,3 +179,23 @@ class SmsService:
             f'Please visit {school_name} to clear outstanding fees. Thank you.'
         )
         return cls.send([phone], message, school)
+
+    @classmethod
+    def send_payment_receipt(cls, payment, school) -> bool:
+        """Send a payment receipt SMS to the student's guardian."""
+        if not getattr(school, 'sms_enabled', False):
+            return False
+
+        student = payment.student
+        phone = getattr(student, 'guardian_phone', '') or ''
+        if not phone:
+            return False
+
+        guardian_name = getattr(student, 'guardian_name', '') or 'Parent/Guardian'
+        student_name = student.get_full_name()
+        message = (
+            f'Dear {guardian_name}, payment of GH₵{payment.amount_paid} received for '
+            f'{student_name} ({payment.fee_type.name}). Receipt: {payment.reference_number}. '
+            f'Thank you, {school.name}.'
+        )
+        return cls.send([phone], message, school)

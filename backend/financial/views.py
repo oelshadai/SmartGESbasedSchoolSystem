@@ -13,6 +13,7 @@ from schools.models import (
     Staff, StaffSalary, PayrollRecord, Income, Expense,
     Budget, BudgetItem, ExpenseApproval, PaymentReminder, FinancialAuditLog
 )
+from fees.models import FeePayment
 from teachers.models import Teacher
 from schools.signals import set_audit_context, clear_audit_context
 from .serializers import (
@@ -501,6 +502,10 @@ class FinancialDashboardView(viewsets.ViewSet):
             total_income = Income.objects.filter(school=school).aggregate(
                 total=Sum('amount')
             )['total'] or Decimal('0')
+            total_fee_income = FeePayment.objects.filter(school=school).aggregate(
+                total=Sum('amount_paid')
+            )['total'] or Decimal('0')
+            total_income += total_fee_income
             
             # Total expenses (only approved/paid)
             total_expenses = Expense.objects.filter(
@@ -513,6 +518,12 @@ class FinancialDashboardView(viewsets.ViewSet):
                 school=school,
                 date__gte=current_month_start
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            monthly_fee_income = FeePayment.objects.filter(
+                school=school,
+                payment_date__date__gte=current_month_start,
+                payment_date__date__lte=today,
+            ).aggregate(total=Sum('amount_paid'))['total'] or Decimal('0')
+            monthly_income += monthly_fee_income
             
             # Monthly expenses
             monthly_expenses = Expense.objects.filter(
@@ -586,6 +597,13 @@ class FinancialDashboardView(viewsets.ViewSet):
                         date__gte=month_start,
                         date__lte=month_end
                     ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+                    month_fee_income = FeePayment.objects.filter(
+                        school=school,
+                        payment_date__date__gte=month_start,
+                        payment_date__date__lte=month_end,
+                    ).aggregate(total=Sum('amount_paid'))['total'] or Decimal('0')
+                    month_income += month_fee_income
                     
                     monthly_trend.append({
                         'month': month_name[month_start.month][:3],
@@ -610,6 +628,11 @@ class FinancialDashboardView(viewsets.ViewSet):
                     income_by_category.append({
                         'category': item['category'],
                         'amount': float(item['total'])
+                    })
+                if total_fee_income > 0:
+                    income_by_category.append({
+                        'category': 'School Fees',
+                        'amount': float(total_fee_income),
                     })
             except Exception as e:
                 print(f"Income category error: {e}")

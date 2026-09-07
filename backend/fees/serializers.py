@@ -2,6 +2,12 @@ from rest_framework import serializers
 from .models import FeeType, FeeStructure, StudentFee, FeePayment, FeeCollection, TermBill, StudentFeeSubType, WeeklyBill
 from students.models import Student
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
+from django.db.models import Sum
+from django.utils import timezone
+from datetime import timedelta
+from decimal import Decimal
 
 User = get_user_model()
 
@@ -93,18 +99,35 @@ class FeePaymentSerializer(serializers.ModelSerializer):
     student_name = serializers.SerializerMethodField(read_only=True)
     fee_type_name = serializers.CharField(source='fee_type.name', read_only=True)
     collected_by_name = serializers.CharField(source='collected_by.get_full_name', read_only=True)
+    school_name = serializers.CharField(source='school.name', read_only=True)
+    school_address = serializers.CharField(source='school.address', read_only=True)
+    school_phone = serializers.CharField(source='school.phone_number', read_only=True)
+    school_email = serializers.CharField(source='school.email', read_only=True)
+    school_motto = serializers.CharField(source='school.motto', read_only=True)
+    school_logo = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = FeePayment
         fields = [
             'id', 'student_id', 'student_name', 'fee_type', 'fee_type_name',
             'amount_paid', 'payment_method', 'reference_number', 'notes',
-            'payment_date', 'collected_by_name', 'is_verified', 'created_at'
+            'payment_date', 'collected_by_name', 'school_name', 'school_address',
+            'school_phone', 'school_email', 'school_motto', 'school_logo',
+            'is_verified', 'created_at'
         ]
         read_only_fields = ['payment_date', 'created_at', 'updated_at']
     
     def get_student_name(self, obj):
         return f"{obj.student.user.first_name} {obj.student.user.last_name}"
+
+    def get_school_logo(self, obj):
+        if not obj.school.logo:
+            return None
+        try:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.school.logo.url) if request else obj.school.logo.url
+        except (ValueError, AttributeError):
+            return None
 
 
 class FeePaymentCreateSerializer(serializers.ModelSerializer):
@@ -114,15 +137,106 @@ class FeePaymentCreateSerializer(serializers.ModelSerializer):
         model = FeePayment
         fields = ['student', 'fee_type', 'amount_paid', 'payment_method', 'reference_number', 'notes']
 
+    def _outstanding_balance(self, student, fee_type, lock=False):
+        """Resolve the outstanding amount for this student and fee frequency."""
+        frequency = fee_type.collection_frequency
+        bill_queryset = TermBill.objects
+        if lock:
+            bill_queryset = bill_queryset.select_for_update()
+
+        if frequency in ('TERM', 'YEAR'):
+            current_term = TermBill._meta.get_field('term').related_model.objects.filter(
+                academic_year__school=student.school,
+                is_current=True,
+            ).first()
+            if not current_term:
+                raise DjangoValidationError('No current academic term is configured for this fee.')
+            try:
+                bill = bill_queryset.get(
+                    student=student,
+                    school=student.school,
+                    term=current_term,
+                    fee_type=fee_type,
+                )
+            except TermBill.DoesNotExist:
+                raise DjangoValidationError('No bill exists for this student and fee type.')
+            if bill.status == 'WAIVED':
+                raise DjangoValidationError('This fee has been waived and cannot receive a payment.')
+            return max(Decimal('0'), bill.amount_billed - bill.amount_paid)
+
+        today = timezone.localdate()
+        if frequency == 'WEEKLY':
+            week_start = today - timedelta(days=today.weekday())
+            try:
+                from .models import WeeklyBill
+                weekly_queryset = WeeklyBill.objects.select_for_update() if lock else WeeklyBill.objects
+                bill = weekly_queryset.get(
+                    student=student,
+                    school=student.school,
+                    fee_type=fee_type,
+                    week_start=week_start,
+                )
+            except WeeklyBill.DoesNotExist:
+                raise DjangoValidationError('No weekly bill exists for this student and fee type.')
+            if bill.status == 'WAIVED':
+                raise DjangoValidationError('This fee has been waived and cannot receive a payment.')
+            return max(Decimal('0'), bill.amount_billed - bill.amount_paid)
+
+        structure = FeeStructure.objects.filter(
+            school=student.school,
+            fee_type=fee_type,
+            level=student.current_class.level if student.current_class else '',
+        ).order_by('tier_label').first()
+        if not structure:
+            raise DjangoValidationError('No fee structure exists for this student and fee type.')
+
+        period_filter = {'payment_date__date': today} if frequency == 'DAILY' else {
+            'payment_date__year': today.year,
+            'payment_date__month': today.month,
+        }
+        already_paid = FeePayment.objects.filter(
+            student=student,
+            school=student.school,
+            fee_type=fee_type,
+            **period_filter,
+        ).aggregate(total=Sum('amount_paid'))['total'] or Decimal('0')
+        return max(Decimal('0'), structure.amount - already_paid)
+
+    def validate(self, attrs):
+        student = attrs['student']
+        fee_type = attrs['fee_type']
+        if student.school_id != self.context['request'].user.school_id or fee_type.school_id != student.school_id:
+            raise serializers.ValidationError('Student and fee type must belong to your school.')
+        try:
+            outstanding = self._outstanding_balance(student, fee_type)
+        except DjangoValidationError as error:
+            raise serializers.ValidationError({'amount_paid': error.messages})
+        if attrs['amount_paid'] > outstanding:
+            raise serializers.ValidationError({
+                'amount_paid': f'Payment cannot exceed the outstanding balance of GH₵{outstanding:.2f}.'
+            })
+        return attrs
+
     def create(self, validated_data):
         from django.utils import timezone
         from decimal import Decimal
+        import uuid
 
         request = self.context.get('request')
         validated_data['school'] = request.user.school
         validated_data['collected_by'] = request.user
+        if not validated_data.get('reference_number'):
+            validated_data['reference_number'] = f'RCP-{timezone.now():%Y%m%d}-{uuid.uuid4().hex[:8].upper()}'
 
-        payment = FeePayment.objects.create(**validated_data)
+        with transaction.atomic():
+            outstanding = self._outstanding_balance(
+                validated_data['student'], validated_data['fee_type'], lock=True
+            )
+            if validated_data['amount_paid'] > outstanding:
+                raise serializers.ValidationError({
+                    'amount_paid': f'Payment cannot exceed the outstanding balance of GH₵{outstanding:.2f}.'
+                })
+            payment = FeePayment.objects.create(**validated_data)
 
         # ------------------------------------------------------------------
         # Update the running StudentFee balance
@@ -144,25 +258,39 @@ class FeePaymentCreateSerializer(serializers.ModelSerializer):
         student_fee.save()
 
         # ------------------------------------------------------------------
-        # If the fee type has a TermBill for the current term, update it too
+        # Keep the frequency-specific bill in sync with the payment.
         # ------------------------------------------------------------------
         try:
             from schools.models import Term
-            current_term = Term.objects.filter(
-                academic_year__school=validated_data['school'],
-                is_current=True
-            ).first()
-            if current_term:
-                term_bill = TermBill.objects.filter(
-                    student=validated_data['student'],
-                    term=current_term,
-                    fee_type=validated_data['fee_type']
+            fee_type = validated_data['fee_type']
+            if fee_type.collection_frequency in ('TERM', 'YEAR'):
+                current_term = Term.objects.filter(
+                    academic_year__school=validated_data['school'],
+                    is_current=True
                 ).first()
-                if term_bill:
-                    term_bill.amount_paid += validated_data['amount_paid']
-                    term_bill.save()  # balance + status updated in TermBill.save()
+                if current_term:
+                    term_bill = TermBill.objects.filter(
+                        student=validated_data['student'],
+                        term=current_term,
+                        fee_type=fee_type
+                    ).first()
+                    if term_bill:
+                        term_bill.amount_paid += validated_data['amount_paid']
+                        term_bill.save()
+            elif fee_type.collection_frequency == 'WEEKLY':
+                today = timezone.localdate()
+                week_start = today - timedelta(days=today.weekday())
+                weekly_bill = WeeklyBill.objects.filter(
+                    student=validated_data['student'],
+                    school=validated_data['school'],
+                    fee_type=fee_type,
+                    week_start=week_start,
+                ).first()
+                if weekly_bill:
+                    weekly_bill.amount_paid += validated_data['amount_paid']
+                    weekly_bill.save()
         except Exception:
-            pass  # Never block payment recording due to bill update failures
+            pass
 
         return payment
 

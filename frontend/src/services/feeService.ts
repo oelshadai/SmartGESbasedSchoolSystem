@@ -92,8 +92,15 @@ export interface FeePayment {
   notes?: string;
   payment_date: string;
   collected_by_name: string;
+  school_name?: string;
+  school_address?: string;
+  school_phone?: string;
+  school_email?: string;
+  school_motto?: string;
+  school_logo?: string | null;
   is_verified: boolean;
   created_at: string;
+  receipt_sms_sent?: boolean;
 }
 
 export interface StudentSearchResult {
@@ -278,7 +285,9 @@ class FeeService {
   private async makeRequest<T>(requestFn: () => Promise<any>): Promise<T> {
     try {
       const response = await requestFn();
-      return response.data;
+      // secureApiClient returns response bodies, while a few legacy helpers
+      // still return an Axios-shaped object with a data property.
+      return (response?.data ?? response) as T;
     } catch (error) {
       this.handleError(error);
     }
@@ -366,6 +375,10 @@ class FeeService {
 
   async getFeePaymentById(id: number): Promise<FeePayment> {
     return this.makeRequest(() => secureApiClient.get(`/fees/payments/${id}/`));
+  }
+
+  async deleteFeePayment(id: number): Promise<void> {
+    return this.makeRequest(() => secureApiClient.delete(`/fees/payments/${id}/`));
   }
 
   async verifyPayment(id: number): Promise<FeePayment> {
