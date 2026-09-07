@@ -186,7 +186,21 @@ class FeePaymentCreateSerializer(serializers.ModelSerializer):
             school=student.school,
             fee_type=fee_type,
             level=student.current_class.level if student.current_class else '',
-        ).order_by('tier_label').first()
+            tier_label=''
+        ).first()
+        if fee_type.sub_types.exists():
+            assignment = StudentFeeSubType.objects.filter(
+                student=student,
+                school=student.school,
+                main_fee_type=fee_type,
+            ).first()
+            if not assignment or not assignment.sub_fee_type_id:
+                raise DjangoValidationError('This student is not assigned to an applicable fee option.')
+            structure = FeeStructure.objects.filter(
+                school=student.school,
+                fee_type_id=assignment.sub_fee_type_id,
+                level=student.current_class.level if student.current_class else '',
+            ).first()
         if not structure:
             raise DjangoValidationError('No fee structure exists for this student and fee type.')
 
@@ -207,6 +221,16 @@ class FeePaymentCreateSerializer(serializers.ModelSerializer):
         fee_type = attrs['fee_type']
         if student.school_id != self.context['request'].user.school_id or fee_type.school_id != student.school_id:
             raise serializers.ValidationError('Student and fee type must belong to your school.')
+        if fee_type.sub_types.exists():
+            assignment = StudentFeeSubType.objects.filter(
+                student=student,
+                school=student.school,
+                main_fee_type=fee_type,
+            ).first()
+            if not assignment or not assignment.sub_fee_type_id:
+                raise serializers.ValidationError({
+                    'fee_type': 'This student is not assigned to an applicable fee option.'
+                })
         try:
             outstanding = self._outstanding_balance(student, fee_type)
         except DjangoValidationError as error:

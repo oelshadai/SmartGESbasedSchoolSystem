@@ -52,6 +52,33 @@ def _can_collect(user, fee_type: FeeType) -> bool:
     return False
 
 
+def _fee_structure_for_student(student, fee_type):
+    """Return the structure applicable to this student, or None if unassigned."""
+    if not student.current_class:
+        return None
+
+    structures = FeeStructure.objects.filter(
+        school=student.school,
+        level=student.current_class.level,
+        fee_type=fee_type,
+    )
+    if fee_type.sub_types.exists():
+        assignment = StudentFeeSubType.objects.filter(
+            school=student.school,
+            student=student,
+            main_fee_type=fee_type,
+        ).first()
+        if not assignment or not assignment.sub_fee_type_id:
+            return None
+        return FeeStructure.objects.filter(
+            school=student.school,
+            level=student.current_class.level,
+            fee_type_id=assignment.sub_fee_type_id,
+        ).first()
+
+    return structures.filter(tier_label='').first()
+
+
 class FeeTypeViewSet(viewsets.ModelViewSet):
     """Manage fee types"""
     serializer_class = FeeTypeSerializer
@@ -1019,11 +1046,7 @@ class TermBillViewSet(viewsets.ModelViewSet):
                     continue
 
                 # Find fee structure for student's class level
-                structure = FeeStructure.objects.filter(
-                    school=school,
-                    fee_type=fee_type,
-                    level=student.current_class.level
-                ).first()
+                structure = _fee_structure_for_student(student, fee_type)
 
                 if not structure:
                     skipped_count += 1
@@ -1892,11 +1915,7 @@ class WeeklyBillViewSet(viewsets.ReadOnlyModelViewSet):
                     skipped_count += 1
                     continue
 
-                structure = FeeStructure.objects.filter(
-                    school=school,
-                    fee_type=fee_type,
-                    level=student.current_class.level,
-                ).first()
+                structure = _fee_structure_for_student(student, fee_type)
                 if not structure:
                     skipped_count += 1
                     continue
