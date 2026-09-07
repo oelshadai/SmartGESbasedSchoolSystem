@@ -1,7 +1,7 @@
-﻿import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+﻿import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore, getRoleDashboardPath } from '@/stores/authStore';
-import { authService } from '@/services/authService';
+import { authService, PasswordValidator } from '@/services/authService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,33 +9,61 @@ import { Loader2, ArrowLeft, ArrowRight, CheckCircle2, Lock, Mail, User, School,
 import { toast } from 'sonner';
 
 const PLANS = [
-  { key: 'FREE',    label: 'Free Trial',  price: 'GH₵ 0',     desc: '30 days full access' },
+  { key: 'FREE',    label: 'Free Trial',  price: 'GH₵ 0',     desc: '10 days full access' },
   { key: 'MONTHLY', label: 'Monthly',     price: 'GH₵ 200',   desc: 'Per month' },
   { key: 'YEARLY',  label: 'Yearly',      price: 'GH₵ 2,200', desc: 'Per year · save 1 month' },
-];
+] as const;
+
+type RegistrationPlan = 'FREE' | 'MONTHLY' | 'YEARLY';
+interface RegistrationFormData {
+  school_name: string;
+  admin_email: string;
+  first_name: string;
+  last_name: string;
+  password: string;
+  password_confirm: string;
+  plan: RegistrationPlan;
+}
 
 const RegisterPage = () => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<RegistrationFormData>({
     school_name: '',
     admin_email: '',
     first_name: '',
     last_name: '',
     password: '',
     password_confirm: '',
-    plan: 'FREE',
+    plan: 'FREE' as RegistrationPlan,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
-
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
   const passwordChecks = [
-    { label: 'At least 8 characters', valid: formData.password.length >= 8 },
+    { label: 'At least 9 characters', valid: formData.password.length >= 9 },
     { label: 'One uppercase letter', valid: /[A-Z]/.test(formData.password) },
     { label: 'One lowercase letter', valid: /[a-z]/.test(formData.password) },
     { label: 'One number', valid: /\d/.test(formData.password) },
+    { label: 'One special character', valid: /[!@#$%^&*(),.?":{}|<>]/.test(formData.password) },
   ];
-  const passwordsMatch = formData.password_confirm.length > 0 && formData.password === formData.password_confirm;
+
+  useEffect(() => {
+    const reference = searchParams.get('paystack_ref');
+    if (!reference) return;
+
+    setSearchParams({}, { replace: true });
+    setVerifyingPayment(true);
+    authService.verifySchoolRegistrationPayment(reference)
+      .then((response) => {
+        setAuth(response.user, response.access, response.refresh);
+        toast.success('Payment verified. School account created successfully!');
+        navigate(getRoleDashboardPath(response.user.role), { replace: true });
+      })
+      .catch((err: any) => setError(err.message || 'Payment verification failed.'))
+      .finally(() => setVerifyingPayment(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -49,9 +77,18 @@ const RegisterPage = () => {
       setError('Passwords do not match.');
       return;
     }
+    const passwordValidation = PasswordValidator.validate(formData.password);
+    if (!passwordValidation.isValid) {
+      setError(passwordValidation.errors[0]);
+      return;
+    }
     setLoading(true);
     try {
       const response = await authService.registerSchool(formData);
+      if ('payment_required' in response) {
+        window.location.href = response.authorization_url;
+        return;
+      }
       setAuth(response.user, response.access, response.refresh);
       toast.success('School registered successfully!');
       navigate(getRoleDashboardPath(response.user.role));
@@ -64,6 +101,14 @@ const RegisterPage = () => {
 
   return (
     <div className="register-page min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50 relative flex">
+      {verifyingPayment && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/80 text-white">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+            <p className="text-sm font-semibold">Verifying payment and creating your school...</p>
+          </div>
+        </div>
+      )}
       {/* Animated background glows */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-32 -right-32 w-48 sm:w-80 h-48 sm:h-80 bg-orange-500/10 rounded-full blur-3xl animate-pulse" />
@@ -232,20 +277,18 @@ const RegisterPage = () => {
                         value={formData.password}
                         onChange={(e) => handleChange('password', e.target.value)}
                         required
-                        minLength={8}
+                        minLength={9}
                         className="pl-9 h-9 bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-500 focus:border-blue-700 focus:ring-blue-700/20 rounded-xl text-sm"
                       />
                     </div>
-                    {formData.password.length > 0 && (
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 pt-1 text-[10px] font-semibold">
-                        {passwordChecks.map((check) => (
-                          <span key={check.label} className={check.valid ? 'text-emerald-700' : 'text-slate-600'}>
-                            <span className={`register-password-check ${check.valid ? 'is-valid' : 'is-invalid'}`}>{check.valid ? '✓' : '○'}</span>{' '}
-                            {check.label}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    <div className="grid grid-cols-1 gap-1 pt-1 sm:grid-cols-2" aria-live="polite">
+                      {passwordChecks.map((check) => (
+                        <div key={check.label} className={`password-requirement flex items-center gap-1.5 text-[11px] ${check.valid ? 'text-emerald-600' : 'text-slate-400'}`}>
+                          <CheckCircle2 className={`h-3.5 w-3.5 ${check.valid ? 'text-emerald-500' : 'text-slate-300'}`} />
+                          <span>{check.label}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Plan Selection */}
@@ -284,14 +327,15 @@ const RegisterPage = () => {
                         value={formData.password_confirm}
                         onChange={(e) => handleChange('password_confirm', e.target.value)}
                         required
-                        minLength={8}
+                        minLength={9}
                         className="pl-9 h-9 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-200 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl text-sm"
                       />
                     </div>
-                    {formData.password_confirm.length > 0 && (
-                      <p className={`pt-1 text-[10px] font-semibold ${passwordsMatch ? 'text-emerald-700' : 'text-red-700'}`}>
-                        {passwordsMatch ? '✓ Passwords match' : 'Passwords do not match'}
-                      </p>
+                    {formData.password_confirm && (
+                      <div className={`flex items-center gap-1.5 pt-1 text-[11px] ${formData.password === formData.password_confirm ? 'text-emerald-400' : 'text-red-400'}`}>
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        <span>{formData.password === formData.password_confirm ? 'Passwords match' : 'Passwords do not match'}</span>
+                      </div>
                     )}
                   </div>
 

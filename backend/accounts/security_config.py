@@ -12,7 +12,7 @@ class SecuritySettings:
     # Authentication Security
     MAX_LOGIN_ATTEMPTS = 5
     LOGIN_LOCKOUT_DURATION = 3600  # 1 hour in seconds
-    PASSWORD_MIN_LENGTH = 8
+    PASSWORD_MIN_LENGTH = 9
     PASSWORD_MAX_LENGTH = 128
     
     # Student Authentication (more lenient)

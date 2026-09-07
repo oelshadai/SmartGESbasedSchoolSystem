@@ -74,6 +74,7 @@ const getNavItems = (role: UserRole): NavItem[] => {
     ],
     SCHOOL_ADMIN: [
       { label: 'Dashboard', path: '/school/dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
+      { label: 'Subscription', path: '/school/subscription', icon: <CreditCard className="h-5 w-5" /> },
       { label: 'Academic Years', path: '/school/academic-years', icon: <CalendarDays className="h-5 w-5" /> },
       { label: 'Classes', path: '/school/classes', icon: <BookOpen className="h-5 w-5" /> },
       { label: 'Teachers', path: '/school/teachers', icon: <Users className="h-5 w-5" /> },
@@ -99,6 +100,7 @@ const getNavItems = (role: UserRole): NavItem[] => {
     ],
     PRINCIPAL: [
       { label: 'Dashboard', path: '/school/dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
+      { label: 'Subscription', path: '/school/subscription', icon: <CreditCard className="h-5 w-5" /> },
       { label: 'Classes', path: '/school/classes', icon: <BookOpen className="h-5 w-5" /> },
       { label: 'Teachers', path: '/school/teachers', icon: <Users className="h-5 w-5" /> },
       { label: 'Students', path: '/school/students', icon: <GraduationCap className="h-5 w-5" /> },

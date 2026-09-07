@@ -128,6 +128,8 @@ def superadmin_school_detail(request, school_id):
                 return Response({'errors': errors}, status=400)
 
             school.save()
+            if 'is_active' in request.data:
+                User.objects.filter(school=school).update(is_active=school.is_active)
             return Response({'status': 'updated'})
 
         sub = Subscription.objects.filter(school=school, status='ACTIVE').order_by('-end_date').first()
@@ -232,8 +234,16 @@ def superadmin_user_update(request, user_id):
     try:
         from accounts.models import User
         user = User.objects.get(pk=user_id)
+        if user.role == 'SUPER_ADMIN' and user.id != request.user.id:
+            return Response({'error': 'Another super admin cannot be deactivated here.'}, status=403)
         if 'is_active' in request.data:
-            user.is_active = bool(request.data['is_active'])
+            value = request.data['is_active']
+            if isinstance(value, bool):
+                user.is_active = value
+            elif isinstance(value, str) and value.lower() in ('true', 'false'):
+                user.is_active = value.lower() == 'true'
+            else:
+                return Response({'error': 'is_active must be a boolean.'}, status=400)
             user.save(update_fields=['is_active'])
         return Response({'status': 'updated', 'is_active': user.is_active})
     except User.DoesNotExist:
@@ -323,12 +333,15 @@ def superadmin_subscription_create(request):
 
         school = School.objects.get(pk=request.data['school_id'])
         plan = SubscriptionPlan.objects.get(pk=request.data['plan_id'])
+        if not plan.is_active:
+            return Response({'error': 'Cannot assign an inactive plan.'}, status=400)
         start = date.fromisoformat(request.data.get('start_date', date.today().isoformat()))
         end = start + timedelta(days=plan.duration_days)
 
         sub = Subscription.objects.create(
             school=school,
             plan=plan,
+            plan_type=plan.plan_type,
             start_date=start,
             end_date=end,
             status='ACTIVE',
@@ -351,6 +364,8 @@ def superadmin_subscription_extend(request, sub_id):
         from subscriptions.models import Subscription
         sub = Subscription.objects.get(pk=sub_id)
         days = int(request.data.get('days', 30))
+        if days < 1 or days > 3660:
+            return Response({'error': 'Extension must be between 1 and 3660 days.'}, status=400)
         base = max(sub.end_date, date.today())
         sub.end_date = base + timedelta(days=days)
         sub.status = 'ACTIVE'
@@ -371,11 +386,47 @@ def superadmin_subscription_update(request, sub_id):
         from subscriptions.models import Subscription
         sub = Subscription.objects.get(pk=sub_id)
         allowed = ['status', 'auto_renew']
+        valid_statuses = {choice[0] for choice in Subscription.STATUS_CHOICES}
         for f in allowed:
             if f in request.data:
+                if f == 'status' and request.data[f] not in valid_statuses:
+                    return Response({'error': 'Invalid subscription status.'}, status=400)
+                if f == 'auto_renew' and not isinstance(request.data[f], bool):
+                    return Response({'error': 'auto_renew must be a boolean.'}, status=400)
                 setattr(sub, f, request.data[f])
         sub.save()
         return Response({'status': 'updated'})
+    except Exception as e:
+        return Response({'error': str(e)}, status=400)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsSuperAdmin])
+def superadmin_subscription_delete(request, sub_id):
+    """Delete a subscription record; school access is revoked if it was active."""
+    err = require_superadmin(request)
+    if err:
+        return err
+    try:
+        from subscriptions.models import Subscription
+        sub = Subscription.objects.select_related('school').get(pk=sub_id)
+        was_active = sub.status == Subscription.STATUS_ACTIVE
+        school = sub.school
+        sub.delete()
+        if was_active:
+            replacement = school.subscriptions.filter(status=Subscription.STATUS_ACTIVE).order_by('-end_date').first()
+            if replacement:
+                school.subscription_plan = replacement.plan_type
+                school.subscription_expires = replacement.end_date
+            else:
+                school.subscription_plan = 'FREE'
+                school.subscription_expires = date.today()
+                school.is_active = False
+                User.objects.filter(school=school).update(is_active=False)
+            school.save(update_fields=['subscription_plan', 'subscription_expires', 'is_active'])
+        return Response({'status': 'deleted'})
+    except Subscription.DoesNotExist:
+        return Response({'error': 'Subscription not found.'}, status=404)
     except Exception as e:
         return Response({'error': str(e)}, status=400)
 
@@ -488,11 +539,18 @@ def superadmin_plans(request):
     try:
         from subscriptions.models import SubscriptionPlan
         if request.method == 'POST':
+            plan_type = request.data.get('plan_type')
+            valid_plan_types = {'FREE', 'MONTHLY', 'YEARLY'}
+            if plan_type not in valid_plan_types:
+                return Response({'error': 'plan_type must be FREE, MONTHLY, or YEARLY.'}, status=400)
+            duration_days = int(request.data.get('duration_days', 0))
+            if duration_days < 1 or duration_days > 3660:
+                return Response({'error': 'duration_days must be between 1 and 3660.'}, status=400)
             plan = SubscriptionPlan.objects.create(
                 name=request.data['name'],
-                plan_type=request.data['plan_type'],
+                plan_type=plan_type,
                 price=request.data['price'],
-                duration_days=request.data['duration_days'],
+                duration_days=duration_days,
                 max_students=request.data.get('max_students'),
                 max_teachers=request.data.get('max_teachers'),
                 bulk_upload=request.data.get('bulk_upload', True),

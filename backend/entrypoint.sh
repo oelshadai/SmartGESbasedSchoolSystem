@@ -7,6 +7,9 @@ python manage.py migrate --noinput
 echo "Ensuring default admin user exists..."
 python manage.py create_admin
 
+echo "Ensuring SaaS owner superadmin exists..."
+python manage.py seed_production
+
 echo "Collecting static files..."
 python manage.py collectstatic --noinput --clear || echo "Static files collection failed, continuing..."
 

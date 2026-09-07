@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model, authenticate
 from django.http import HttpRequest
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.utils import timezone
 from django.core.cache import cache
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import transaction, IntegrityError, models
@@ -24,6 +25,7 @@ import traceback
 from typing import Dict, Any
 from .security_middleware import SecurityConfig, ThreatDetector, SessionManager, AuditLogger
 from .security_config import SecuritySettings, SecurityValidator
+from .models import PendingSchoolRegistration
 
 from .serializers import (
     UserSerializer, 
@@ -804,10 +806,77 @@ class RegisterSchoolView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            plan = serializer.validated_data.get('plan', 'FREE')
+            if plan in ('MONTHLY', 'YEARLY'):
+                import uuid
+                import requests
+                from decimal import Decimal
+                from subscriptions.models import PLAN_PRICES
+
+                secret_key = getattr(settings, 'PAYSTACK_SECRET_KEY', '')
+                public_key = getattr(settings, 'PAYSTACK_PUBLIC_KEY', '')
+                if not secret_key or not public_key:
+                    return Response(
+                        {'error': 'Payment gateway is not configured. Contact support.'},
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    )
+
+                reference = f'REG-{uuid.uuid4().hex[:16].upper()}'
+                pending = PendingSchoolRegistration.objects.create(
+                    school_name=serializer.validated_data['school_name'],
+                    admin_email=serializer.validated_data['admin_email'].lower().strip(),
+                    first_name=serializer.validated_data.get('first_name', 'Admin'),
+                    last_name=serializer.validated_data.get('last_name', 'User'),
+                    address=serializer.validated_data.get('address', ''),
+                    location=serializer.validated_data.get('location', ''),
+                    phone_number=serializer.validated_data.get('phone_number', ''),
+                    levels=serializer.validated_data.get('levels', []),
+                    plan=plan,
+                    password_hash=make_password(serializer.validated_data['password']),
+                    paystack_reference=reference,
+                    expires_at=timezone.now() + timedelta(hours=1),
+                )
+                frontend_url = getattr(settings, 'FRONTEND_URL', '').rstrip('/')
+                payload = {
+                    'email': pending.admin_email,
+                    'amount': int(Decimal(PLAN_PRICES[plan]) * 100),
+                    'reference': reference,
+                    'currency': 'GHS',
+                    'metadata': {
+                        'registration_id': pending.id,
+                        'purchase_type': 'school_registration',
+                        'plan': plan,
+                    },
+                    'callback_url': f'{frontend_url}/register?paystack_ref={reference}',
+                }
+                try:
+                    gateway_response = requests.post(
+                        'https://api.paystack.co/transaction/initialize',
+                        json=payload,
+                        headers={'Authorization': f'Bearer {secret_key}', 'Content-Type': 'application/json'},
+                        timeout=30,
+                    )
+                    gateway_data = gateway_response.json()
+                except requests.RequestException:
+                    pending.status = PendingSchoolRegistration.STATUS_FAILED
+                    pending.save(update_fields=['status', 'updated_at'])
+                    return Response({'error': 'Payment gateway is unavailable.'}, status=503)
+
+                if gateway_response.status_code != 200 or not gateway_data.get('status'):
+                    pending.status = PendingSchoolRegistration.STATUS_FAILED
+                    pending.save(update_fields=['status', 'updated_at'])
+                    return Response({'error': gateway_data.get('message', 'Payment initialization failed.')}, status=502)
+
+                return Response({
+                    'payment_required': True,
+                    'authorization_url': gateway_data['data']['authorization_url'],
+                    'reference': reference,
+                    'public_key': public_key,
+                }, status=status.HTTP_202_ACCEPTED)
+
             user = serializer.save()
             school = user.school
 
-            # Issue tokens
             token_serializer = CustomTokenObtainPairSerializer(
                 data={'email': user.email, 'password': request.data['password']}
             )
@@ -822,21 +891,108 @@ class RegisterSchoolView(APIView):
             return Response(data, status=status.HTTP_201_CREATED)
         except IntegrityError as e:
             logger.error(f"IntegrityError during school registration: {str(e)}", exc_info=True)
-            return Response(
-                {'detail': f'Database conflict: {str(e)}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({'detail': f'Database conflict: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"School registration failed: {str(e)}", exc_info=True)
-            error_trace = traceback.format_exc()
-            logger.error(f"Full traceback: {error_trace}")
-            # Return detailed error for debugging
-            return Response(
-                {
-                    'detail': f'Registration error: {str(e)}',
-                    'error_type': type(e).__name__,
-                    'trace': error_trace if settings.DEBUG else None
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({'detail': f'Registration error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class VerifySchoolRegistrationPaymentView(APIView):
+    """Verify paid registration and create the school only after Paystack succeeds."""
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+                    import requests
+                    from decimal import Decimal
+                    from subscriptions.models import PLAN_PRICES, Payment
+
+                    reference = request.query_params.get('reference', '').strip()
+                    if not reference:
+                        return Response({'error': 'Payment reference is required.'}, status=400)
+
+                    with transaction.atomic():
+                        try:
+                            pending = PendingSchoolRegistration.objects.select_for_update().get(
+                                paystack_reference=reference,
+                            )
+                        except PendingSchoolRegistration.DoesNotExist:
+                            return Response({'error': 'Registration payment not found.'}, status=404)
+
+                        existing_user = User.objects.filter(email=pending.admin_email).first()
+                        if pending.status == PendingSchoolRegistration.STATUS_COMPLETED and existing_user:
+                            refresh = RefreshToken.for_user(existing_user)
+                            return Response({
+                                'access': str(refresh.access_token),
+                                'refresh': str(refresh),
+                                'user': UserSerializer(existing_user).data,
+                            })
+                        if pending.expires_at < timezone.now():
+                            pending.status = PendingSchoolRegistration.STATUS_FAILED
+                            pending.save(update_fields=['status', 'updated_at'])
+                            return Response({'error': 'This registration payment session has expired.'}, status=400)
+
+                        secret_key = getattr(settings, 'PAYSTACK_SECRET_KEY', '')
+                        try:
+                            gateway_response = requests.get(
+                                f'https://api.paystack.co/transaction/verify/{reference}',
+                                headers={'Authorization': f'Bearer {secret_key}'},
+                                timeout=30,
+                            )
+                            gateway_data = gateway_response.json()
+                        except requests.RequestException:
+                            return Response({'error': 'Payment gateway is unavailable.'}, status=503)
+
+                        transaction_data = gateway_data.get('data', {})
+                        expected_amount = int(Decimal(PLAN_PRICES[pending.plan]) * 100)
+                        if (
+                            gateway_response.status_code != 200
+                            or not gateway_data.get('status')
+                            or transaction_data.get('status') != 'success'
+                            or transaction_data.get('currency') != 'GHS'
+                            or int(transaction_data.get('amount', 0)) != expected_amount
+                        ):
+                            return Response({'success': False, 'message': 'Payment was not successful or the amount did not match.'})
+
+                        serializer = SchoolRegistrationSerializer()
+                        user = serializer.create({
+                            'school_name': pending.school_name,
+                            'admin_email': pending.admin_email,
+                            'first_name': pending.first_name,
+                            'last_name': pending.last_name,
+                            'address': pending.address,
+                            'location': pending.location,
+                            'phone_number': pending.phone_number,
+                            'levels': pending.levels,
+                            'plan': pending.plan,
+                            'password_hash': pending.password_hash,
+                        })
+                        Payment.objects.create(
+                            school=user.school,
+                            subscription=user.school.subscriptions.filter(plan_type=pending.plan).order_by('-created_at').first(),
+                            plan_type=pending.plan,
+                            amount=Decimal(PLAN_PRICES[pending.plan]),
+                            payment_method=Payment.METHOD_MOBILE,
+                            status=Payment.STATUS_COMPLETED,
+                            transaction_id=reference,
+                            reference=reference,
+                            payment_date=timezone.now(),
+                        )
+                        pending.status = PendingSchoolRegistration.STATUS_COMPLETED
+                        pending.completed_at = timezone.now()
+                        pending.save(update_fields=['status', 'completed_at', 'updated_at'])
+
+                        refresh = RefreshToken.for_user(user)
+                        data = {
+                            'access': str(refresh.access_token),
+                            'refresh': str(refresh),
+                            'user': UserSerializer(user).data,
+                            'school': {
+                                'id': user.school.id,
+                                'name': user.school.name,
+                                'subscription_plan': user.school.subscription_plan,
+                                'subscription_expires': str(user.school.subscription_expires),
+                            },
+                        }
+                        return Response(data, status=status.HTTP_200_OK)
 

@@ -104,7 +104,7 @@ export default function PayrollManagement() {
     payroll.filter(record => getRecordFrequency(record) === filter).length;
 
   return (
-    <div className="financial-page p-4 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
         <h1 className="theme-page-title">Payroll Management</h1>
@@ -233,10 +233,10 @@ export default function PayrollManagement() {
                     <td className="p-2">
                       <div className="flex gap-2">
                         {record.status === 'DRAFT' && (
-                          <Button size="sm" onClick={() => approvePayroll(record.id)} className="theme-button whitespace-normal break-words leading-snug">Approve</Button>
+                          <Button size="sm" onClick={() => approvePayroll(record.id)} className="theme-button">Approve</Button>
                         )}
                         {record.status === 'APPROVED' && (
-                          <Button size="sm" onClick={() => { setMarkPaidId(record.id); setPaymentDate(new Date().toISOString().split('T')[0]); }} className="theme-button whitespace-normal break-words leading-snug">
+                          <Button size="sm" onClick={() => { setMarkPaidId(record.id); setPaymentDate(new Date().toISOString().split('T')[0]); }} className="theme-button">
                             <CheckCircle className="h-4 w-4 mr-1" /> Mark Paid
                           </Button>
                         )}

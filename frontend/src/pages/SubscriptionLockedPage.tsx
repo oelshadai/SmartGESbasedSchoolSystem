@@ -26,7 +26,7 @@ const SubscriptionLockedPage = () => {
             Your Free Trial Has Ended
           </h1>
           <p className="text-muted-foreground text-lg leading-relaxed">
-            Your 14-day free trial has expired. Upgrade your plan to regain full
+            Your 10-day free trial has expired. Upgrade your plan to regain full
             access to all platform features.
           </p>
         </div>

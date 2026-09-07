@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CreditCard, Plus, Loader2, Check, DollarSign } from 'lucide-react';
+import { CreditCard, Plus, Loader2, Check, DollarSign, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -27,7 +27,7 @@ export default function AdminSubscriptions() {
   const [creating, setCreating] = useState(false);
   const [showPlanDialog, setShowPlanDialog] = useState(false);
   const [editPlan, setEditPlan] = useState<any>(null);
-  const [planForm, setPlanForm] = useState({ name: '', plan_type: 'TERM', price: '', duration_days: '90', max_students: '', max_teachers: '' });
+  const [planForm, setPlanForm] = useState({ name: '', plan_type: 'MONTHLY', price: '', duration_days: '30', max_students: '', max_teachers: '' });
   const [savingPlan, setSavingPlan] = useState(false);
 
   useEffect(() => { fetchData(); }, [statusFilter]);
@@ -58,6 +58,17 @@ export default function AdminSubscriptions() {
     try {
       await secureApiClient.patch(`/auth/superadmin/subscriptions/${subId}/`, { status });
       toast({ title: 'Updated' });
+      fetchData();
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async (subId: number) => {
+    if (!window.confirm('Delete this subscription? Active school access will be revoked if no other active subscription exists.')) return;
+    try {
+      await secureApiClient.delete(`/auth/superadmin/subscriptions/${subId}/delete/`);
+      toast({ title: 'Deleted', description: 'Subscription removed' });
       fetchData();
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -130,7 +141,7 @@ export default function AdminSubscriptions() {
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline" size="sm"
-              onClick={() => { setEditPlan(null); setPlanForm({ name: '', plan_type: 'TERM', price: '', duration_days: '90', max_students: '', max_teachers: '' }); setShowPlanDialog(true); }}
+              onClick={() => { setEditPlan(null); setPlanForm({ name: '', plan_type: 'MONTHLY', price: '', duration_days: '30', max_students: '', max_teachers: '' }); setShowPlanDialog(true); }}
               className="bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-700/50 hover:text-white"
             >
               <Plus className="h-3.5 w-3.5 mr-1" /> New Plan
@@ -247,6 +258,9 @@ export default function AdminSubscriptions() {
                     {['EXPIRED', 'SUSPENDED', 'CANCELLED'].includes(sub.status) && (
                       <Button size="sm" variant="outline" className="h-7 text-xs px-2 bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20" onClick={() => handleStatusChange(sub.id, 'ACTIVE')}>Reactivate</Button>
                     )}
+                    <Button size="sm" variant="outline" title="Delete subscription" aria-label="Delete subscription" className="h-7 px-2 bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20" onClick={() => handleDelete(sub.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -309,9 +323,9 @@ export default function AdminSubscriptions() {
                 <Select value={planForm.plan_type} onValueChange={v => setPlanForm(f => ({ ...f, plan_type: v }))}>
                   <SelectTrigger className="bg-slate-800 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-slate-800 border-slate-700">
-                    <SelectItem value="TERM">Per Term</SelectItem>
+                    <SelectItem value="FREE">Free Trial</SelectItem>
+                    <SelectItem value="MONTHLY">Monthly</SelectItem>
                     <SelectItem value="YEARLY">Yearly</SelectItem>
-                    <SelectItem value="PER_STUDENT">Per Student</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

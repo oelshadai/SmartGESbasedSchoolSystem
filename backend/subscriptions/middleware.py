@@ -52,7 +52,7 @@ class SubscriptionLockMiddleware:
                     {
                         'error': 'subscription_locked',
                         'message': (
-                            'Your 14-day free trial has ended. '
+                            'Your 10-day free trial has ended. '
                             'Please upgrade to continue using the platform.'
                         ),
                         'upgrade_url': '/school/subscription',

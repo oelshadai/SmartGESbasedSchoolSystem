@@ -91,6 +91,39 @@ class User(AbstractUser):
         return self.role == 'PARENT'
 
 
+class PendingSchoolRegistration(models.Model):
+    """Validated paid registration held until Paystack confirms payment."""
+
+    STATUS_PENDING = 'PENDING'
+    STATUS_COMPLETED = 'COMPLETED'
+    STATUS_FAILED = 'FAILED'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_COMPLETED, 'Completed'),
+        (STATUS_FAILED, 'Failed'),
+    ]
+
+    school_name = models.CharField(max_length=255)
+    admin_email = models.EmailField()
+    first_name = models.CharField(max_length=100, default='Admin')
+    last_name = models.CharField(max_length=100, default='User')
+    address = models.CharField(max_length=255, blank=True, default='')
+    location = models.CharField(max_length=255, blank=True, default='')
+    phone_number = models.CharField(max_length=50, blank=True, default='')
+    levels = models.JSONField(default=list, blank=True)
+    plan = models.CharField(max_length=20)
+    password_hash = models.CharField(max_length=255)
+    paystack_reference = models.CharField(max_length=255, unique=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    expires_at = models.DateTimeField()
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
 class ParentStudent(models.Model):
     """
     Links a PARENT user to one or more Student records.

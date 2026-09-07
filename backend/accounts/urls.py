@@ -11,6 +11,7 @@ from .views import (
     UserListView,
     CreateTeacherView,
     RegisterSchoolView,
+    VerifySchoolRegistrationPaymentView,
     LogoutView,
     who_is_online,
 )
@@ -26,11 +27,13 @@ from .superadmin_views import (
     superadmin_users, superadmin_user_update,
     superadmin_subscriptions, superadmin_subscription_create,
     superadmin_subscription_extend, superadmin_subscription_update,
+    superadmin_subscription_delete,
     superadmin_analytics,
     superadmin_plans, superadmin_plan_detail,
     superadmin_disable_admin_cascade, superadmin_enable_admin_cascade,
     superadmin_messages, admin_messages_inbox, admin_message_mark_read,
     superadmin_list_admins,
+    superadmin_settings,
 )
 
 @ensure_csrf_cookie
@@ -85,6 +88,7 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('register/', RegisterView.as_view(), name='register'),
     path('register-school/', RegisterSchoolView.as_view(), name='register_school'),
+    path('register-school/verify-payment/', VerifySchoolRegistrationPaymentView.as_view(), name='verify_school_registration_payment'),
     path('profile/', StudentAwareProfileView.as_view(), name='profile'),
     path('change-password/', ChangePasswordView.as_view(), name='change_password'),
     path('auth/change-password/', change_password, name='auth_change_password'),
@@ -108,9 +112,11 @@ urlpatterns = [
     path('superadmin/subscriptions/create/', superadmin_subscription_create, name='superadmin_subscription_create'),
     path('superadmin/subscriptions/<int:sub_id>/extend/', superadmin_subscription_extend, name='superadmin_subscription_extend'),
     path('superadmin/subscriptions/<int:sub_id>/', superadmin_subscription_update, name='superadmin_subscription_update'),
+    path('superadmin/subscriptions/<int:sub_id>/delete/', superadmin_subscription_delete, name='superadmin_subscription_delete'),
     path('superadmin/analytics/', superadmin_analytics, name='superadmin_analytics'),
     path('superadmin/plans/', superadmin_plans, name='superadmin_plans'),
     path('superadmin/plans/<int:plan_id>/', superadmin_plan_detail, name='superadmin_plan_detail'),
+    path('superadmin/settings/', superadmin_settings, name='superadmin_settings'),
 
     # ── Admin account cascade disable/enable ─────────────────────
     path('superadmin/admins/', superadmin_list_admins, name='superadmin_list_admins'),

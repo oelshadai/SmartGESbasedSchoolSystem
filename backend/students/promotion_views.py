@@ -336,6 +336,9 @@ def _get_next_class(current_class, school):
     Determine the next class in progression
     """
     level_progression = {
+        'NURSERY': 'KG1',
+        'KG1': 'KG2',
+        'KG2': 'BASIC_1',
         'BASIC_1': 'BASIC_2',
         'BASIC_2': 'BASIC_3',
         'BASIC_3': 'BASIC_4',

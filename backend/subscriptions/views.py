@@ -1,7 +1,13 @@
 """Subscription API views."""
-from datetime import date
+from datetime import date, timedelta
+from decimal import Decimal
+import uuid
+
+import requests
 
 from django.utils import timezone
+from django.conf import settings
+from django.db import transaction
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,6 +16,7 @@ from .models import (
     PLAN_CHOICES, PLAN_DURATIONS, PLAN_FREE, PLAN_MONTHLY, PLAN_PRICES,
     PLAN_YEARLY, Subscription,
 )
+from .models import Payment, SubscriptionPlan
 
 
 def _subscription_payload(school):
@@ -87,41 +94,163 @@ class SubscriptionUpgradeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        if request.user.role not in ('SCHOOL_ADMIN', 'SUPER_ADMIN'):
-            return Response({'error': 'Permission denied.'}, status=403)
+        return Response(
+            {'error': 'Online upgrades must use the Paystack payment flow.'},
+            status=status.HTTP_410_GONE,
+        )
+
+
+
+class SubscriptionPaymentInitiateView(APIView):
+    """Initialize a subscription payment through the global Paystack account."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if request.user.role not in ('SCHOOL_ADMIN', 'PRINCIPAL'):
+            return Response({'error': 'Only school administrators can renew subscriptions.'}, status=403)
 
         school = getattr(request.user, 'school', None)
+        plan = request.data.get('plan', '').upper()
         if not school:
             return Response({'error': 'No school associated with this account.'}, status=400)
-
-        plan = request.data.get('plan', '').upper()
         if plan not in (PLAN_MONTHLY, PLAN_YEARLY):
-            return Response(
-                {'error': f'Invalid plan. Choose MONTHLY or YEARLY.'},
-                status=400,
-            )
+            return Response({'error': 'Choose MONTHLY or YEARLY.'}, status=400)
 
-        # Expire any existing active subscription
-        school.subscriptions.filter(status=Subscription.STATUS_ACTIVE).update(
-            status=Subscription.STATUS_CANCELLED
+        secret_key = getattr(settings, 'PAYSTACK_SECRET_KEY', '')
+        public_key = getattr(settings, 'PAYSTACK_PUBLIC_KEY', '')
+        if not secret_key or not public_key:
+            return Response({'error': 'Payment gateway is not configured. Contact support.'}, status=503)
+        if not request.user.email:
+            return Response({'error': 'Account email is required for payment.'}, status=400)
+
+        reference = f'SUB-{school.id}-{uuid.uuid4().hex[:12].upper()}'
+        amount = Decimal(PLAN_PRICES[plan])
+        current = school.subscriptions.filter(status=Subscription.STATUS_ACTIVE).order_by('-end_date').first()
+        payment = Payment.objects.create(
+            school=school,
+            subscription=current,
+            plan_type=plan,
+            amount=amount,
+            payment_method=Payment.METHOD_MOBILE,
+            transaction_id=reference,
+            reference=reference,
+            status=Payment.STATUS_PENDING,
         )
-
-        # Create a new active subscription
-        new_sub = Subscription.create_for_school(school, plan)
-
-        # Sync the simple School fields for backward-compat
-        school.subscription_plan = plan
-        school.subscription_expires = new_sub.end_date
-        school.is_active = True
-        school.save(update_fields=['subscription_plan', 'subscription_expires', 'is_active'])
-
-        return Response(
-            {
-                'message': f'Subscription upgraded to {plan}. GH₵ {PLAN_PRICES[plan]:,} will be charged.',
-                'subscription': _subscription_payload(school),
+        frontend_url = getattr(settings, 'FRONTEND_URL', '').rstrip('/')
+        payload = {
+            'email': request.user.email,
+            'amount': int(amount * 100),
+            'reference': reference,
+            'currency': 'GHS',
+            'metadata': {
+                'payment_id': payment.id,
+                'school_id': school.id,
+                'plan': plan,
+                'purchase_type': 'subscription',
             },
-            status=200,
-        )
+            'callback_url': f'{frontend_url}/school/subscription?paystack_ref={reference}',
+        }
+        try:
+            response = requests.post(
+                'https://api.paystack.co/transaction/initialize',
+                json=payload,
+                headers={'Authorization': f'Bearer {secret_key}', 'Content-Type': 'application/json'},
+                timeout=30,
+            )
+            data = response.json()
+        except requests.RequestException as exc:
+            payment.status = Payment.STATUS_FAILED
+            payment.remarks = str(exc)
+            payment.save(update_fields=['status', 'remarks', 'updated_at'])
+            return Response({'error': 'Payment gateway is unavailable.'}, status=503)
+
+        if response.status_code != 200 or not data.get('status'):
+            payment.status = Payment.STATUS_FAILED
+            payment.remarks = data.get('message', 'Paystack initialization failed')
+            payment.save(update_fields=['status', 'remarks', 'updated_at'])
+            return Response({'error': payment.remarks}, status=502)
+
+        return Response({
+            'authorization_url': data['data']['authorization_url'],
+            'reference': reference,
+            'public_key': public_key,
+        })
+
+
+class SubscriptionPaymentVerifyView(APIView):
+    """Verify a Paystack payment and extend the school's subscription."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role not in ('SCHOOL_ADMIN', 'PRINCIPAL'):
+            return Response({'error': 'Only school administrators can renew subscriptions.'}, status=403)
+        reference = request.query_params.get('reference', '').strip()
+        if not reference:
+            return Response({'error': 'Payment reference is required.'}, status=400)
+
+        with transaction.atomic():
+            try:
+                payment = Payment.objects.select_for_update().get(
+                    reference=reference,
+                    school=request.user.school,
+                )
+            except Payment.DoesNotExist:
+                return Response({'error': 'Payment not found.'}, status=404)
+
+            if payment.status == Payment.STATUS_COMPLETED:
+                return Response({'success': True, 'message': 'Payment was already applied.', 'subscription': _subscription_payload(request.user.school)})
+
+            secret_key = getattr(settings, 'PAYSTACK_SECRET_KEY', '')
+            try:
+                response = requests.get(
+                    f'https://api.paystack.co/transaction/verify/{reference}',
+                    headers={'Authorization': f'Bearer {secret_key}'},
+                    timeout=30,
+                )
+                data = response.json()
+            except requests.RequestException:
+                return Response({'error': 'Payment gateway is unavailable.'}, status=503)
+
+            transaction_data = data.get('data', {})
+            if response.status_code != 200 or not data.get('status') or transaction_data.get('status') != 'success':
+                return Response({'success': False, 'message': 'Payment was not successful.'})
+            if int(transaction_data.get('amount', 0)) != int(payment.amount * 100):
+                payment.status = Payment.STATUS_FAILED
+                payment.remarks = 'Paystack amount did not match the subscription price.'
+                payment.save(update_fields=['status', 'remarks', 'updated_at'])
+                return Response({'error': 'Payment amount mismatch.'}, status=400)
+
+            school = payment.school
+            today = date.today()
+            current = school.subscriptions.filter(status=Subscription.STATUS_ACTIVE).order_by('-end_date').first()
+            start_date = max(today, current.end_date) if current else today
+            end_date = start_date + timedelta(days=PLAN_DURATIONS[payment.plan_type])
+            if current:
+                current.status = Subscription.STATUS_CANCELLED
+                current.save(update_fields=['status', 'updated_at'])
+            plan_obj = SubscriptionPlan.objects.filter(plan_type=payment.plan_type, is_active=True).first()
+            new_subscription = Subscription.objects.create(
+                school=school,
+                plan=plan_obj,
+                plan_type=payment.plan_type,
+                start_date=start_date,
+                end_date=end_date,
+                status=Subscription.STATUS_ACTIVE,
+            )
+            payment.subscription = new_subscription
+            payment.status = Payment.STATUS_COMPLETED
+            payment.payment_date = timezone.now()
+            payment.save(update_fields=['subscription', 'status', 'payment_date', 'updated_at'])
+            school.subscription_plan = payment.plan_type
+            school.subscription_expires = end_date
+            school.is_active = True
+            school.save(update_fields=['subscription_plan', 'subscription_expires', 'is_active'])
+
+        return Response({
+            'success': True,
+            'message': f'{payment.plan_type.title()} subscription renewed successfully.',
+            'subscription': _subscription_payload(school),
+        })
 
 
 class SubscriptionPlansView(APIView):
@@ -137,8 +266,8 @@ class SubscriptionPlansView(APIView):
                 'name': 'Free Trial',
                 'price': PLAN_PRICES[PLAN_FREE],
                 'duration_days': PLAN_DURATIONS[PLAN_FREE],
-                'description': '30-day free trial. Full access. No credit card needed.',
-                'badge': '30 days free',
+                'description': '10-day free trial. Full access. No credit card needed.',
+                'badge': '10 days free',
             },
             {
                 'key': PLAN_MONTHLY,

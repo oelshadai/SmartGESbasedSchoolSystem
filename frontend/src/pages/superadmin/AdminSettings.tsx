@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Settings, Globe, Shield, Bell, Database, Key, Save, Loader2,
   RefreshCw, AlertTriangle, CheckCircle, ToggleLeft, ToggleRight,
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import secureApiClient from '@/lib/secureApiClient';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Settings {
@@ -120,6 +121,32 @@ export default function AdminSettings() {
     maxFileUploadMb: '10',
   });
 
+  useEffect(() => {
+    secureApiClient.get<any>('/auth/superadmin/settings/').then((data) => {
+      setSettings(current => ({
+        ...current,
+        platformName: data.platform_name ?? current.platformName,
+        supportEmail: data.support_email ?? current.supportEmail,
+        maxSchools: String(data.max_schools ?? current.maxSchools),
+        maintenanceMode: data.maintenance_mode ?? current.maintenanceMode,
+        registrationOpen: data.registration_open ?? current.registrationOpen,
+        emailNotifications: data.email_notifications ?? current.emailNotifications,
+        smsAlerts: data.sms_alerts ?? current.smsAlerts,
+        auditLogging: data.audit_logging ?? current.auditLogging,
+        twoFactorRequired: data.two_factor_required ?? current.twoFactorRequired,
+        sessionTimeout: String(data.session_timeout_minutes ?? current.sessionTimeout),
+        apiRateLimit: String(data.api_rate_limit ?? current.apiRateLimit),
+        passwordMinLength: String(data.password_min_length ?? current.passwordMinLength),
+        allowPasswordReset: data.allow_password_reset ?? current.allowPasswordReset,
+        dbBackupEnabled: data.db_backup_enabled ?? current.dbBackupEnabled,
+        dbBackupInterval: String(data.db_backup_interval_hours ?? current.dbBackupInterval),
+        maxFileUploadMb: String(data.max_file_upload_mb ?? current.maxFileUploadMb),
+      }));
+    }).catch((error: any) => {
+      toast({ title: 'Could not load settings', description: error.message, variant: 'destructive' });
+    });
+  }, []);
+
   const set = (key: keyof Settings) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setSettings(s => ({ ...s, [key]: e.target.value }));
 
@@ -128,9 +155,31 @@ export default function AdminSettings() {
 
   const handleSave = async () => {
     setSaving(true);
-    await new Promise(r => setTimeout(r, 900));
-    setSaving(false);
-    toast({ title: 'Settings saved', description: 'Platform configuration has been updated successfully.' });
+    try {
+      await secureApiClient.patch('/auth/superadmin/settings/', {
+        platform_name: settings.platformName,
+        support_email: settings.supportEmail,
+        max_schools: Number(settings.maxSchools),
+        maintenance_mode: settings.maintenanceMode,
+        registration_open: settings.registrationOpen,
+        email_notifications: settings.emailNotifications,
+        sms_alerts: settings.smsAlerts,
+        audit_logging: settings.auditLogging,
+        two_factor_required: settings.twoFactorRequired,
+        session_timeout_minutes: Number(settings.sessionTimeout),
+        api_rate_limit: Number(settings.apiRateLimit),
+        password_min_length: Number(settings.passwordMinLength),
+        allow_password_reset: settings.allowPasswordReset,
+        db_backup_enabled: settings.dbBackupEnabled,
+        db_backup_interval_hours: Number(settings.dbBackupInterval),
+        max_file_upload_mb: Number(settings.maxFileUploadMb),
+      });
+      toast({ title: 'Settings saved', description: 'Platform configuration has been updated successfully.' });
+    } catch (error: any) {
+      toast({ title: 'Could not save settings', description: error.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const tabs = [

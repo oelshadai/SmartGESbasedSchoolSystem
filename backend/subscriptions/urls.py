@@ -1,6 +1,12 @@
 # Subscription routes
 from django.urls import path
-from .views import SubscriptionStatusView, SubscriptionUpgradeView, SubscriptionPlansView
+from .views import (
+    SubscriptionStatusView,
+    SubscriptionUpgradeView,
+    SubscriptionPlansView,
+    SubscriptionPaymentInitiateView,
+    SubscriptionPaymentVerifyView,
+)
 from .billing_views import (
     billing_dashboard, billing_cycles_management, billing_cycle_detail,
     invoices_management, invoice_detail, payment_failures_management,
@@ -11,6 +17,8 @@ urlpatterns = [
     path('status/', SubscriptionStatusView.as_view(), name='subscription_status'),
     path('upgrade/', SubscriptionUpgradeView.as_view(), name='subscription_upgrade'),
     path('plans/', SubscriptionPlansView.as_view(), name='subscription_plans'),
+    path('payment/initiate/', SubscriptionPaymentInitiateView.as_view(), name='subscription_payment_initiate'),
+    path('payment/verify/', SubscriptionPaymentVerifyView.as_view(), name='subscription_payment_verify'),
 ]
 
 # These are mounted under /api/auth/superadmin/billing/ via main urls.py

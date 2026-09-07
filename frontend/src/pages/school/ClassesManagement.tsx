@@ -6,6 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 // Class level choices (should match backend LEVEL_CHOICES)
 const LEVEL_CHOICES = [
+  { value: 'NURSERY', label: 'Nursery' },
+  { value: 'KG1', label: 'KG 1' },
+  { value: 'KG2', label: 'KG 2' },
   { value: 'BASIC_1', label: 'Basic 1' },
   { value: 'BASIC_2', label: 'Basic 2' },
   { value: 'BASIC_3', label: 'Basic 3' },

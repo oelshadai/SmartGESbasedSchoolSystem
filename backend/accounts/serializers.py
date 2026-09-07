@@ -5,6 +5,8 @@ from django.db import transaction
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from schools.models import School, AcademicYear, Term, Subject, GradingScale
+from .security_config import SecurityValidator
+from .models import PendingSchoolRegistration
 from datetime import date, timedelta
 import re
 import logging
@@ -16,7 +18,7 @@ PLAN_FREE = 'FREE'
 PLAN_MONTHLY = 'MONTHLY'
 PLAN_YEARLY = 'YEARLY'
 PLAN_DURATIONS = {
-    PLAN_FREE: 30,
+    PLAN_FREE: 10,
     PLAN_MONTHLY: 30,
     PLAN_YEARLY: 366,
 }
@@ -129,8 +131,8 @@ class SchoolRegistrationSerializer(serializers.Serializer):
     address = serializers.CharField(required=False, allow_blank=True, default='')
     location = serializers.CharField(required=False, allow_blank=True, default='')
     phone_number = serializers.CharField(required=False, allow_blank=True, default='')
-    password = serializers.CharField(write_only=True, min_length=8)
-    password_confirm = serializers.CharField(write_only=True, min_length=8)
+    password = serializers.CharField(write_only=True, min_length=9)
+    password_confirm = serializers.CharField(write_only=True, min_length=9)
     levels = serializers.ListField(
         child=serializers.ChoiceField(choices=[('PRIMARY', 'PRIMARY'), ('JHS', 'JHS'), ('BOTH', 'BOTH')]),
         allow_empty=True,
@@ -140,7 +142,7 @@ class SchoolRegistrationSerializer(serializers.Serializer):
         choices=[PLAN_FREE, PLAN_MONTHLY, PLAN_YEARLY],
         default=PLAN_FREE,
         required=False,
-        help_text='Subscription plan: FREE (30-day trial), MONTHLY (GH₵ 200), YEARLY (GH₵ 2,200)',
+        help_text='Subscription plan: FREE (10-day trial), MONTHLY (GH₵ 200), YEARLY (GH₵ 2,200)',
     )
 
     first_name = serializers.CharField(max_length=100, required=False, default='Admin')
@@ -149,6 +151,9 @@ class SchoolRegistrationSerializer(serializers.Serializer):
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
             raise serializers.ValidationError({"password": "Passwords do not match"})
+        password_check = SecurityValidator.validate_password(attrs['password'])
+        if not password_check['valid']:
+            raise serializers.ValidationError({'password': password_check['errors']})
         if User.objects.filter(email=attrs['admin_email']).exists():
             raise serializers.ValidationError({"admin_email": "Email already in use"})
         if School.objects.filter(email=attrs['admin_email']).exists():
@@ -157,8 +162,9 @@ class SchoolRegistrationSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         try:
-            password = validated_data.pop('password')
-            validated_data.pop('password_confirm')
+            password = validated_data.pop('password', None)
+            password_hash = validated_data.pop('password_hash', None)
+            validated_data.pop('password_confirm', None)
             school_name = validated_data.pop('school_name')
             admin_email = validated_data.pop('admin_email')
             address = validated_data.pop('address', '').strip() or 'N/A'
@@ -259,14 +265,25 @@ class SchoolRegistrationSerializer(serializers.Serializer):
                 logger.warning(f"Subject creation failed (non-critical): {str(subj_err)}")
 
             # Create Admin User (CRITICAL)
-            user = User.objects.create_user(
-                email=admin_email,
-                password=password,
-                first_name=validated_data.get('first_name', 'Admin'),
-                last_name=validated_data.get('last_name', 'User'),
-                role='SCHOOL_ADMIN',
-                school=school
-            )
+            if password_hash:
+                user = User(
+                    email=admin_email,
+                    first_name=validated_data.get('first_name', 'Admin'),
+                    last_name=validated_data.get('last_name', 'User'),
+                    role='SCHOOL_ADMIN',
+                    school=school,
+                    password=password_hash,
+                )
+                user.save()
+            else:
+                user = User.objects.create_user(
+                    email=admin_email,
+                    password=password,
+                    first_name=validated_data.get('first_name', 'Admin'),
+                    last_name=validated_data.get('last_name', 'User'),
+                    role='SCHOOL_ADMIN',
+                    school=school
+                )
             logger.info(f"Admin user created: {user.id} - {admin_email}")
 
             return user

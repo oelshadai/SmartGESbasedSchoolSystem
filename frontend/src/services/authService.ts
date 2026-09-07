@@ -1,6 +1,13 @@
 import { secureApiClient } from '@/lib/secureApiClient';
 import type { LoginResponse, User } from '@/types';
 
+export interface RegistrationPaymentResponse {
+  payment_required: true;
+  authorization_url: string;
+  reference: string;
+  public_key: string;
+}
+
 // Enhanced secure token storage with encryption simulation
 class SecureTokenStorage {
   private static readonly ACCESS_TOKEN_KEY = 'access_token';
@@ -106,8 +113,8 @@ class PasswordValidator {
   static validate(password: string): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
     
-    if (password.length < 8) {
-      errors.push('Password must be at least 8 characters long');
+    if (password.length < 9) {
+      errors.push('Password must be at least 9 characters long');
     }
     
     if (!/[A-Z]/.test(password)) {
@@ -503,7 +510,7 @@ export const authService = {
     password: string;
     password_confirm: string;
     plan?: 'FREE' | 'MONTHLY' | 'YEARLY';
-  }): Promise<LoginResponse> => {
+  }): Promise<LoginResponse | RegistrationPaymentResponse> => {
     // Input validation
     if (!registrationData.school_name || !registrationData.admin_email || !registrationData.password) {
       throw new Error('School name, admin email, and password are required');
@@ -524,7 +531,7 @@ export const authService = {
     }
     
     try {
-      const data = await secureApiClient.post<LoginResponse>('/auth/register-school/', {
+      const data = await secureApiClient.post<LoginResponse | RegistrationPaymentResponse>('/auth/register-school/', {
         school_name: registrationData.school_name.trim(),
         admin_email: registrationData.admin_email.toLowerCase().trim(),
         first_name: registrationData.first_name.trim(),
@@ -534,6 +541,10 @@ export const authService = {
         plan: registrationData.plan || 'FREE',
       });
       
+      if ('payment_required' in data) {
+        return data;
+      }
+
       if (!data.access || !data.user || !data.user.role) {
         throw new Error('Invalid server response');
       }
@@ -562,6 +573,12 @@ export const authService = {
       }
       throw error;
     }
+  },
+
+  verifySchoolRegistrationPayment: async (reference: string): Promise<LoginResponse> => {
+    return secureApiClient.get<LoginResponse>(
+      `/auth/register-school/verify-payment/?reference=${encodeURIComponent(reference)}`,
+    );
   },
 
   // Security utilities

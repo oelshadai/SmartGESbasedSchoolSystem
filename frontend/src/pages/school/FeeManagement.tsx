@@ -52,6 +52,7 @@ interface Term {
 
 // Class levels available in the system
 const CLASS_LEVELS = [
+  'NURSERY','KG1','KG2',
   'BASIC_1','BASIC_2','BASIC_3','BASIC_4','BASIC_5',
   'BASIC_6','BASIC_7','BASIC_8','BASIC_9',
 ];

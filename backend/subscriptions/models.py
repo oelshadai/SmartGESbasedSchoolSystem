@@ -11,7 +11,7 @@ PLAN_MONTHLY = 'MONTHLY'
 PLAN_YEARLY = 'YEARLY'
 
 PLAN_CHOICES = [
-    (PLAN_FREE,    'Free Trial (30 days)'),
+    (PLAN_FREE,    'Free Trial (10 days)'),
     (PLAN_MONTHLY, 'Monthly – GH₵ 200/month'),
     (PLAN_YEARLY,  'Yearly – GH₵ 2,200/year (2 months free)'),
 ]
@@ -23,7 +23,7 @@ PLAN_PRICES = {
 }
 
 PLAN_DURATIONS = {
-    PLAN_FREE:    30,   # days (trial)
+    PLAN_FREE:    10,   # days (trial)
     PLAN_MONTHLY: 30,
     PLAN_YEARLY:  366,  # ~12 months
 }
