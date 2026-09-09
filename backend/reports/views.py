@@ -1,5 +1,6 @@
 from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.core.files.base import ContentFile
 from django.utils import timezone
@@ -22,6 +23,28 @@ def get_report_template(school):
     }
     template_key = getattr(school, 'report_template', 'STANDARD') or 'STANDARD'
     return mapping.get(template_key, 'reports/terminal_report.html')
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def verify_report_card(request, report_code):
+    """Public verification endpoint used by QR scans."""
+    try:
+        report = ReportCard.objects.select_related('student', 'term').get(report_code=report_code)
+    except ReportCard.DoesNotExist:
+        return Response({"valid": False, "message": "Invalid report code"}, status=status.HTTP_404_NOT_FOUND)
+
+    student = report.student
+    return Response({
+        "valid": True,
+        "report_code": report.report_code,
+        "student_name": student.get_full_name(),
+        "student_id": student.student_id,
+        "term": str(report.term),
+        "school": student.school.name,
+        "status": report.status,
+        "generated_at": report.generated_at,
+    }, status=status.HTTP_200_OK)
 
 
 class ReportCardViewSet(viewsets.ModelViewSet):
@@ -69,6 +92,8 @@ class ReportCardViewSet(viewsets.ModelViewSet):
     
     def _get_report_context(self, student, term, request):
         """Get EXACT same context for both preview and PDF generation - SINGLE SOURCE OF TRUTH"""
+        report_card = ReportCard.objects.filter(student=student, term=term).first()
+
         # Get all required data
         subject_results = SubjectResult.objects.filter(
             student=student,
@@ -292,8 +317,20 @@ class ReportCardViewSet(viewsets.ModelViewSet):
                         )
             term = Term.objects.get(id=term_id)
             
+            report_card, _ = ReportCard.objects.get_or_create(
+                student=student,
+                term=term,
+                defaults={'generated_by': request.user}
+            )
+            if not report_card.report_code:
+                report_card.generate_report_code()
+            if not report_card.qr_code:
+                report_card.generate_qr_code()
+
             # Get EXACT same context as preview - SINGLE SOURCE OF TRUTH
             context = self._get_report_context(student, term, request)
+            context['report_code'] = report_card.report_code
+            context['qr_code_url'] = request.build_absolute_uri(report_card.qr_code.url) if report_card.qr_code else None
             
             # Generate PDF using the same HTML template as preview
             from .pdf_generator import generate_terminal_report_pdf
@@ -429,8 +466,10 @@ class ReportCardViewSet(viewsets.ModelViewSet):
                 defaults={'generated_by': request.user}
             )
             
-            if created:
+            if created or not report_card.report_code:
                 report_card.generate_report_code()
+            if not report_card.qr_code:
+                report_card.generate_qr_code()
             
             # Generate PDF from HTML template using HTML-to-PDF conversion
             from django.template.loader import render_to_string
@@ -495,6 +534,8 @@ class ReportCardViewSet(viewsets.ModelViewSet):
                 'student_photo_absolute': student_photo_absolute,
                 'fee_arrears': fee_arrears,
                 'fee_arrears_total': fee_arrears_total,
+                'report_code': report_card.report_code if report_card else '',
+                'qr_code_url': request.build_absolute_uri(report_card.qr_code.url) if report_card and report_card.qr_code else None,
             }
             
             # Render HTML template
@@ -513,8 +554,10 @@ class ReportCardViewSet(viewsets.ModelViewSet):
                 defaults={'generated_by': request.user}
             )
             
-            if created:
+            if created or not report_card.report_code:
                 report_card.generate_report_code()
+            if not report_card.qr_code:
+                report_card.generate_qr_code()
             
             # TODO: Implement actual HTML-to-PDF conversion here
             # For now, we'll save the HTML content
@@ -1120,8 +1163,10 @@ class ReportCardViewSet(viewsets.ModelViewSet):
                             student=student, term=term,
                             defaults={'generated_by': request.user}
                         )
-                        if created:
+                        if created or not report_card.report_code:
                             report_card.generate_report_code()
+                        if not report_card.qr_code:
+                            report_card.generate_qr_code()
                         report_card.status = 'GENERATED'
                         report_card.generated_at = timezone.now()
                         report_card.save(update_fields=['status', 'generated_at'])

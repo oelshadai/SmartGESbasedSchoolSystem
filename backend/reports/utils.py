@@ -1,5 +1,44 @@
 from django.conf import settings
 from django.contrib.sites.models import Site
+from django.core.files.base import ContentFile
+
+
+def build_report_verification_url(report_code):
+    """Return a verification URL for an authentic report card."""
+    base_url = getattr(settings, 'FRONTEND_URL', '').strip().rstrip('/')
+    if not base_url:
+        base_url = getattr(settings, 'PUBLIC_BASE_URL', '').strip().rstrip('/')
+    if not base_url:
+        base_url = 'http://localhost:8000'
+    return f"{base_url}/api/reports/verify/{report_code}/"
+
+
+def generate_qr_code_for_report(report):
+    """Create and save a QR image based on the report verification code."""
+    import io
+    import qrcode
+
+    if not report.report_code:
+        report.generate_report_code()
+
+    verification_url = build_report_verification_url(report.report_code)
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=8,
+        border=2,
+    )
+    qr.add_data(verification_url)
+    qr.make(fit=True)
+
+    image = qr.make_image(fill_color='black', back_color='white')
+    buffer = io.BytesIO()
+    image.save(buffer, format='PNG')
+    buffer.seek(0)
+
+    filename = f'qr_{report.report_code}.png'
+    report.qr_code.save(filename, ContentFile(buffer.read()), save=True)
+    return verification_url
 
 
 def get_media_base_url(request=None):

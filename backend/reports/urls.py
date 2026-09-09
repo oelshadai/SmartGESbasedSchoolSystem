@@ -1,6 +1,11 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
-from .views import ReportCardViewSet, report_preview_iframe, template_preview_public
+from .views import (
+    ReportCardViewSet,
+    report_preview_iframe,
+    template_preview_public,
+    verify_report_card,
+)
 
 router = DefaultRouter()
 # Use explicit prefix to avoid action name collision with detail routes
@@ -16,6 +21,7 @@ urlpatterns = [
 	path('template-preview-standalone/', template_preview, name='template-preview-standalone'),
 	path('template-preview-public/', template_preview_public, name='template-preview-public'),
 	path('preview-iframe/', report_preview_iframe, name='report-preview-iframe'),
+	path('verify/<str:report_code>/', verify_report_card, name='verify-report-card'),
 ]
 
 urlpatterns += router.urls

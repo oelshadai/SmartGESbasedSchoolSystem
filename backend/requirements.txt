@@ -67,6 +67,7 @@ pydantic==2.13.4
 pydantic_core==2.46.4
 pydyf==0.12.1
 PyJWT==2.8.0
+qrcode==8.4
 pyparsing==3.3.2
 pyphen==0.17.2
 pytest==8.3.2

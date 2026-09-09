@@ -123,6 +123,16 @@
     <div class="gold-stripe"></div>
     <div class="title-bar">Ghana Education Service &mdash; Terminal Report Sheet</div>
 
+    <div style="display:flex; align-items:center; justify-content:space-between; border:1pt solid #006400; background:#f0fff0; padding:4pt 6pt; gap:6pt;">
+        <div>
+            <div style="font-size:6pt; font-weight:700; text-transform:uppercase; letter-spacing:1pt; color:#006400; font-family:Arial,sans-serif;">Verification Code</div>
+            <div style="font-size:8pt; font-weight:700; color:#111;">{{ report_code|default:'-' }}</div>
+        </div>
+        {% if qr_code_url %}
+        <img src="{{ qr_code_url }}" alt="Verification QR Code" style="width:54px; height:54px; border:1px solid #006400; background:#fff; padding:2px;">
+        {% endif %}
+    </div>
+
     <div class="si">
         <div class="si-header">Pupil Information</div>
         <table>

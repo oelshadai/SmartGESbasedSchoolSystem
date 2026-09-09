@@ -45,7 +45,13 @@ class ReportCard(models.Model):
         """Generate unique report verification code"""
         import uuid
         self.report_code = f"RC-{self.student.school.id}-{self.student.id}-{self.term.id}-{uuid.uuid4().hex[:8].upper()}"
-        self.save()
+        self.save(update_fields=['report_code'])
+        return self.report_code
+
+    def generate_qr_code(self):
+        """Generate a QR code image for authenticating the report card."""
+        from .utils import generate_qr_code_for_report
+        return generate_qr_code_for_report(self)
     
     def publish_report(self):
         """Publish the report card to make it available to students"""
