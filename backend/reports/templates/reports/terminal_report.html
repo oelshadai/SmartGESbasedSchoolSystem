@@ -23,7 +23,8 @@
             margin: 0 auto;
             border: 2pt solid #111;
             background: #fff;
-            display: block;
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
             padding: 6pt 8pt;
             box-sizing: border-box;
@@ -70,14 +71,16 @@
         /* ── Scores table ── */
         .scores-wrap {
             display: block;
-            min-height: 100mm;
-            height: 112mm;
+            flex: 1 1 auto;
+            min-height: 0;
+            height: auto;
             border: 2pt solid #0d1b4a;
             border-radius: 2pt;
             overflow: hidden;
             position: relative;
             background: #fff;
             margin: 0;
+            --score-row-count: {{ score_row_count|default:subject_results|length }};
         }
         .watermark {
             position:absolute; top:0;right:0;bottom:0;left:0;
@@ -98,20 +101,30 @@
             z-index: 2;
             display: table;
         }
-        .scores-table th { background:#0d1b4a; color:#fff; padding:3pt 2pt; text-align:center; font-size:7pt; font-weight:700; text-transform:uppercase; border:0.5pt solid #1a2a60; font-family:Arial,sans-serif; }
+        .scores-table thead th { background:#0d1b4a; color:#fff; padding:3pt 2pt; text-align:center; font-size:7pt; font-weight:700; text-transform:uppercase; border:0.5pt solid #1a2a60; font-family:Arial,sans-serif; }
         .scores-table th .sub { font-weight:400; font-size:5.5pt; display:block; opacity:.85; }
         .scores-table td { padding:2.5pt 2pt; text-align:center; border:0.5pt solid #bbb; vertical-align:middle; }
         .scores-table td.subj { text-align:left; padding-left:6pt; font-weight:600; font-size:8.5pt; }
+        .scores-table tbody { height: calc(100% - 26pt); }
+        .scores-table tbody tr {
+            height: calc((100% - 26pt) / var(--score-row-count, 7));
+            min-height: 11pt;
+        }
         .scores-table tbody tr:nth-child(even) { background:#f4f5fa; }
         .total-row { background:#e3e6f0 !important; font-weight:700; border-top:1.5pt solid #0d1b4a !important; }
 
         /* ── Footer band ── */
         .footer {
-            display: block;
-            margin-top: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4pt;
+            margin-top: 4pt;
+            flex: 1 1 auto;
+            min-height: 0;
+            justify-content: space-between;
         }
 
-        .info-row { display:flex; gap:0; border:1pt solid #bbb; border-radius:2pt; font-size:7.5pt; background:#fafafa; }
+        .info-row { display:flex; gap:0; border:1pt solid #bbb; border-radius:2pt; font-size:7.5pt; background:#fafafa; flex: 0 0 auto; }
         .info-cell { flex:1; padding:2pt 5pt; border-right:0.5pt solid #ddd; }
         .info-cell:last-child { border-right:none; }
         .info-cell .lbl { font-size:6pt; font-weight:700; text-transform:uppercase; color:#666; font-family:Arial,sans-serif; }
@@ -130,12 +143,12 @@
         .fee-item .fb { color:#c0392b; font-weight:700; }
         .fees-total { margin-left:auto; font-size:7.5pt; font-weight:700; color:#c0392b; }
 
-        .remarks-row { display:flex; gap:4pt; }
-        .remarks-box { flex:1; border:1pt solid #aaa; border-radius:2pt; padding:3pt 5pt; min-height:24pt; }
+        .remarks-row { display:flex; gap:4pt; flex: 1 1 auto; min-height: 28pt; }
+        .remarks-box { flex:1; border:1pt solid #aaa; border-radius:2pt; padding:3pt 5pt; min-height:24pt; display:flex; flex-direction:column; }
         .remarks-lbl { font-size:6pt; font-weight:700; text-transform:uppercase; color:#555; border-bottom:0.5pt solid #eee; padding-bottom:1pt; margin-bottom:2pt; font-family:Arial,sans-serif; }
-        .remarks-text { font-size:7.5pt; font-style:italic; color:#222; }
+        .remarks-text { font-size:7.5pt; font-style:italic; color:#222; flex:1; }
 
-        .sig-row { display:flex; gap:8pt; }
+        .sig-row { display:flex; gap:8pt; flex: 0 0 auto; }
         .sig-box { flex:1; text-align:center; }
         .sig-line { border-bottom:1pt solid #333; height:16pt; margin-bottom:1pt; }
         .sig-lbl { font-size:6pt; font-weight:700; text-transform:uppercase; color:#333; font-family:Arial,sans-serif; }
@@ -215,7 +228,7 @@
     </div>
 
     <!-- Scores -->
-    <div class="scores-wrap">
+    <div class="scores-wrap" style="--score-row-count: {{ score_row_count|default:subject_results|length }};">
         {% if school.logo %}
         <div class="watermark" style="background-image:url('{% if school_logo_absolute %}{{ school_logo_absolute }}{% else %}{{ media_url_base }}{{ school.logo.url }}{% endif %}');"></div>
         {% else %}<div class="watermark default"></div>{% endif %}
@@ -245,7 +258,6 @@
                 <tr><td class="subj">Mathematics</td><td>45</td><td>40</td><td><strong>85</strong></td>{% if school.show_position_in_class %}<td>2nd</td>{% endif %}<td>Excellent</td></tr>
                 <tr><td class="subj">Integrated Science</td><td>40</td><td>35</td><td><strong>75</strong></td>{% if school.show_position_in_class %}<td>5th</td>{% endif %}<td>Very Good</td></tr>
                 {% endfor %}
-                {% for i in empty_rows %}<tr><td class="subj">&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>{% if school.show_position_in_class %}<td>&nbsp;</td>{% endif %}<td>&nbsp;</td></tr>{% endfor %}
                 <tr class="total-row">
                     <td class="subj" style="text-transform:uppercase;font-size:8pt;">Total / Aggregate</td>
                     <td>{{ total_marks_ca|floatformat:0|default:"0" }}</td>
