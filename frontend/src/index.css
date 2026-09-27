@@ -1801,6 +1801,12 @@ body.dark .professional-dialog span {
   color: #0f172a !important;
 }
 
+.professional-dialog .student-details-fields,
+.professional-dialog .student-details-fields div,
+.professional-dialog .student-details-fields strong {
+  color: #0f2a5e !important;
+}
+
 .professional-dialog input::placeholder,
 .professional-dialog textarea::placeholder {
   color: #64748b !important;

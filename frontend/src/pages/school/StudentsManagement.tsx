@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { feeService, FeeType } from '@/services/feeService';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuthStore } from '@/stores/authStore';
 
 const StudentsManagement = () => {
   // ... existing state ...
@@ -24,6 +25,8 @@ const StudentsManagement = () => {
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [accountStudentToDelete, setAccountStudentToDelete] = useState<any>(null);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({
@@ -56,7 +59,7 @@ const StudentsManagement = () => {
 
   // Fee tier assignments for view dialog
   const [feeTypesWithSubs, setFeeTypesWithSubs] = useState<FeeType[]>([]);
-  const [studentFeeTiers, setStudentFeeTiers] = useState<Record<number, number | null>>({});  // mainFeeTypeId -> subFeeTypeId
+  const [studentFeeTiers, setStudentFeeTiers] = useState<Record<number, Record<number, number | null>>>({});
   const [savingFeeTier, setSavingFeeTier] = useState<number | null>(null);
 
   // Profile change requests
@@ -72,6 +75,9 @@ const StudentsManagement = () => {
   
   // Class filter state
   const [selectedClassFilter, setSelectedClassFilter] = useState<string | null>(null);  // null = show all
+  const [accountFilter, setAccountFilter] = useState<'all' | 'with-account' | 'without-account'>('all');
+  const currentUser = useAuthStore(state => state.user);
+  const canManageStudentAccounts = ['SCHOOL_ADMIN', 'PRINCIPAL'].includes(currentUser?.role || '');
 
   const handleViewStudent = async (student: any) => {
     setSelectedStudent(student);
@@ -88,7 +94,7 @@ const StudentsManagement = () => {
           const found = assignments.find((a: any) => a.main_fee_type === ft.id);
           tiers[ft.id] = found ? found.sub_fee_type : null;
         });
-        setStudentFeeTiers(tiers);
+        setStudentFeeTiers(prev => ({ ...prev, [student.id]: tiers }));
       }
     } catch (e) {
       console.error('Failed to load fee tier data', e);
@@ -97,14 +103,18 @@ const StudentsManagement = () => {
 
   const handleSaveFeeTier = async (mainFeeTypeId: number, subFeeTypeId: number | null) => {
     if (!selectedStudent || !subFeeTypeId) return;
+    const studentId = selectedStudent.id;
     setSavingFeeTier(mainFeeTypeId);
     try {
       await feeService.setStudentSubType({
-        student: selectedStudent.id,
+        student: studentId,
         main_fee_type: mainFeeTypeId,
         sub_fee_type: subFeeTypeId,
       });
-      setStudentFeeTiers(prev => ({ ...prev, [mainFeeTypeId]: subFeeTypeId }));
+      setStudentFeeTiers(prev => ({
+        ...prev,
+        [studentId]: { ...prev[studentId], [mainFeeTypeId]: subFeeTypeId },
+      }));
     } catch (e: any) {
       console.error('Failed to save fee tier', e);
     } finally {
@@ -247,21 +257,56 @@ const StudentsManagement = () => {
     }
   };
 
-  // Filter students by selected class
-  const filteredStudents = selectedClassFilter 
+  const confirmDeleteAccount = async () => {
+    if (!accountStudentToDelete) return;
+    setDeletingAccount(true);
+    try {
+      await secureApiClient.delete(`/students/${accountStudentToDelete.id}/delete-account/`);
+      setStudents(prev => prev.map(student => student.id === accountStudentToDelete.id
+        ? { ...student, user: null, has_user_account: false, username: null, password: null }
+        : student));
+      setAccountStudentToDelete(null);
+      toast({
+        title: 'Portal account deleted',
+        description: `${accountStudentToDelete.full_name}'s student record is unchanged.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Could not delete portal account',
+        description: err.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
+  // Apply class and account filters to the complete school roster.
+  const selectedClassStudents = selectedClassFilter
     ? students.filter(s => s.current_class?.toString() === selectedClassFilter)
     : students;
-
-  // Calculate students per class
-  const studentCountByClass = (classId: string | null) => {
-    if (classId === null) return students.length;
-    return students.filter(s => s.current_class?.toString() === classId).length;
-  };
+  const filteredStudents = selectedClassStudents.filter(student => {
+    const hasAccount = Boolean(student.has_user_account ?? student.user);
+    if (accountFilter === 'with-account') return hasAccount;
+    if (accountFilter === 'without-account') return !hasAccount;
+    return true;
+  });
+  const selectedClass = classes.find((cls: any) => cls.id.toString() === selectedClassFilter);
+  const selectedClassName = selectedClass
+    ? selectedClass.full_name || `${selectedClass.level_display || selectedClass.level}${selectedClass.section ? ` ${selectedClass.section}` : ''}`
+    : 'All classes';
 
   const columns = [
     { key: 'student_id', label: 'ID', render: (s: any) => <span className="font-mono text-foreground/70">{s.student_id}</span> },
     { key: 'full_name', label: 'Name', render: (s: any) => <span className="font-medium text-foreground">{s.full_name}</span> },
     { key: 'class_name', label: 'Class', render: (s: any) => <Badge variant="outline">{s.class_name || 'No Class'}</Badge> },
+    { key: 'has_user_account', label: 'Portal Account', render: (s: any) => (
+      <Badge variant="outline" className={Boolean(s.has_user_account ?? s.user)
+        ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+        : 'border-slate-200 bg-slate-50 text-slate-600'}>
+        {Boolean(s.has_user_account ?? s.user) ? 'Created' : 'None'}
+      </Badge>
+    )},
     { key: 'gender', label: 'Gender', render: (s: any) => <span className="text-foreground/70">{s.gender === 'M' ? 'Male' : 'Female'}</span> },
     { key: 'guardian_name', label: 'Guardian', render: (s: any) => <span className="text-foreground">{s.guardian_name}</span> },
     { key: 'guardian_phone', label: 'Phone', render: (s: any) => <span className="text-foreground text-xs">{s.guardian_phone}</span> },
@@ -292,7 +337,20 @@ const StudentsManagement = () => {
             <UserCheck className="h-3 w-3 sm:h-4 sm:w-4" />
           )}
         </Button>
-        <Button variant="ghost" size="sm" className="h-7 w-7 sm:h-8 sm:w-8 shrink-0" title="View Credentials" onClick={() => handleViewCredentials(s)}><KeyRound className="h-3 w-3 sm:h-4 sm:w-4 text-amber-600" /></Button>
+        {Boolean(s.has_user_account ?? s.user) && (
+          <Button variant="ghost" size="sm" className="h-7 w-7 sm:h-8 sm:w-8 shrink-0" title="View Credentials" onClick={() => handleViewCredentials(s)}><KeyRound className="h-3 w-3 sm:h-4 sm:w-4 text-amber-600" /></Button>
+        )}
+        {canManageStudentAccounts && Boolean(s.has_user_account ?? s.user) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 sm:h-8 sm:w-8 shrink-0 text-destructive"
+            title="Delete Portal Account"
+            onClick={() => setAccountStudentToDelete(s)}
+          >
+            <UserX className="h-3 w-3 sm:h-4 sm:w-4" />
+          </Button>
+        )}
         <Button variant="ghost" size="sm" className="h-7 w-7 sm:h-8 sm:w-8 shrink-0" title="View Student" onClick={() => handleViewStudent(s)}><Eye className="h-3 w-3 sm:h-4 sm:w-4" /></Button>
         <Button variant="ghost" size="sm" className="h-7 w-7 sm:h-8 sm:w-8 shrink-0" title="Edit Student" onClick={() => handleEditStudent(s)}><Edit className="h-3 w-3 sm:h-4 sm:w-4" /></Button>
         <Button variant="ghost" size="sm" className="h-7 w-7 sm:h-8 sm:w-8 text-destructive shrink-0" title="Delete Student" onClick={() => handleDeleteStudent(s)}><Trash2 className="h-3 w-3 sm:h-4 sm:w-4" /></Button>
@@ -303,9 +361,23 @@ const StudentsManagement = () => {
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const response = await secureApiClient.get('/students/');
-      console.log('Students API response:', response);
-      setStudents(Array.isArray(response) ? response : response.results || response.data || []);
+      const allStudents: any[] = [];
+      let page = 1;
+      let hasNextPage = true;
+
+      while (hasNextPage) {
+        const response = await secureApiClient.get(`/students/?page=${page}`);
+        if (Array.isArray(response)) {
+          allStudents.push(...response);
+          hasNextPage = false;
+        } else {
+          allStudents.push(...(response.results || response.data || []));
+          hasNextPage = Boolean(response.next);
+          page += 1;
+        }
+      }
+
+      setStudents(allStudents);
       setError(null);
     } catch (err: any) {
       console.error('Students API error:', err);
@@ -563,44 +635,56 @@ const StudentsManagement = () => {
         <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-destructive">{error}</div>
       ) : (
         <>
-          {/* Class Filter Section */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Filter by Class</h3>
-                <p className="text-xs text-foreground/60 mt-0.5">Showing {filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''}</p>
-              </div>
-            </div>
-            
-            {/* Class buttons */}
-            <div className="flex flex-wrap gap-2">
-              {/* All Classes button */}
-              <button
-                onClick={() => setSelectedClassFilter(null)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  selectedClassFilter === null
-                    ? 'bg-blue-600 text-white border border-blue-600'
-                    : 'bg-[#f0c040] text-[#0f172a] border border-[#f0c040] hover:bg-[#e5b92f]'
-                }`}
-              >
-                All Classes <span className="ml-1.5 text-xs opacity-75">({studentCountByClass(null)})</span>
-              </button>
-              
-              {/* Individual class buttons */}
-              {classes.map((cls: any) => (
-                <button
-                  key={cls.id}
-                  onClick={() => setSelectedClassFilter(cls.id.toString())}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    selectedClassFilter === cls.id.toString()
-                      ? 'bg-blue-600 text-white border border-blue-600'
-                      : 'bg-[#f0c040] text-[#0f172a] border border-[#f0c040] hover:bg-[#e5b92f]'
-                  }`}
+          {/* Class Filter and Roster Counts */}
+          <div className="flex flex-col gap-4 rounded-lg border bg-card p-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="grid w-full gap-3 sm:flex-1 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label htmlFor="student-class-filter" className="text-sm font-semibold text-foreground">Filter by class</label>
+                <Select
+                  value={selectedClassFilter ?? '__all__'}
+                  onValueChange={value => setSelectedClassFilter(value === '__all__' ? null : value)}
                 >
-                  {cls.full_name || `${cls.level_display || cls.level}${cls.section ? ` ${cls.section}` : ''}`}
-                  <span className="ml-1.5 text-xs opacity-75">({studentCountByClass(cls.id.toString())})</span>
-                </button>
-              ))}
+                  <SelectTrigger id="student-class-filter" className="w-full">
+                    <SelectValue placeholder="Select a class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All classes</SelectItem>
+                    {classes.map((cls: any) => (
+                      <SelectItem key={cls.id} value={cls.id.toString()}>
+                        {cls.full_name || `${cls.level_display || cls.level}${cls.section ? ` ${cls.section}` : ''}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="student-account-filter" className="text-sm font-semibold text-foreground">Portal account</label>
+                <Select value={accountFilter} onValueChange={value => setAccountFilter(value as typeof accountFilter)}>
+                  <SelectTrigger id="student-account-filter" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All students</SelectItem>
+                    <SelectItem value="with-account">Has account</SelectItem>
+                    <SelectItem value="without-account">No account</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-xs text-muted-foreground sm:col-span-2">
+                Showing {filteredStudents.length} of {selectedClassStudents.length} students in this class filter.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">
+              <div className="rounded-md bg-muted/50 px-3 py-2">
+                <p className="text-xs text-muted-foreground">Students in school</p>
+                <p className="text-lg font-semibold text-foreground">{students.length}</p>
+              </div>
+              <div className="rounded-md bg-muted/50 px-3 py-2">
+                <p className="text-xs text-muted-foreground">
+                  {selectedClassName}
+                </p>
+                <p className="text-lg font-semibold text-foreground">{selectedClassStudents.length} students</p>
+              </div>
             </div>
           </div>
 
@@ -717,7 +801,7 @@ const StudentsManagement = () => {
           </DialogHeader>
           {selectedStudent && (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
+              <div className="student-details-fields grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
                 <div><strong>Student ID:</strong> {selectedStudent.student_id}</div>
                 <div><strong>Name:</strong> {selectedStudent.full_name}</div>
                 <div><strong>Gender:</strong> {selectedStudent.gender === 'M' ? 'Male' : 'Female'}</div>
@@ -736,7 +820,7 @@ const StudentsManagement = () => {
                         <span className="text-sm font-medium text-purple-900 shrink-0">{ft.name}</span>
                         <div className="flex items-center gap-2 min-w-0">
                           <Select
-                            value={studentFeeTiers[ft.id] != null ? String(studentFeeTiers[ft.id]) : '__none__'}
+                            value={studentFeeTiers[selectedStudent.id]?.[ft.id] != null ? String(studentFeeTiers[selectedStudent.id][ft.id]) : '__none__'}
                             onValueChange={v => {
                               const subId = v === '__none__' ? null : parseInt(v);
                               setStudentFeeTiers(prev => ({ ...prev, [ft.id]: subId }));
@@ -756,7 +840,7 @@ const StudentsManagement = () => {
                           {savingFeeTier === ft.id && (
                             <span className="text-xs text-foreground/60">Saving…</span>
                           )}
-                          {savingFeeTier !== ft.id && studentFeeTiers[ft.id] != null && (
+                          {savingFeeTier !== ft.id && studentFeeTiers[selectedStudent.id]?.[ft.id] != null && (
                             <span className="text-xs text-green-600">✓</span>
                           )}
                         </div>
@@ -929,6 +1013,28 @@ const StudentsManagement = () => {
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
             <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
               {deleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(accountStudentToDelete)}
+        onOpenChange={open => {
+          if (!open && !deletingAccount) setAccountStudentToDelete(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Student Portal Account</DialogTitle>
+            <DialogDescription>
+              This permanently removes {accountStudentToDelete?.full_name}'s login account. The student record, class placement, grades, and attendance will remain.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAccountStudentToDelete(null)} disabled={deletingAccount}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDeleteAccount} disabled={deletingAccount}>
+              {deletingAccount ? 'Deleting account...' : 'Delete Account'}
             </Button>
           </DialogFooter>
         </DialogContent>

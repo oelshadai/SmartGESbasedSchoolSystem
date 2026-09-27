@@ -22,6 +22,16 @@ const isPdfBlob = async (blob: Blob): Promise<boolean> => {
   return signature === '%PDF-';
 };
 
+const getPdfErrorMessage = async (response: Response): Promise<string> => {
+  const body = await response.text();
+  try {
+    const data = JSON.parse(body);
+    return data.error || data.detail || data.message || `PDF request failed (${response.status})`;
+  } catch {
+    return body.replace(/<[^>]*>/g, ' ').trim().slice(0, 180) || `PDF request failed (${response.status})`;
+  }
+};
+
 const ReportPreviewModal = ({ 
   isOpen, 
   onClose, 
@@ -93,8 +103,9 @@ const ReportPreviewModal = ({
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/pdf',
-            'Authorization': `Bearer ${accessToken}`
+            ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
           },
+          credentials: 'include',
           body: JSON.stringify({
             student_id: studentId,
             term_id: termId
@@ -121,7 +132,7 @@ const ReportPreviewModal = ({
             description: 'Report PDF has been downloaded successfully.',
           });
         } else {
-          throw new Error('Failed to generate PDF');
+          throw new Error(await getPdfErrorMessage(response));
         }
       } else {
         // For template preview, use the same endpoint with format=pdf
@@ -135,7 +146,7 @@ const ReportPreviewModal = ({
         });
 
         if (!pdfResponse.ok) {
-          throw new Error(`Failed to generate PDF: ${pdfResponse.status}`);
+          throw new Error(await getPdfErrorMessage(pdfResponse));
         }
 
         const blob = await pdfResponse.blob();
@@ -161,7 +172,7 @@ const ReportPreviewModal = ({
       console.error('PDF generation error:', error);
       toast({
         title: 'PDF Error',
-        description: 'Failed to generate PDF. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to generate PDF. Please try again.',
         variant: 'destructive'
       });
     }

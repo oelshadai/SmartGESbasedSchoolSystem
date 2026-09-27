@@ -1400,11 +1400,13 @@ class ReportCardViewSet(viewsets.ModelViewSet):
             }
 
             if request.GET.get('format') == 'pdf':
-                # Return HTML content for PDF conversion
-                from django.template.loader import render_to_string
-                html_content = render_to_string(get_report_template(school), html_context)
-                response = HttpResponse(html_content, content_type='text/html')
-                response['Content-Disposition'] = 'inline; filename="template_preview.html"'
+                from .pdf_generator import generate_terminal_report_pdf
+                pdf_content = generate_terminal_report_pdf(
+                    html_context,
+                    template_name=get_report_template(school),
+                )
+                response = HttpResponse(pdf_content, content_type='application/pdf')
+                response['Content-Disposition'] = 'attachment; filename="template_preview.pdf"'
                 return response
             else:
                 # Return HTML preview
@@ -1744,6 +1746,9 @@ def report_preview_iframe(request):
                 '</div>',
                 status=400
             )
+
+        if str(request.GET.get('format', '')).lower() == 'pdf':
+            return template_preview_public(request)
         
         # Reuse the existing sample data generation
         temp_vs = ReportCardViewSet()

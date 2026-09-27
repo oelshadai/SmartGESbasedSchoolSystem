@@ -193,6 +193,7 @@ const ScoreEntry = () => {
     setExporting(true);
     let successCount = 0;
     let errorCount = 0;
+    let firstError = '';
 
     for (const student of students) {
       try {
@@ -213,7 +214,19 @@ const ScoreEntry = () => {
         a.click();
         URL.revokeObjectURL(url);
         successCount++;
-      } catch {
+      } catch (error: any) {
+        console.error(`Failed to export report for ${student.student_id}:`, error);
+        let message = error?.message || 'PDF generation failed';
+        const responseData = error?.response?.data;
+        if (responseData instanceof Blob) {
+          try {
+            const payload = JSON.parse(await responseData.text());
+            message = payload.error || payload.detail || payload.message || message;
+          } catch {
+            // Keep the transport error when the server response is not JSON.
+          }
+        }
+        if (!firstError) firstError = message;
         errorCount++;
       }
     }
@@ -231,7 +244,7 @@ const ScoreEntry = () => {
     } else {
       toast({
         title: 'Export failed',
-        description: 'No reports could be exported. Please save scores first.',
+        description: firstError || 'No reports could be exported. Please ensure scores are saved and PDF support is installed.',
         variant: 'destructive',
       });
     }

@@ -14,6 +14,21 @@ interface BulkReportPreviewModalProps {
   allScores: Record<string, any>;
 }
 
+const isPdfBlob = async (blob: Blob): Promise<boolean> => {
+  if (blob.type.toLowerCase().includes('application/pdf')) return true;
+  return (await blob.slice(0, 5).text()) === '%PDF-';
+};
+
+const getPdfErrorMessage = async (response: Response): Promise<string> => {
+  const body = await response.text();
+  try {
+    const data = JSON.parse(body);
+    return data.error || data.detail || data.message || `PDF request failed (${response.status})`;
+  } catch {
+    return body.replace(/<[^>]*>/g, ' ').trim().slice(0, 180) || `PDF request failed (${response.status})`;
+  }
+};
+
 const BulkReportPreviewModal = ({ 
   isOpen, 
   onClose, 
@@ -131,10 +146,13 @@ const BulkReportPreviewModal = ({
       });
 
       if (!response.ok) {
-        throw new Error(`Failed with status ${response.status}`);
+        throw new Error(await getPdfErrorMessage(response));
       }
 
       const blob = await response.blob();
+      if (!await isPdfBlob(blob)) {
+        throw new Error('The server returned a preview page instead of a PDF. Check authentication and PDF setup.');
+      }
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
@@ -148,10 +166,11 @@ const BulkReportPreviewModal = ({
         title: 'PDF Downloaded',
         description: `PDF for ${currentStudent.full_name} has been downloaded.`,
       });
-    } catch {
+    } catch (error) {
+      console.error('Bulk report PDF generation error:', error);
       toast({
         title: 'PDF Error',
-        description: 'Failed to generate PDF. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to generate PDF. Please try again.',
         variant: 'destructive'
       });
     } finally {

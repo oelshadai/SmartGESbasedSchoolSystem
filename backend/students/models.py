@@ -57,14 +57,18 @@ class Student(models.Model):
         return f"{self.first_name} {self.last_name}"
     
     def save(self, *args, **kwargs):
-        # Auto-generate credentials on creation
-        if not self.username:
-            self.username = f"std_{self.student_id}"
-        if not self.password:
-            self.password = self.generate_password()
+        is_new = self._state.adding
+        skip_account_creation = getattr(self, '_skip_account_creation', False)
+
+        # Generate login credentials only when creating a portal account.
+        if is_new and not skip_account_creation:
+            if not self.username:
+                self.username = f"std_{self.student_id}"
+            if not self.password:
+                self.password = self.generate_password()
         
         # Create Django user for authentication only if user doesn't exist
-        if not self.user and not self.pk and not getattr(self, '_skip_account_creation', False):  # Only on creation
+        if not self.user_id and is_new and not skip_account_creation:
             from django.contrib.auth import get_user_model
             User = get_user_model()
             # Create email using student ID and school domain

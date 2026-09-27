@@ -23,6 +23,10 @@ class StudentSerializer(serializers.ModelSerializer):
     class_name = serializers.CharField(source='current_class.full_name', read_only=True)
     age = serializers.IntegerField(read_only=True)
     full_name = serializers.CharField(source='get_full_name', read_only=True)
+    has_user_account = serializers.SerializerMethodField()
+
+    def get_has_user_account(self, obj):
+        return obj.user_id is not None
     
     class Meta:
         model = Student
@@ -34,6 +38,7 @@ class StudentCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating students with security validation"""
     generated_password = serializers.CharField(read_only=True)
     generated_username = serializers.CharField(read_only=True)
+    account_created = serializers.BooleanField(read_only=True, default=False)
     parent_account_created = serializers.BooleanField(read_only=True, default=False)
     parent_generated_password = serializers.CharField(read_only=True, allow_null=True, default=None)
     
@@ -79,6 +84,9 @@ class StudentCreateSerializer(serializers.ModelSerializer):
         student.account_created = create_account
 
         if not create_account:
+            student.username = None
+            student.password = None
+            student.save(update_fields=['username', 'password'])
             student.parent_account_created = False
             student.parent_generated_password = None
             return student

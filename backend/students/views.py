@@ -128,6 +128,33 @@ class StudentViewSet(StudentValidationMixin, viewsets.ModelViewSet):
             instance.save()
             return
         instance.delete()
+
+    @action(detail=True, methods=['delete'], url_path='delete-account')
+    def delete_account(self, request, pk=None):
+        """Delete a student's portal User while keeping the student record."""
+        if getattr(request.user, 'role', None) not in ['SCHOOL_ADMIN', 'PRINCIPAL']:
+            raise permissions.PermissionDenied("Only school administrators can delete student portal accounts")
+
+        student = self.get_object()
+        if not student.user_id:
+            return Response(
+                {"detail": "This student does not have a portal account."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        account = student.user
+        with transaction.atomic():
+            student.user = None
+            student.username = None
+            student.password = None
+            student.save(update_fields=['user', 'username', 'password'])
+            account.delete()
+
+        return Response({
+            "detail": "Student portal account deleted. The student record was kept.",
+            "student_id": student.id,
+            "has_user_account": False,
+        })
     
     @action(detail=False, methods=['post'])
     def bulk_upload(self, request):
