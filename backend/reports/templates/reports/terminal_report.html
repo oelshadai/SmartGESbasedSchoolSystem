@@ -23,11 +23,9 @@
             margin: 0 auto;
             border: 2pt solid #111;
             background: #fff;
-            display: flex;
-            flex-direction: column;
+            display: block;
             overflow: hidden;
             padding: 6pt 8pt;
-            gap: 3pt;
             box-sizing: border-box;
         }
 
@@ -71,14 +69,15 @@
 
         /* ── Scores table ── */
         .scores-wrap {
-            flex: 1 1 auto;
-            min-height: 120mm;
-            height: 130mm;
+            display: block;
+            min-height: 125mm;
+            height: 125mm;
             border: 2pt solid #0d1b4a;
             border-radius: 2pt;
             overflow: hidden;
             position: relative;
             background: #fff;
+            margin: 0;
         }
         .watermark {
             position:absolute; top:0;right:0;bottom:0;left:0;
@@ -107,10 +106,7 @@
 
         /* ── Footer band ── */
         .footer {
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 2pt;
+            display: block;
             margin-top: 0;
         }
 
