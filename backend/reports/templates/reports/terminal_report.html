@@ -80,7 +80,7 @@
             position: relative;
             background: #fff;
             margin: 0;
-            --score-row-count: {{ score_row_count|default:subject_results|length }};
+            --score-row-count: {{ score_row_count|default:7 }};
         }
         .watermark {
             position:absolute; top:0;right:0;bottom:0;left:0;
@@ -107,7 +107,7 @@
         .scores-table td.subj { text-align:left; padding-left:6pt; font-weight:600; font-size:8.5pt; }
         .scores-table tbody { height: calc(100% - 26pt); }
         .scores-table tbody tr {
-            height: calc((100% - 26pt) / var(--score-row-count, 7));
+            height: calc((100% - 26pt) / max(1, var(--score-row-count, 7)));
             min-height: 11pt;
         }
         .scores-table tbody tr:nth-child(even) { background:#f4f5fa; }
@@ -228,7 +228,7 @@
     </div>
 
     <!-- Scores -->
-    <div class="scores-wrap" style="--score-row-count: {{ score_row_count|default:subject_results|length }};">
+    <div class="scores-wrap" style="--score-row-count: {{ score_row_count|default:7 }};">
         {% if school.logo %}
         <div class="watermark" style="background-image:url('{% if school_logo_absolute %}{{ school_logo_absolute }}{% else %}{{ media_url_base }}{{ school.logo.url }}{% endif %}');"></div>
         {% else %}<div class="watermark default"></div>{% endif %}
