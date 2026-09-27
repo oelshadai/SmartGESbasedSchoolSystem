@@ -87,10 +87,10 @@ def _generate_pdf_pdfkit(html_content):
         # Configure options for EXACT iframe preview match
         options = {
             'page-size': 'A4',
-            'margin-top': '8mm',
-            'margin-right': '8mm',
-            'margin-bottom': '8mm', 
-            'margin-left': '8mm',
+            'margin-top': '0mm',
+            'margin-right': '0mm',
+            'margin-bottom': '0mm', 
+            'margin-left': '0mm',
             'encoding': 'UTF-8',
             'no-outline': None,
             'enable-local-file-access': None,
@@ -167,12 +167,11 @@ def _generate_pdf_wkhtmltopdf(html_content):
         cmd = [
             wkhtmltopdf_path,
             '--page-size', 'A4',
-            # Margins must match the template @page CSS (8mm top/bottom, 10mm left/right)
-            # so the report-container's height:297mm fits on exactly one page
-            '--margin-top', '8mm',
-            '--margin-right', '10mm',
-            '--margin-bottom', '8mm',
-            '--margin-left', '10mm',
+            # Remove outer margins so the template's full-page A4 canvas fills the entire document
+            '--margin-top', '0mm',
+            '--margin-right', '0mm',
+            '--margin-bottom', '0mm',
+            '--margin-left', '0mm',
             '--print-media-type',
             '--enable-local-file-access',
             '--disable-smart-shrinking',

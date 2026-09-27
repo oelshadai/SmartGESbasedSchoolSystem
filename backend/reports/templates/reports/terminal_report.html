@@ -18,6 +18,7 @@
         /* ── Single-page container: exactly one A4 page ── */
         .page {
             width: 210mm;
+            min-height: 297mm;
             height: 297mm;
             margin: 0 auto;
             border: 2pt solid #111;
@@ -27,6 +28,7 @@
             overflow: hidden;
             padding: 6pt 8pt;
             gap: 3pt;
+            box-sizing: border-box;
         }
 
         @media screen {
@@ -68,7 +70,16 @@
         .si-val { font-size:9pt; font-weight:700; color:#0d1b4a; }
 
         /* ── Scores table ── */
-        .scores-wrap { flex:1; min-height:0; border:2pt solid #0d1b4a; border-radius:2pt; overflow:hidden; position:relative; }
+        .scores-wrap {
+            flex: 1 1 auto;
+            min-height: 110mm;
+            height: 100%;
+            border: 2pt solid #0d1b4a;
+            border-radius: 2pt;
+            overflow: hidden;
+            position: relative;
+            background: #fff;
+        }
         .watermark {
             position:absolute; top:0;right:0;bottom:0;left:0;
             margin:auto; width:200px; height:200px;
@@ -78,7 +89,16 @@
         .watermark.default {
             background:url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect x="95" y="10" width="10" height="180" fill="%23000"/><rect x="10" y="95" width="180" height="10" fill="%23000"/><circle cx="100" cy="100" r="85" fill="none" stroke="%23000" stroke-width="6"/></svg>') center/contain no-repeat;
         }
-        .scores-table { width:100%; height:100%; border-collapse:collapse; font-size:8.5pt; table-layout:fixed; position:relative; z-index:2; }
+        .scores-table {
+            width: 100%;
+            height: 100%;
+            min-height: 110mm;
+            border-collapse: collapse;
+            font-size: 8.5pt;
+            table-layout: fixed;
+            position: relative;
+            z-index: 2;
+        }
         .scores-table th { background:#0d1b4a; color:#fff; padding:3pt 2pt; text-align:center; font-size:7pt; font-weight:700; text-transform:uppercase; border:0.5pt solid #1a2a60; font-family:Arial,sans-serif; }
         .scores-table th .sub { font-weight:400; font-size:5.5pt; display:block; opacity:.85; }
         .scores-table td { padding:2.5pt 2pt; text-align:center; border:0.5pt solid #bbb; vertical-align:middle; }
@@ -87,7 +107,13 @@
         .total-row { background:#e3e6f0 !important; font-weight:700; border-top:1.5pt solid #0d1b4a !important; }
 
         /* ── Footer band ── */
-        .footer { flex-shrink:0; display:flex; flex-direction:column; gap:2pt; }
+        .footer {
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2pt;
+            margin-top: auto;
+        }
 
         .info-row { display:flex; gap:0; border:1pt solid #bbb; border-radius:2pt; font-size:7.5pt; background:#fafafa; }
         .info-cell { flex:1; padding:2pt 5pt; border-right:0.5pt solid #ddd; }
