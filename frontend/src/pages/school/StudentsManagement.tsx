@@ -3,7 +3,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, Eye, KeyRound, Copy, Check, Bell, CheckCircle2, XCircle, UserCheck, UserX } from 'lucide-react';
+import { Edit, Trash2, Eye, KeyRound, Copy, Check, Bell, CheckCircle2, XCircle, UserCheck, UserX, Download } from 'lucide-react';
 import secureApiClient from '@/lib/secureApiClient';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -76,6 +76,7 @@ const StudentsManagement = () => {
   // Class filter state
   const [selectedClassFilter, setSelectedClassFilter] = useState<string | null>(null);  // null = show all
   const [accountFilter, setAccountFilter] = useState<'all' | 'with-account' | 'without-account'>('all');
+  const [downloadingRoster, setDownloadingRoster] = useState(false);
   const currentUser = useAuthStore(state => state.user);
   const canManageStudentAccounts = ['SCHOOL_ADMIN', 'PRINCIPAL'].includes(currentUser?.role || '');
 
@@ -295,6 +296,54 @@ const StudentsManagement = () => {
   const selectedClassName = selectedClass
     ? selectedClass.full_name || `${selectedClass.level_display || selectedClass.level}${selectedClass.section ? ` ${selectedClass.section}` : ''}`
     : 'All classes';
+
+  const handleDownloadRoster = async () => {
+    setDownloadingRoster(true);
+    try {
+      const params = new URLSearchParams({ account_filter: accountFilter });
+      if (selectedClassFilter) params.set('class_id', selectedClassFilter);
+      const response = await secureApiClient.get<Blob>(`/students/roster-pdf/?${params.toString()}`, {
+        responseType: 'blob',
+      });
+      const blob = response instanceof Blob
+        ? response
+        : new Blob([response as BlobPart], { type: 'application/pdf' });
+
+      if ((await blob.slice(0, 5).text()) !== '%PDF-') {
+        const responseText = await blob.text();
+        let errorMessage = 'The server did not return a valid PDF.';
+        try {
+          const payload = JSON.parse(responseText);
+          errorMessage = payload.error || payload.detail || errorMessage;
+        } catch {
+          if (responseText.trim()) errorMessage = responseText.replace(/<[^>]*>/g, ' ').trim().slice(0, 180);
+        }
+        throw new Error(errorMessage);
+      }
+
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safeClassName = selectedClassName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+      link.href = objectUrl;
+      link.download = `student_roster_${safeClassName || 'all_classes'}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+      toast({
+        title: 'Roster PDF downloaded',
+        description: `${filteredStudents.length} student${filteredStudents.length === 1 ? '' : 's'} exported for ${selectedClassName}.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Roster export failed',
+        description: err.message || 'Could not generate the student roster PDF.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDownloadingRoster(false);
+    }
+  };
 
   const columns = [
     { key: 'student_id', label: 'ID', render: (s: any) => <span className="font-mono text-foreground/70">{s.student_id}</span> },
@@ -686,6 +735,16 @@ const StudentsManagement = () => {
                 <p className="text-lg font-semibold text-foreground">{selectedClassStudents.length} students</p>
               </div>
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0 gap-2"
+              onClick={handleDownloadRoster}
+              disabled={downloadingRoster || filteredStudents.length === 0}
+            >
+              <Download className="h-4 w-4" />
+              {downloadingRoster ? 'Preparing PDF...' : 'Download PDF'}
+            </Button>
           </div>
 
           {/* Data Table */}

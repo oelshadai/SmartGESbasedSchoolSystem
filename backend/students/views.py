@@ -155,6 +155,54 @@ class StudentViewSet(StudentValidationMixin, viewsets.ModelViewSet):
             "student_id": student.id,
             "has_user_account": False,
         })
+
+    @action(detail=False, methods=['get'], url_path='roster-pdf')
+    def roster_pdf(self, request):
+        """Download this school's student roster with optional class/account filters."""
+        if getattr(request.user, 'role', None) not in ['SCHOOL_ADMIN', 'PRINCIPAL']:
+            raise permissions.PermissionDenied("Only school administrators can export the student roster")
+
+        from django.http import FileResponse
+        from io import BytesIO
+        from schools.models import Class
+        from .roster_pdf import build_student_roster_pdf
+        import re
+
+        queryset = self.get_queryset().select_related('current_class', 'school').order_by(
+            'current_class__level', 'current_class__section', 'last_name', 'first_name'
+        )
+        class_id = request.query_params.get('class_id')
+        if class_id:
+            try:
+                selected_class = Class.objects.get(id=class_id, school=request.user.school)
+            except (Class.DoesNotExist, ValueError, TypeError):
+                return Response({"error": "Class not found in your school"}, status=status.HTTP_404_NOT_FOUND)
+            queryset = queryset.filter(current_class=selected_class)
+            class_label = selected_class.full_name
+        else:
+            class_label = 'All classes'
+
+        account_filter = request.query_params.get('account_filter', 'all')
+        if account_filter == 'with-account':
+            queryset = queryset.filter(user__isnull=False)
+        elif account_filter == 'without-account':
+            queryset = queryset.filter(user__isnull=True)
+        elif account_filter != 'all':
+            return Response({"error": "Invalid account filter"}, status=status.HTTP_400_BAD_REQUEST)
+
+        pdf_content = build_student_roster_pdf(
+            request.user.school,
+            list(queryset),
+            class_label,
+            account_filter,
+        )
+        safe_class_name = re.sub(r'[^A-Za-z0-9_-]+', '_', class_label).strip('_') or 'all_classes'
+        return FileResponse(
+            BytesIO(pdf_content),
+            as_attachment=True,
+            filename=f'student_roster_{safe_class_name}.pdf',
+            content_type='application/pdf',
+        )
     
     @action(detail=False, methods=['post'])
     def bulk_upload(self, request):
