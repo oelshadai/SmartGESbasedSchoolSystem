@@ -213,23 +213,45 @@ const FeeManagement = () => {
       return;
     }
     let cancelled = false;
-    setLoadingStructure(true);
-    feeService.getFeeStructures({ fee_type: parseInt(selectedFeeType), level: selectedStudent.class_level })
-      .then(data => {
-        if (cancelled) return;
-        const match = data[0];
-        const amt = match ? match.amount : null;
-        setResolvedStructureAmount(amt);
-        // For DAILY fees, auto-fill the payment amount
-        const ft = feeTypes.find(f => String(f.id) === selectedFeeType);
-        if (ft?.collection_frequency === 'DAILY' && amt != null) {
-          setPaymentAmount(String(amt));
+    const loadStructureAmount = async () => {
+      setLoadingStructure(true);
+      setResolvedStructureAmount(null);
+      try {
+        const feeTypeId = parseInt(selectedFeeType, 10);
+        const feeType = feeTypes.find(type => type.id === feeTypeId);
+        let structureFeeTypeId = feeTypeId;
+
+        if (feeType?.has_sub_types) {
+          const assignments = await feeService.getStudentSubTypes({
+            student: selectedStudent.id,
+            main_fee_type: feeTypeId,
+          });
+          const assignment = assignments.find(item => item.main_fee_type === feeTypeId);
+          if (!assignment?.sub_fee_type) return;
+          structureFeeTypeId = assignment.sub_fee_type;
         }
-      })
-      .catch(() => { if (!cancelled) setResolvedStructureAmount(null); })
-      .finally(() => { if (!cancelled) setLoadingStructure(false); });
+
+        const structures = await feeService.getFeeStructures({
+          fee_type: structureFeeTypeId,
+          level: selectedStudent.class_level,
+        });
+        if (cancelled) return;
+
+        const amount = structures[0]?.amount ?? null;
+        setResolvedStructureAmount(amount);
+        if (feeType?.collection_frequency === 'DAILY' && amount != null) {
+          setPaymentAmount(String(amount));
+        }
+      } catch {
+        if (!cancelled) setResolvedStructureAmount(null);
+      } finally {
+        if (!cancelled) setLoadingStructure(false);
+      }
+    };
+
+    void loadStructureAmount();
     return () => { cancelled = true; };
-  }, [selectedStudent?.id, selectedFeeType]);
+  }, [selectedStudent?.id, selectedStudent?.class_level, selectedFeeType, feeTypes]);
 
   const fetchSetupData = async () => {
     try {
@@ -382,6 +404,8 @@ const FeeManagement = () => {
 
   const validatePaymentForm = (): boolean => {
     const errors: Record<string, string> = {};
+    const selectedFeeTypeObj = feeTypes.find(type => String(type.id) === selectedFeeType);
+    const isDaily = selectedFeeTypeObj?.collection_frequency === 'DAILY';
     
     if (!selectedStudent) {
       errors.student = 'Please select a student';
@@ -391,9 +415,11 @@ const FeeManagement = () => {
       errors.feeType = 'Please select a fee type';
     }
     
-    if (!paymentAmount) {
+    if (isDaily && (resolvedStructureAmount == null || resolvedStructureAmount <= 0)) {
+      errors.amount = 'No valid daily fee structure is configured for this student';
+    } else if (!isDaily && !paymentAmount) {
       errors.amount = 'Please enter an amount';
-    } else {
+    } else if (!isDaily) {
       const amount = parseFloat(paymentAmount);
       if (isNaN(amount) || amount <= 0) {
         errors.amount = 'Please enter a valid amount greater than 0';
@@ -420,7 +446,8 @@ const FeeManagement = () => {
       return;
     }
 
-    const amount = parseFloat(paymentAmount);
+    const isDaily = feeTypes.find(type => String(type.id) === selectedFeeType)?.collection_frequency === 'DAILY';
+    const amount = isDaily ? resolvedStructureAmount! : parseFloat(paymentAmount);
 
     try {
       setPaymentLoading(true);
