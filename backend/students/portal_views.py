@@ -36,7 +36,9 @@ def _get_student_for_request(request):
 def student_classes(request):
     """Return the student's current class info."""
     try:
-        student = _get_student(request)
+        student, err = _get_student_for_request(request)
+        if err:
+            return err
         cls = student.current_class
         if not cls:
             return Response([])
@@ -113,10 +115,19 @@ def student_announcements(request, class_id=None):
 def student_profile(request):
     """Return or update the student's profile data."""
     try:
-        student = _get_student(request)
-
         if request.method == 'PATCH':
-            # Allow students to upload or update their profile photo directly.
+            if request.user.role == 'PARENT':
+                student_id = request.data.get('student_id') or request.query_params.get('student_id')
+                if not student_id:
+                    return Response({'error': 'student_id required for parent access'}, status=status.HTTP_400_BAD_REQUEST)
+                from accounts.models import ParentStudent
+                link = ParentStudent.objects.filter(parent=request.user, student__student_id=student_id).select_related('student').first()
+                if not link:
+                    return Response({'error': 'Access denied'}, status=status.HTTP_403_FORBIDDEN)
+                student = link.student
+            else:
+                student = _get_student(request)
+
             if 'photo' in request.FILES:
                 student.photo = request.FILES['photo']
                 student.save(update_fields=['photo'])
@@ -125,6 +136,10 @@ def student_profile(request):
                     'photo': student.photo.url if student.photo else None,
                 })
             return Response({'error': 'No photo uploaded.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        student, err = _get_student_for_request(request)
+        if err:
+            return err
 
         data = {
             'id': student.id,
@@ -160,7 +175,9 @@ def student_assignments_list(request):
     """Return the student's assignments."""
     try:
         from assignments.models import StudentAssignment
-        student = _get_student(request)
+        student, err = _get_student_for_request(request)
+        if err:
+            return err
         assignments = StudentAssignment.objects.filter(
             student=student
         ).select_related(
@@ -193,7 +210,9 @@ def student_schedule(request):
     """Return the student's class schedule (subjects with teachers)."""
     try:
         from schools.models import ClassSubject
-        student = _get_student(request)
+        student, err = _get_student_for_request(request)
+        if err:
+            return err
         if not student.current_class:
             return Response([])
         subjects = ClassSubject.objects.filter(

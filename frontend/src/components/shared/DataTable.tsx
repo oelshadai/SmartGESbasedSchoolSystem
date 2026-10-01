@@ -14,6 +14,7 @@ interface DataTableProps<T> {
   data: T[];
   searchPlaceholder?: string;
   searchKey?: string;
+  searchKeys?: string[];
   pageSize?: number;
   onRowClick?: (item: T) => void;
   actions?: any;
@@ -24,6 +25,7 @@ function DataTable<T extends Record<string, any>>({
   data,
   searchPlaceholder = 'Search...',
   searchKey,
+  searchKeys,
   pageSize = 10,
   onRowClick,
   actions,
@@ -31,9 +33,12 @@ function DataTable<T extends Record<string, any>>({
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
 
-  const filtered = searchKey
+  const searchableKeys = searchKeys?.length ? searchKeys : searchKey ? [searchKey] : [];
+  const filtered = searchableKeys.length
     ? data.filter((item) =>
-        String(item[searchKey]).toLowerCase().includes(search.toLowerCase())
+        searchableKeys.some((key) =>
+          String(item[key] ?? '').toLowerCase().includes(search.toLowerCase())
+        )
       )
     : data;
 
@@ -42,7 +47,7 @@ function DataTable<T extends Record<string, any>>({
 
   return (
     <div className="space-y-4">
-      {searchKey && (
+      {searchableKeys.length > 0 && (
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/50" />
           <Input

@@ -221,12 +221,38 @@ def announcements_list(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def push_subscribe(request):
-    """Save a browser push subscription for the current user."""
+    """Save a browser or mobile push registration for the current user."""
     endpoint = request.data.get('endpoint')
     p256dh = request.data.get('p256dh')
     auth = request.data.get('auth')
+    device_token = request.data.get('device_token')
+    platform = request.data.get('platform', 'android')
+
+    if device_token:
+        from .models import MobileDeviceToken
+        if not platform:
+            return Response({'error': 'platform is required for mobile push registration'}, status=status.HTTP_400_BAD_REQUEST)
+
+        obj, created = MobileDeviceToken.objects.update_or_create(
+            user=request.user,
+            platform=platform,
+            device_token=device_token,
+            defaults={
+                'endpoint': endpoint or '',
+                'p256dh': p256dh or '',
+                'auth': auth or '',
+            },
+        )
+        return Response({
+            'status': 'subscribed',
+            'platform': obj.platform,
+            'device_token': obj.device_token,
+            'created': created,
+        }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
     if not endpoint or not p256dh or not auth:
         return Response({'error': 'endpoint, p256dh and auth are required'}, status=status.HTTP_400_BAD_REQUEST)
+
     PushSubscription.objects.update_or_create(
         endpoint=endpoint,
         defaults={'user': request.user, 'p256dh': p256dh, 'auth': auth},

@@ -15,6 +15,31 @@ class PushSubscription(models.Model):
     def __str__(self):
         return f"PushSub({self.user_id}) {self.endpoint[:60]}"
 
+
+class MobileDeviceToken(models.Model):
+    """Store native mobile push tokens for Android/iOS device registration."""
+    PLATFORM_CHOICES = [
+        ('android', 'Android'),
+        ('ios', 'iOS'),
+        ('web', 'Web'),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='mobile_device_tokens')
+    platform = models.CharField(max_length=20, choices=PLATFORM_CHOICES, default='android')
+    device_token = models.TextField()
+    endpoint = models.TextField(blank=True, default='')
+    p256dh = models.TextField(blank=True, default='')
+    auth = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'platform', 'device_token')
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"MobilePush({self.user_id}, {self.platform}) {self.device_token[:30]}"
+
 class SupportTicket(models.Model):
     STATUS_CHOICES = [
         ('open', 'Open'),

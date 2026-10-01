@@ -658,21 +658,28 @@ class StudentSearchForFeeViewSet(viewsets.ViewSet):
         # Build response with fee info
         results = []
         for student in queryset[:50]:  # Limit to 50 results
-            student_fee = student.student_fee if hasattr(student, 'student_fee') else None
-            
+            user = getattr(student, 'user', None)
+            student_fee = getattr(student, 'student_fee', None)
+            class_obj = getattr(student, 'current_class', None)
+
+            first_name = user.first_name if user and getattr(user, 'first_name', None) else student.first_name
+            last_name = user.last_name if user and getattr(user, 'last_name', None) else student.last_name
+            email = user.email if user and getattr(user, 'email', None) else ''
+            phone_number = user.phone_number if user and getattr(user, 'phone_number', None) else ''
+
             results.append({
                 'id': student.id,
                 'student_id': student.student_id,
-                'first_name': student.user.first_name,
-                'last_name': student.user.last_name,
-                'class_level': student.current_class.level if student.current_class else '',
-                'section': student.current_class.section if student.current_class else '',
-                'email': student.user.email,
-                'phone_number': student.user.phone_number or '',
+                'first_name': first_name,
+                'last_name': last_name,
+                'class_level': class_obj.level if class_obj else '',
+                'section': class_obj.section if class_obj else '',
+                'email': email,
+                'phone_number': phone_number,
                 'current_balance': float(student_fee.balance) if student_fee else 0,
                 'payment_status': student_fee.status if student_fee else 'NOT_STARTED'
             })
-        
+
         return Response(results)
 
 

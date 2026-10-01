@@ -27,6 +27,15 @@ class SecureTokenStorage {
       return data; // Fallback for non-obfuscated data
     }
   }
+
+  private static normalizeToken(token: string | null): string | null {
+    if (!token) return null;
+    try {
+      return atob(token.split('').reverse().join(''));
+    } catch {
+      return token;
+    }
+  }
   
   static setTokens(access: string, refresh: string): void {
     const timestamp = Date.now().toString();
@@ -67,12 +76,12 @@ class SecureTokenStorage {
       return null;
     }
 
-    return this.deobfuscate(token);
+    return this.normalizeToken(token);
   }
   
   static getRefreshToken(): string | null {
     const token = localStorage.getItem(this.REFRESH_TOKEN_KEY);
-    return token ? this.deobfuscate(token) : null;
+    return this.normalizeToken(token);
   }
   
   static setUser(user: User): void {

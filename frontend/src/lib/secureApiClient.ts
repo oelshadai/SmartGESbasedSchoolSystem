@@ -245,16 +245,25 @@ class SecureApiClient {
     return null;
   }
 
-  private async refreshAuthToken(): Promise<void> {
+  private getStoredRefreshToken(): string | null {
     const refreshToken = localStorage.getItem('refresh_token');
+    if (!refreshToken) return null;
+    try {
+      return atob(refreshToken.split('').reverse().join(''));
+    } catch {
+      return refreshToken;
+    }
+  }
+
+  private async refreshAuthToken(): Promise<void> {
+    const refreshToken = this.getStoredRefreshToken();
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
 
     try {
-      const deobfuscatedToken = atob(refreshToken.split('').reverse().join(''));
       const response = await axios.post(`${this.client.defaults.baseURL}/auth/token/refresh/`, {
-        refresh: deobfuscatedToken
+        refresh: refreshToken
       });
 
       const { access, refresh: newRefreshRaw } = response.data;

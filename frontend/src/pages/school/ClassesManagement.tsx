@@ -28,6 +28,7 @@ import secureApiClient from '@/lib/secureApiClient';
 
 interface ClassData {
   id: number;
+  full_name: string;
   level: string;
   section: string;
   class_teacher: string;
@@ -91,6 +92,7 @@ const ClassesManagement = () => {
         console.log('Mapping class:', c); // Debug log
         return {
           id: c.id,
+          full_name: c.full_name || `${c.level_display || c.level || ''} ${c.section || ''}`.trim(),
           level: c.level_display || c.level || '',
           section: c.section || '',
           class_teacher: c.class_teacher_name || (c.class_teacher ? 'Unknown Teacher' : 'Not Assigned'),
@@ -289,8 +291,8 @@ const ClassesManagement = () => {
             }
           ]} 
           data={classes} 
-          searchKey="level" 
-          searchPlaceholder="Search classes..." 
+          searchKeys={['level', 'section', 'class_teacher', 'full_name']}
+          searchPlaceholder="Search by level, section, or teacher..."
         />
       )}
 
