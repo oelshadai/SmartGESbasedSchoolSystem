@@ -124,6 +124,7 @@ export interface FeeCollectionSummary {
   non_daily_payment_count: number;
   daily_collected: number;
   daily_expected: number;
+  daily_school_days: number | null;
   non_daily_collected: number;
   non_daily_outstanding: number;
   weekly_collected: number;

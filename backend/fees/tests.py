@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -150,3 +151,48 @@ class FeeSearchApiTests(TestCase):
         )
 
         self.assertTrue(tiered_serializer.is_valid(), tiered_serializer.errors)
+
+    def test_daily_expected_income_uses_weekdays_minus_confirmed_closures(self):
+        student = Student(
+            school=self.school,
+            student_id='STD-EXPECTED-001',
+            first_name='Katherine',
+            last_name='Johnson',
+            gender='F',
+            date_of_birth='2012-01-01',
+            current_class=self.class_room,
+            guardian_name='Guardian',
+            guardian_phone='0201111111',
+            guardian_address='Test address',
+            admission_date='2024-01-01',
+            user=None,
+        )
+        student._skip_account_creation = True
+        student.save()
+        fee_type = FeeType.objects.create(
+            school=self.school,
+            name='Daily Lunch',
+            collection_frequency='DAILY',
+        )
+        FeeStructure.objects.create(
+            school=self.school,
+            fee_type=fee_type,
+            level=self.class_room.level,
+            amount=Decimal('10.00'),
+        )
+        self.school.term_reopening_date = date(2026, 10, 5)
+        self.school.term_closing_date = date(2026, 10, 9)
+        self.school.daily_fee_closed_dates = ['2026-10-07']
+        self.school.save(update_fields=[
+            'term_reopening_date',
+            'term_closing_date',
+            'daily_fee_closed_dates',
+        ])
+
+        client = APIClient()
+        client.force_authenticate(user=self.admin)
+        response = client.get('/api/fees/reports/collection_summary/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['daily_school_days'], 4)
+        self.assertEqual(response.data['daily_expected'], 40.0)

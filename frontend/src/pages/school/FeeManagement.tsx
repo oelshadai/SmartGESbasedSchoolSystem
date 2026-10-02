@@ -107,6 +107,7 @@ const FeeManagement = () => {
     nonDailyPaymentCount: 0,
     dailyCollected: 0,
     dailyExpected: 0,
+    dailySchoolDays: null as number | null,
     nonDailyCollected: 0,
     nonDailyOutstanding: 0,
     weeklyCollected: 0,
@@ -357,6 +358,7 @@ const FeeManagement = () => {
         nonDailyPaymentCount: data.non_daily_payment_count ?? 0,
         dailyCollected: data.daily_collected ?? 0,
         dailyExpected: data.daily_expected ?? 0,
+        dailySchoolDays: data.daily_school_days ?? null,
         nonDailyCollected: data.non_daily_collected ?? 0,
         nonDailyOutstanding: data.non_daily_outstanding ?? 0,
         weeklyCollected: data.weekly_collected ?? 0,
@@ -1261,8 +1263,10 @@ const FeeManagement = () => {
               icon={<Users className="h-5 w-5" />}
               color="text-indigo-600"
               trend={summary.dailyExpected > 0
-                ? `${formatCurrency(summary.dailyExpected - summary.dailyCollected)} outstanding`
-                : 'Set term days in Settings'}
+                ? `${formatCurrency(summary.dailyExpected - summary.dailyCollected)} outstanding${summary.dailySchoolDays != null ? ` · ${summary.dailySchoolDays} school days` : ''}`
+                : summary.dailySchoolDays != null
+                  ? `${summary.dailySchoolDays} school days`
+                  : 'Set reopening and closing dates in Settings'}
             />
             <StatCard
               label="Term/Other Collected"

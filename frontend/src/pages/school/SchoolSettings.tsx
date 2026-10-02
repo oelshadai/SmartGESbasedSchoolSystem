@@ -13,6 +13,11 @@ import ReportPreviewModal from '@/components/ReportPreviewModal';
 import TextVisibilitySettings from '@/components/TextVisibilitySettings';
 import { Link } from 'react-router-dom';
 
+interface PublicHolidaySuggestion {
+  date: string;
+  name: string;
+}
+
 interface SchoolSettings {
   id: number;
   name: string;
@@ -39,6 +44,8 @@ interface SchoolSettings {
   grade_scale_f_min: number;
   term_closing_date?: string;
   term_reopening_date?: string;
+  daily_fee_closed_dates?: string[];
+  daily_fee_public_holidays?: PublicHolidaySuggestion[];
   show_promotion_on_terminal: boolean;
   teachers_can_add_students: boolean;
 }
@@ -84,7 +91,8 @@ const SchoolSettings = () => {
       // Exclude logo from settings save (logo is handled separately via file upload)
       const { logo, ...settingsToSave } = settings;
       
-      await secureApiClient.patch('/schools/settings/', settingsToSave);
+      const response = await secureApiClient.patch('/schools/settings/', settingsToSave);
+      if (response?.data) setSettings(response.data);
       toast.success('School settings updated successfully');
     } catch (err: any) {
       console.error('Save error:', err);
@@ -346,6 +354,49 @@ const SchoolSettings = () => {
                 onChange={(e) => updateSetting('term_reopening_date', e.target.value)}
                 className="mt-1" 
               />
+            </div>
+            <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+              <div>
+                <Label>Public Holiday Closures</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Review Ghana public holidays in this period. Select only dates when your school will be closed; selected dates are excluded from daily fee expectations.
+                </p>
+              </div>
+              {settings.term_reopening_date && settings.term_closing_date ? (
+                (settings.daily_fee_public_holidays || []).length > 0 ? (
+                  <div className="space-y-2">
+                    {(settings.daily_fee_public_holidays || []).map((holiday) => {
+                      const closedDates = settings.daily_fee_closed_dates || [];
+                      const isClosed = closedDates.includes(holiday.date);
+                      return (
+                        <div key={holiday.date} className="flex items-center justify-between gap-3 border-t pt-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium">{holiday.name}</p>
+                            <p className="text-xs text-muted-foreground">{holiday.date}</p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="text-xs text-muted-foreground">School closed</span>
+                            <Switch
+                              checked={isClosed}
+                              onCheckedChange={(checked) => updateSetting(
+                                'daily_fee_closed_dates',
+                                checked
+                                  ? [...new Set([...closedDates, holiday.date])].sort()
+                                  : closedDates.filter((value) => value !== holiday.date),
+                              )}
+                              aria-label={`School closed on ${holiday.name}`}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No weekday public holidays fall within these dates.</p>
+                )
+              ) : (
+                <p className="text-xs text-muted-foreground">Set both dates to review holidays and calculate daily fee school days.</p>
+              )}
             </div>
             <div className="flex items-center justify-between">
               <div>

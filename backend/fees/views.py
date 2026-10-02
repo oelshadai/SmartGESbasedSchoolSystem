@@ -706,6 +706,14 @@ class FeeReportViewSet(viewsets.ViewSet):
         from students.models import Student as StudentModel
 
         daily_expected = 0
+        daily_school_days = None
+        if school.term_reopening_date and school.term_closing_date:
+            from schools.calendar import count_school_days
+            daily_school_days = count_school_days(
+                school.term_reopening_date,
+                school.term_closing_date,
+                school.daily_fee_closed_dates or [],
+            )
         daily_fee_types = FeeType.objects.filter(
             school=school,
             collection_frequency='DAILY',
@@ -718,7 +726,7 @@ class FeeReportViewSet(viewsets.ViewSet):
                     current_class__level=structure.level,
                     is_active=True,
                 ).count()
-                # Expected = amount per day × total school days in current term × student count
+                # Expected = amount per day × billable school days × student count
                 current_term = school.current_term if hasattr(school, 'current_term') and school.current_term else None
                 if not current_term and hasattr(school, 'current_term_id') and school.current_term_id:
                     from schools.models import Term as TermModel
@@ -726,8 +734,10 @@ class FeeReportViewSet(viewsets.ViewSet):
                         current_term = TermModel.objects.get(id=school.current_term_id)
                     except TermModel.DoesNotExist:
                         current_term = None
-                term_days = current_term.total_days if current_term and current_term.total_days > 0 else 0
-                daily_expected += float(structure.amount) * term_days * student_count
+                billable_days = daily_school_days
+                if billable_days is None:
+                    billable_days = current_term.total_days if current_term and current_term.total_days > 0 else 0
+                daily_expected += float(structure.amount) * billable_days * student_count
 
         # --- Non-daily (term/year) stats from TermBills ---
         # Keep these metrics on the same basis (TermBill) so collected % is coherent.
@@ -813,6 +823,7 @@ class FeeReportViewSet(viewsets.ViewSet):
             # New daily/non-daily breakdown
             'daily_collected': float(daily_collected),
             'daily_expected': float(daily_expected),
+            'daily_school_days': daily_school_days,
             'non_daily_collected': float(non_daily_collected),
             'non_daily_outstanding': float(non_daily_outstanding),
             'non_daily_payment_count': non_daily_payment_count,

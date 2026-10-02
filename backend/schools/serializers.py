@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import School, AcademicYear, Term, Class, Subject, ClassSubject, GradingScale, StaffPermission, SmsPurchaseOrder
+from .calendar import public_holidays_between
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -74,6 +75,7 @@ class SmsSettingsSerializer(serializers.ModelSerializer):
 
 class SchoolSettingsSerializer(serializers.ModelSerializer):
     """Comprehensive serializer for school settings and configuration"""
+    daily_fee_public_holidays = serializers.SerializerMethodField()
 
     class Meta:
         model = School
@@ -86,7 +88,8 @@ class SchoolSettingsSerializer(serializers.ModelSerializer):
             'score_entry_mode', 'is_active', 'payroll_frequency',
             
             # Terminal Report Settings
-            'term_closing_date', 'term_reopening_date', 'show_promotion_on_terminal',
+            'term_closing_date', 'term_reopening_date', 'daily_fee_closed_dates',
+            'daily_fee_public_holidays', 'show_promotion_on_terminal',
             
             # Report Template Settings
             'report_template',
@@ -124,7 +127,16 @@ class SchoolSettingsSerializer(serializers.ModelSerializer):
     
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        closing_date = attrs.get('term_closing_date', self.instance.term_closing_date)
+        reopening_date = attrs.get('term_reopening_date', self.instance.term_reopening_date)
+        if closing_date and reopening_date and reopening_date > closing_date:
+            raise serializers.ValidationError({
+                'term_reopening_date': 'Reopening date must be on or before the closing date.'
+            })
         return self.validate_grade_scale(attrs)
+
+    def get_daily_fee_public_holidays(self, obj):
+        return public_holidays_between(obj.term_reopening_date, obj.term_closing_date)
 
 
 class AcademicYearSerializer(serializers.ModelSerializer):

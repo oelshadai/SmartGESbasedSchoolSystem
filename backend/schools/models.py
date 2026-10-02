@@ -117,6 +117,11 @@ class School(models.Model):
         blank=True,
         help_text='Term reopening date to appear on terminal reports'
     )
+    daily_fee_closed_dates = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='School-closed dates excluded from daily fee expected income',
+    )
     show_promotion_on_terminal = models.BooleanField(
         default=True,
         help_text='Show promotion status on terminal reports'
