@@ -196,3 +196,78 @@ class FeeSearchApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['daily_school_days'], 4)
         self.assertEqual(response.data['daily_expected'], 40.0)
+
+    def test_parent_fee_structure_applies_when_student_has_no_subtype_assignment(self):
+        student = Student(
+            school=self.school,
+            student_id='STD-MAIN-FEE-001',
+            first_name='Dorothy',
+            last_name='Vaughan',
+            gender='F',
+            date_of_birth='2012-01-01',
+            current_class=self.class_room,
+            guardian_name='Guardian',
+            guardian_phone='0201111111',
+            guardian_address='Test address',
+            admission_date='2024-01-01',
+            user=None,
+        )
+        student._skip_account_creation = True
+        student.save()
+
+        main_fee_type = FeeType.objects.create(
+            school=self.school,
+            name='Daily Transport',
+            collection_frequency='DAILY',
+        )
+        FeeType.objects.create(
+            school=self.school,
+            name='Bus Tier',
+            collection_frequency='DAILY',
+            parent_fee_type=main_fee_type,
+        )
+        FeeStructure.objects.create(
+            school=self.school,
+            fee_type=main_fee_type,
+            level=self.class_room.level,
+            amount=Decimal('8.00'),
+        )
+
+        serializer = FeePaymentCreateSerializer(
+            data={
+                'student': student.id,
+                'fee_type': main_fee_type.id,
+                'amount_paid': '8.00',
+                'payment_method': 'CASH',
+            },
+            context={'request': SimpleNamespace(user=self.admin)},
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_duplicate_fee_structure_returns_validation_error(self):
+        fee_type = FeeType.objects.create(school=self.school, name='Existing Fee')
+        FeeStructure.objects.create(
+            school=self.school,
+            fee_type=fee_type,
+            level=self.class_room.level,
+            amount=Decimal('100.00'),
+        )
+
+        client = APIClient()
+        client.force_authenticate(user=self.admin)
+        response = client.post(
+            '/api/fees/structures/',
+            {
+                'fee_type': fee_type.id,
+                'level': self.class_room.level,
+                'tier_label': '',
+                'amount': '125.00',
+                'collection_period': 'TERM',
+                'due_date': None,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('tier_label', response.data)

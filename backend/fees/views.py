@@ -62,21 +62,23 @@ def _fee_structure_for_student(student, fee_type):
         level=student.current_class.level,
         fee_type=fee_type,
     )
+    default_structure = structures.filter(tier_label='').first()
     if fee_type.sub_types.exists():
         assignment = StudentFeeSubType.objects.filter(
             school=student.school,
             student=student,
             main_fee_type=fee_type,
         ).first()
-        if not assignment or not assignment.sub_fee_type_id:
-            return None
-        return FeeStructure.objects.filter(
-            school=student.school,
-            level=student.current_class.level,
-            fee_type_id=assignment.sub_fee_type_id,
-        ).first()
+        if assignment and assignment.sub_fee_type_id:
+            sub_type_structure = FeeStructure.objects.filter(
+                school=student.school,
+                level=student.current_class.level,
+                fee_type_id=assignment.sub_fee_type_id,
+            ).first()
+            if sub_type_structure:
+                return sub_type_structure
 
-    return structures.filter(tier_label='').first()
+    return default_structure
 
 
 class FeeTypeViewSet(viewsets.ModelViewSet):

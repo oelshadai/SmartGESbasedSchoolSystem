@@ -71,6 +71,26 @@ class StudentFeeSubTypeSerializer(serializers.ModelSerializer):
 
 class FeeStructureSerializer(serializers.ModelSerializer):
     fee_type_name = serializers.CharField(source='fee_type.name', read_only=True)
+
+    def validate(self, attrs):
+        school = self.context['request'].user.school
+        fee_type = attrs.get('fee_type', self.instance.fee_type if self.instance else None)
+        level = attrs.get('level', self.instance.level if self.instance else None)
+        tier_label = attrs.get('tier_label', self.instance.tier_label if self.instance else '')
+
+        existing = FeeStructure.objects.filter(
+            school=school,
+            fee_type=fee_type,
+            level=level,
+            tier_label=tier_label,
+        )
+        if self.instance:
+            existing = existing.exclude(pk=self.instance.pk)
+        if existing.exists():
+            raise serializers.ValidationError({
+                'tier_label': 'A fee structure already exists for this fee type, class level, and tier.'
+            })
+        return attrs
     
     class Meta:
         model = FeeStructure
@@ -194,14 +214,13 @@ class FeePaymentCreateSerializer(serializers.ModelSerializer):
                 school=student.school,
                 main_fee_type=fee_type,
             ).first()
-            if not assignment or not assignment.sub_fee_type_id:
-                raise DjangoValidationError('This student is not assigned to an applicable fee option.')
-            sub_type_structure = FeeStructure.objects.filter(
-                school=student.school,
-                fee_type_id=assignment.sub_fee_type_id,
-                level=student.current_class.level if student.current_class else '',
-            ).first()
-            structure = sub_type_structure or structure
+            if assignment and assignment.sub_fee_type_id:
+                sub_type_structure = FeeStructure.objects.filter(
+                    school=student.school,
+                    fee_type_id=assignment.sub_fee_type_id,
+                    level=student.current_class.level if student.current_class else '',
+                ).first()
+                structure = sub_type_structure or structure
         if not structure:
             structure = FeeStructure.objects.filter(
                 school=student.school,
@@ -228,16 +247,6 @@ class FeePaymentCreateSerializer(serializers.ModelSerializer):
         fee_type = attrs['fee_type']
         if student.school_id != self.context['request'].user.school_id or fee_type.school_id != student.school_id:
             raise serializers.ValidationError('Student and fee type must belong to your school.')
-        if fee_type.sub_types.exists():
-            assignment = StudentFeeSubType.objects.filter(
-                student=student,
-                school=student.school,
-                main_fee_type=fee_type,
-            ).first()
-            if not assignment or not assignment.sub_fee_type_id:
-                raise serializers.ValidationError({
-                    'fee_type': 'This student is not assigned to an applicable fee option.'
-                })
         try:
             outstanding = self._outstanding_balance(student, fee_type)
         except DjangoValidationError as error:

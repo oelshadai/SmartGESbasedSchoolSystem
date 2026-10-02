@@ -228,8 +228,7 @@ const FeeManagement = () => {
             main_fee_type: feeTypeId,
           });
           const assignment = assignments.find(item => item.main_fee_type === feeTypeId);
-          if (!assignment?.sub_fee_type) return;
-          structureFeeTypeId = assignment.sub_fee_type;
+          if (assignment?.sub_fee_type) structureFeeTypeId = assignment.sub_fee_type;
         }
 
         let structures = await feeService.getFeeStructures({
