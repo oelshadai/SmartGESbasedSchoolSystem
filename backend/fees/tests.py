@@ -1,8 +1,12 @@
+from decimal import Decimal
+from types import SimpleNamespace
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from fees.serializers import GenerateWeeklyBillsSerializer
+from fees.models import FeeStructure, FeeType, StudentFeeSubType
+from fees.serializers import FeePaymentCreateSerializer, GenerateWeeklyBillsSerializer
 from schools.models import School, Class
 from students.models import Student
 
@@ -71,3 +75,78 @@ class FeeSearchApiTests(TestCase):
         self.assertEqual(response.data[0]['student_id'], 'STD-001')
         self.assertEqual(response.data[0]['first_name'], 'Ada')
         self.assertEqual(response.data[0]['last_name'], 'Lovelace')
+
+    def test_daily_payment_uses_main_structure_when_assigned_subtype_has_none(self):
+        student = Student(
+            school=self.school,
+            student_id='STD-DAILY-001',
+            first_name='Grace',
+            last_name='Hopper',
+            gender='F',
+            date_of_birth='2012-01-01',
+            current_class=self.class_room,
+            guardian_name='Guardian',
+            guardian_phone='0201111111',
+            guardian_address='Test address',
+            admission_date='2024-01-01',
+            user=None,
+        )
+        student._skip_account_creation = True
+        student.save()
+
+        main_fee_type = FeeType.objects.create(
+            school=self.school,
+            name='Daily Meals',
+            collection_frequency='DAILY',
+        )
+        sub_fee_type = FeeType.objects.create(
+            school=self.school,
+            name='Standard Meal',
+            collection_frequency='DAILY',
+            parent_fee_type=main_fee_type,
+        )
+        StudentFeeSubType.objects.create(
+            student=student,
+            school=self.school,
+            main_fee_type=main_fee_type,
+            sub_fee_type=sub_fee_type,
+        )
+        FeeStructure.objects.create(
+            school=self.school,
+            fee_type=main_fee_type,
+            level=self.class_room.level,
+            amount=Decimal('5.00'),
+            collection_period='MONTH',
+        )
+
+        serializer = FeePaymentCreateSerializer(
+            data={
+                'student': student.id,
+                'fee_type': main_fee_type.id,
+                'amount_paid': '5.00',
+                'payment_method': 'CASH',
+            },
+            context={'request': SimpleNamespace(user=self.admin)},
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+        FeeStructure.objects.create(
+            school=self.school,
+            fee_type=sub_fee_type,
+            level=self.class_room.level,
+            tier_label='Bus',
+            amount=Decimal('4.00'),
+            collection_period='MONTH',
+        )
+        tiered_serializer = FeePaymentCreateSerializer(
+            data={
+                'student': student.id,
+                'fee_type': sub_fee_type.id,
+                'amount_paid': '4.00',
+                'payment_method': 'CASH',
+            },
+            context={'request': SimpleNamespace(user=self.admin)},
+        )
+
+        self.assertTrue(tiered_serializer.is_valid(), tiered_serializer.errors)

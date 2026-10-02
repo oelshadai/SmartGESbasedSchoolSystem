@@ -231,10 +231,16 @@ const FeeManagement = () => {
           structureFeeTypeId = assignment.sub_fee_type;
         }
 
-        const structures = await feeService.getFeeStructures({
+        let structures = await feeService.getFeeStructures({
           fee_type: structureFeeTypeId,
           level: selectedStudent.class_level,
         });
+        if (structures.length === 0 && structureFeeTypeId !== feeTypeId) {
+          structures = await feeService.getFeeStructures({
+            fee_type: feeTypeId,
+            level: selectedStudent.class_level,
+          });
+        }
         if (cancelled) return;
 
         const amount = structures[0]?.amount ?? null;

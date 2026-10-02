@@ -196,9 +196,16 @@ class FeePaymentCreateSerializer(serializers.ModelSerializer):
             ).first()
             if not assignment or not assignment.sub_fee_type_id:
                 raise DjangoValidationError('This student is not assigned to an applicable fee option.')
-            structure = FeeStructure.objects.filter(
+            sub_type_structure = FeeStructure.objects.filter(
                 school=student.school,
                 fee_type_id=assignment.sub_fee_type_id,
+                level=student.current_class.level if student.current_class else '',
+            ).first()
+            structure = sub_type_structure or structure
+        if not structure:
+            structure = FeeStructure.objects.filter(
+                school=student.school,
+                fee_type=fee_type,
                 level=student.current_class.level if student.current_class else '',
             ).first()
         if not structure:
