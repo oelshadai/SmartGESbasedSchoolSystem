@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from fees.models import FeeStructure, FeeType, StudentFeeSubType
+from fees.models import FeePayment, FeeStructure, FeeType, StudentFeeSubType
 from fees.serializers import FeePaymentCreateSerializer, GenerateWeeklyBillsSerializer
 from schools.models import School, Class
 from students.models import Student
@@ -271,3 +271,55 @@ class FeeSearchApiTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn('tier_label', response.data)
+
+    def test_daily_collection_report_returns_only_daily_payments_for_selected_date(self):
+        student = Student(
+            school=self.school,
+            student_id='STD-DAILY-REPORT-001',
+            first_name='Mary',
+            last_name='Jackson',
+            gender='F',
+            date_of_birth='2012-01-01',
+            current_class=self.class_room,
+            guardian_name='Guardian',
+            guardian_phone='0201111111',
+            guardian_address='Test address',
+            admission_date='2024-01-01',
+            user=None,
+        )
+        student._skip_account_creation = True
+        student.save()
+        daily_fee = FeeType.objects.create(
+            school=self.school,
+            name='Daily Meals',
+            collection_frequency='DAILY',
+        )
+        term_fee = FeeType.objects.create(
+            school=self.school,
+            name='Tuition',
+            collection_frequency='TERM',
+        )
+        FeePayment.objects.create(
+            student=student,
+            school=self.school,
+            fee_type=daily_fee,
+            amount_paid=Decimal('12.50'),
+            collected_by=self.admin,
+        )
+        FeePayment.objects.create(
+            student=student,
+            school=self.school,
+            fee_type=term_fee,
+            amount_paid=Decimal('100.00'),
+            collected_by=self.admin,
+        )
+
+        client = APIClient()
+        client.force_authenticate(user=self.admin)
+        response = client.get('/api/fees/reports/daily_collection/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['total_collected'], 12.5)
+        self.assertEqual(response.data['transaction_count'], 1)
+        self.assertEqual(response.data['student_count'], 1)
+        self.assertEqual(response.data['payments'][0]['student_id'], 'STD-DAILY-REPORT-001')

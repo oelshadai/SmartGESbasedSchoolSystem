@@ -5,6 +5,8 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from django.conf import settings as django_settings
 from django.db import transaction
 from django.db.models import Q, Sum, Count
+from django.utils import timezone
+from django.utils.dateparse import parse_date
 from .models import FeeType, FeeStructure, StudentFee, FeePayment, FeeCollection, TermBill, StudentFeeSubType, WeeklyBill
 from .serializers import (
     FeeTypeSerializer, FeeStructureSerializer, StudentFeeSerializer,
@@ -703,8 +705,6 @@ class FeeReportViewSet(viewsets.ViewSet):
 
         # Expected daily fees: for each active DAILY fee type, sum the
         # FeeStructure amount × number of active students at that level.
-        from django.db.models import IntegerField
-        from django.db.models.functions import Cast
         from students.models import Student as StudentModel
 
         daily_expected = 0
@@ -834,6 +834,54 @@ class FeeReportViewSet(viewsets.ViewSet):
             'weekly_total_billed': float(weekly_total_billed),
             'by_fee_type': list(by_fee_type),
             'by_collector': list(by_collector)
+        })
+
+    @action(detail=False, methods=['get'])
+    def daily_collection(self, request):
+        """Return a date-specific daily-fee closeout for the authenticated school."""
+        date_value = request.query_params.get('date')
+        report_date = parse_date(date_value) if date_value else timezone.localdate()
+        if report_date is None:
+            return Response(
+                {'date': ['Use a valid date in YYYY-MM-DD format.']},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payments = FeePayment.objects.filter(
+            school=request.user.school,
+            fee_type__collection_frequency='DAILY',
+            payment_date__date=report_date,
+        ).select_related(
+            'student', 'student__current_class', 'fee_type', 'collected_by'
+        ).order_by('payment_date', 'id')
+
+        rows = []
+        for payment in payments:
+            student = payment.student
+            classroom = student.current_class
+            rows.append({
+                'payment_id': payment.id,
+                'student_id': student.student_id,
+                'student_name': student.get_full_name(),
+                'class_name': (
+                    f'{classroom.level} {classroom.section}'.strip()
+                    if classroom else ''
+                ),
+                'fee_type_name': payment.fee_type.name,
+                'amount_paid': float(payment.amount_paid),
+                'payment_method': payment.payment_method,
+                'reference_number': payment.reference_number,
+                'paid_at': timezone.localtime(payment.payment_date).strftime('%H:%M'),
+                'collected_by_name': payment.collected_by.get_full_name() if payment.collected_by else '',
+            })
+
+        total_collected = payments.aggregate(total=Sum('amount_paid'))['total'] or 0
+        return Response({
+            'date': report_date.isoformat(),
+            'total_collected': float(total_collected),
+            'transaction_count': len(rows),
+            'student_count': len({row['student_id'] for row in rows}),
+            'payments': rows,
         })
     
     @action(detail=False, methods=['get'])

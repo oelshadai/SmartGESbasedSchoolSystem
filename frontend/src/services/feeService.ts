@@ -143,6 +143,27 @@ export interface FeeCollectionSummary {
   }>;
 }
 
+export interface DailyFeeCollectionRow {
+  payment_id: number;
+  student_id: string;
+  student_name: string;
+  class_name: string;
+  fee_type_name: string;
+  amount_paid: number;
+  payment_method: string;
+  reference_number: string;
+  paid_at: string;
+  collected_by_name: string;
+}
+
+export interface DailyFeeCollectionReport {
+  date: string;
+  total_collected: number;
+  transaction_count: number;
+  student_count: number;
+  payments: DailyFeeCollectionRow[];
+}
+
 export interface CreateFeePayment {
   student: number;
   fee_type: number;
@@ -442,6 +463,12 @@ class FeeService {
         }
       };
     });
+  }
+
+  async getDailyCollectionReport(date: string): Promise<DailyFeeCollectionReport> {
+    return this.makeRequest(() =>
+      secureApiClient.get('/fees/reports/daily_collection/', { params: { date } })
+    );
   }
 
   async getClassSummary(classId: number): Promise<{

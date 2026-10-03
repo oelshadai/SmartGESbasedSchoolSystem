@@ -31,6 +31,7 @@ import {
   feeService,
   type StudentSearchResult, type FeeType, type StudentFee, type FeePayment,
   type FeeStructure, type TermBill, type WeeklyBill, type GenerateBillsResult,
+  type DailyFeeCollectionReport,
   FREQUENCY_LABELS, type CollectionFrequency,
 } from '@/services/feeService';
 import secureApiClient from '@/lib/secureApiClient';
@@ -153,6 +154,13 @@ const FeeManagement = () => {
   const [pfFeeType, setPfFeeType] = useState('all');
   const [pfMethod, setPfMethod] = useState('all');
   const [pfVerified, setPfVerified] = useState('all');
+  const [dailyReportDate, setDailyReportDate] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
+  const [dailyReport, setDailyReport] = useState<DailyFeeCollectionReport | null>(null);
+  const [dailyReportLoading, setDailyReportLoading] = useState(false);
+  const [dailyReportError, setDailyReportError] = useState('');
   const [verifyingId, setVerifyingId] = useState<number | null>(null);
   const [deletingPaymentId, setDeletingPaymentId] = useState<number | null>(null);
 
@@ -206,6 +214,22 @@ const FeeManagement = () => {
   useEffect(() => { if (activeTab === 'setup') fetchSetupData(); }, [activeTab]);
   useEffect(() => { if (activeTab === 'analytics') fetchAnalytics(); }, [activeTab]);
   useEffect(() => { if (activeTab === 'records') { fetchRecordsBills(); fetchWeeklyBills(); } }, [activeTab]);
+  useEffect(() => {
+    if (activeTab !== 'payments') return;
+    let cancelled = false;
+    setDailyReportLoading(true);
+    setDailyReportError('');
+    feeService.getDailyCollectionReport(dailyReportDate)
+      .then(report => { if (!cancelled) setDailyReport(report); })
+      .catch(error => {
+        if (!cancelled) {
+          setDailyReport(null);
+          setDailyReportError(error instanceof Error ? error.message : 'Could not load daily report');
+        }
+      })
+      .finally(() => { if (!cancelled) setDailyReportLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeTab, dailyReportDate]);
 
   // Auto-fetch fee structure amount when student + fee type are both selected
   useEffect(() => {
@@ -1160,6 +1184,40 @@ const FeeManagement = () => {
     return true;
   }), [payments, pfFeeType, pfMethod, pfVerified, pfDateFrom, pfDateTo]);
   const filteredTotal = filteredPayments.reduce((s, p) => s + toAmount(p.amount_paid), 0);
+
+  const printDailyCollectionReport = () => {
+    if (!dailyReport) return;
+    const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, character => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[character] || character));
+    const reportDate = new Date(`${dailyReport.date}T00:00:00`).toLocaleDateString();
+    const rows = dailyReport.payments.map(payment => `
+      <tr>
+        <td>${escapeHtml(payment.paid_at)}</td>
+        <td>${escapeHtml(payment.student_id)}</td>
+        <td>${escapeHtml(payment.student_name)}</td>
+        <td>${escapeHtml(payment.class_name || '-')}</td>
+        <td>${escapeHtml(payment.fee_type_name)}</td>
+        <td>${escapeHtml(payment.payment_method.replace(/_/g, ' '))}</td>
+        <td>${escapeHtml(payment.reference_number || '-')}</td>
+        <td class="amount">${escapeHtml(formatCurrency(payment.amount_paid))}</td>
+      </tr>`).join('');
+    const reportHtml = `<!doctype html><html><head><meta charset="utf-8"><title>Daily Fee Closeout - ${escapeHtml(reportDate)}</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#172033;margin:0;padding:28px}.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0f766e;padding-bottom:16px}.school{font-size:22px;font-weight:700}.subtitle{color:#64748b;margin-top:5px}.summary{display:flex;gap:32px;margin:22px 0}.metric{border:1px solid #dbe3ed;padding:14px 18px;min-width:180px}.metric-label{font-size:11px;color:#64748b;text-transform:uppercase}.metric-value{font-size:22px;font-weight:700;margin-top:6px}.total{color:#0f766e}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #cbd5e1;padding:8px;text-align:left}th{background:#f1f5f9}.amount{text-align:right;white-space:nowrap}.footer{margin-top:18px;color:#64748b;font-size:10px}@media print{body{padding:0}.metric{break-inside:avoid}thead{display:table-header-group}tr{break-inside:avoid}}
+      </style></head><body><header class="header"><div><div class="school">School Fee Collection</div><div class="subtitle">Daily fee collection closeout</div></div><div>${escapeHtml(reportDate)}</div></header><section class="summary"><div class="metric"><div class="metric-label">Total collected</div><div class="metric-value total">${escapeHtml(formatCurrency(dailyReport.total_collected))}</div></div><div class="metric"><div class="metric-label">Transactions</div><div class="metric-value">${dailyReport.transaction_count}</div></div><div class="metric"><div class="metric-label">Students paid</div><div class="metric-value">${dailyReport.student_count}</div></div></section><table><thead><tr><th>Time</th><th>Student ID</th><th>Student</th><th>Class</th><th>Fee type</th><th>Method</th><th>Reference</th><th class="amount">Amount</th></tr></thead><tbody>${rows || '<tr><td colspan="8">No daily fee payments recorded for this date.</td></tr>'}</tbody></table><footer class="footer">Generated from daily fee payments recorded for ${escapeHtml(reportDate)}.</footer></body></html>`;
+    const reportUrl = URL.createObjectURL(new Blob([reportHtml], { type: 'text/html' }));
+    const reportWindow = window.open(reportUrl, '_blank', 'width=1100,height=800');
+    if (!reportWindow) {
+      URL.revokeObjectURL(reportUrl);
+      toast.error('Please allow pop-ups to print the daily report.');
+      return;
+    }
+    reportWindow.focus();
+    reportWindow.setTimeout(() => {
+      reportWindow.print();
+      URL.revokeObjectURL(reportUrl);
+    }, 600);
+  };
 
   // --- Records tab filtered & totals ---
   const filteredRecords = useMemo(() => recordsBills.filter(b => {
@@ -2246,6 +2304,102 @@ const FeeManagement = () => {
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4">
+          <Card variant="elevated">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <CalendarDays className="h-5 w-5" /> Daily Fee Closeout
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">Daily-fee payments recorded for the selected date.</p>
+                </div>
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="daily-closeout-date" className="text-xs">Report date</Label>
+                    <Input
+                      id="daily-closeout-date"
+                      type="date"
+                      value={dailyReportDate}
+                      onChange={event => setDailyReportDate(event.target.value)}
+                      className="h-9 w-40"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={printDailyCollectionReport}
+                    disabled={dailyReportLoading || !dailyReport}
+                    className="gap-2"
+                  >
+                    <Printer className="h-4 w-4" /> Print closeout
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {dailyReportError && (
+                <Alert variant="destructive"><AlertDescription>{dailyReportError}</AlertDescription></Alert>
+              )}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-md border bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground">Daily fees collected</p>
+                  <p className="mt-1 text-xl font-bold">{dailyReportLoading ? 'Loading…' : formatCurrency(dailyReport?.total_collected || 0)}</p>
+                </div>
+                <div className="rounded-md border bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground">Transactions</p>
+                  <p className="mt-1 text-xl font-bold">{dailyReportLoading ? '—' : dailyReport?.transaction_count ?? 0}</p>
+                </div>
+                <div className="rounded-md border bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground">Students paid</p>
+                  <p className="mt-1 text-xl font-bold">{dailyReportLoading ? '—' : dailyReport?.student_count ?? 0}</p>
+                </div>
+              </div>
+              <div className="overflow-x-auto rounded-md border">
+                <table className="w-full min-w-[850px] text-sm">
+                  <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2">Time</th>
+                      <th className="px-3 py-2">Student ID</th>
+                      <th className="px-3 py-2">Student</th>
+                      <th className="px-3 py-2">Class</th>
+                      <th className="px-3 py-2">Fee type</th>
+                      <th className="px-3 py-2">Method</th>
+                      <th className="px-3 py-2">Reference</th>
+                      <th className="px-3 py-2 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dailyReportLoading ? (
+                      <tr><td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">Loading daily closeout…</td></tr>
+                    ) : dailyReport?.payments.length ? dailyReport.payments.map(payment => (
+                      <tr key={payment.payment_id} className="border-t">
+                        <td className="whitespace-nowrap px-3 py-2">{payment.paid_at}</td>
+                        <td className="px-3 py-2">{payment.student_id}</td>
+                        <td className="px-3 py-2 font-medium">{payment.student_name}</td>
+                        <td className="px-3 py-2">{payment.class_name || '—'}</td>
+                        <td className="px-3 py-2">{payment.fee_type_name}</td>
+                        <td className="px-3 py-2">{payment.payment_method.replace(/_/g, ' ')}</td>
+                        <td className="px-3 py-2">{payment.reference_number || '—'}</td>
+                        <td className="whitespace-nowrap px-3 py-2 text-right font-semibold">{formatCurrency(payment.amount_paid)}</td>
+                      </tr>
+                    )) : (
+                      <tr><td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">No daily-fee payments recorded for this date.</td></tr>
+                    )}
+                  </tbody>
+                  {!!dailyReport?.payments.length && (
+                    <tfoot className="border-t bg-muted/30 font-semibold">
+                      <tr>
+                        <td colSpan={7} className="px-3 py-2 text-right">Daily total</td>
+                        <td className="whitespace-nowrap px-3 py-2 text-right">{formatCurrency(dailyReport.total_collected)}</td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Filter bar */}
           <Card variant="elevated">
             <CardContent className="p-4">
