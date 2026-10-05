@@ -77,7 +77,7 @@ class FeeSearchApiTests(TestCase):
         self.assertEqual(response.data[0]['first_name'], 'Ada')
         self.assertEqual(response.data[0]['last_name'], 'Lovelace')
 
-    def test_daily_payment_uses_main_structure_when_assigned_subtype_has_none(self):
+    def test_daily_payment_requires_assigned_subtype_structure_instead_of_main_fee_fallback(self):
         student = Student(
             school=self.school,
             student_id='STD-DAILY-001',
@@ -120,7 +120,7 @@ class FeeSearchApiTests(TestCase):
             collection_period='MONTH',
         )
 
-        serializer = FeePaymentCreateSerializer(
+        unconfigured_sub_fee_serializer = FeePaymentCreateSerializer(
             data={
                 'student': student.id,
                 'fee_type': main_fee_type.id,
@@ -130,7 +130,8 @@ class FeeSearchApiTests(TestCase):
             context={'request': SimpleNamespace(user=self.admin)},
         )
 
-        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertFalse(unconfigured_sub_fee_serializer.is_valid())
+        self.assertIn('amount_paid', unconfigured_sub_fee_serializer.errors)
 
         FeeStructure.objects.create(
             school=self.school,
@@ -143,7 +144,7 @@ class FeeSearchApiTests(TestCase):
         tiered_serializer = FeePaymentCreateSerializer(
             data={
                 'student': student.id,
-                'fee_type': sub_fee_type.id,
+                'fee_type': main_fee_type.id,
                 'amount_paid': '4.00',
                 'payment_method': 'CASH',
             },

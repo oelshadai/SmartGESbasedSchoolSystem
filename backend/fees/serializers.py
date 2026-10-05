@@ -208,6 +208,7 @@ class FeePaymentCreateSerializer(serializers.ModelSerializer):
             level=student.current_class.level if student.current_class else '',
             tier_label=''
         ).first()
+        has_assigned_sub_fee = False
         if fee_type.sub_types.exists():
             assignment = StudentFeeSubType.objects.filter(
                 student=student,
@@ -215,13 +216,14 @@ class FeePaymentCreateSerializer(serializers.ModelSerializer):
                 main_fee_type=fee_type,
             ).first()
             if assignment and assignment.sub_fee_type_id:
+                has_assigned_sub_fee = True
                 sub_type_structure = FeeStructure.objects.filter(
                     school=student.school,
                     fee_type_id=assignment.sub_fee_type_id,
                     level=student.current_class.level if student.current_class else '',
                 ).first()
-                structure = sub_type_structure or structure
-        if not structure:
+                structure = sub_type_structure
+        if not structure and not has_assigned_sub_fee:
             structure = FeeStructure.objects.filter(
                 school=student.school,
                 fee_type=fee_type,

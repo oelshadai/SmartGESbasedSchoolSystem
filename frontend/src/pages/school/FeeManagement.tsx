@@ -30,6 +30,7 @@ import { useAuthStore } from '@/stores/authStore';
 import {
   feeService,
   type StudentSearchResult, type FeeType, type StudentFee, type FeePayment,
+  type StudentFeeSubType,
   type FeeStructure, type TermBill, type WeeklyBill, type GenerateBillsResult,
   type DailyFeeCollectionReport,
   FREQUENCY_LABELS, type CollectionFrequency,
@@ -93,6 +94,12 @@ const FeeManagement = () => {
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedFeeType, setSelectedFeeType] = useState('all');
   const [selectedStudent, setSelectedStudent] = useState<StudentSearchResult | null>(null);
+  const [paymentFeeTypeId, setPaymentFeeTypeId] = useState('');
+  const [studentFeeAssignments, setStudentFeeAssignments] = useState<StudentFeeSubType[]>([]);
+  const [loadingStudentFeeAssignments, setLoadingStudentFeeAssignments] = useState(false);
+  const [studentFeeAssignmentsError, setStudentFeeAssignmentsError] = useState(false);
+  const selectedStudentId = selectedStudent?.id;
+  const selectedStudentClassLevel = selectedStudent?.class_level;
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CHEQUE' | 'BANK_TRANSFER' | 'MOBILE_MONEY'>('CASH');
   const [resolvedStructureAmount, setResolvedStructureAmount] = useState<number | null>(null);
@@ -231,10 +238,53 @@ const FeeManagement = () => {
     return () => { cancelled = true; };
   }, [activeTab, dailyReportDate]);
 
-  // Auto-fetch fee structure amount when student + fee type are both selected
+  const paymentFeeOptions = useMemo(() => {
+    if (!selectedStudent || loadingStudentFeeAssignments || studentFeeAssignmentsError) return [];
+
+    return feeTypes
+      .filter(type => !type.parent_fee_type)
+      .map(type => {
+        const assignment = studentFeeAssignments.find(item => item.main_fee_type === type.id);
+        return {
+          feeType: type,
+          label: assignment?.sub_fee_type ? (assignment.sub_fee_type_name || type.name) : type.name,
+        };
+      });
+  }, [feeTypes, loadingStudentFeeAssignments, selectedStudent, studentFeeAssignments, studentFeeAssignmentsError]);
+
   useEffect(() => {
-    if (!selectedStudent || !selectedFeeType || selectedFeeType === 'all') {
+    if (!selectedStudentId) {
+      setStudentFeeAssignments([]);
+      setStudentFeeAssignmentsError(false);
+      setLoadingStudentFeeAssignments(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingStudentFeeAssignments(true);
+    setStudentFeeAssignmentsError(false);
+    feeService.getStudentSubTypes({ student: selectedStudentId })
+      .then(assignments => {
+        if (!cancelled) setStudentFeeAssignments(assignments);
+      })
+      .catch(error => {
+        if (cancelled) return;
+        setStudentFeeAssignments([]);
+        setStudentFeeAssignmentsError(true);
+        toast.error(error instanceof Error ? error.message : "Couldn't load this student's fee assignment.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingStudentFeeAssignments(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [selectedStudentId]);
+
+  // Resolve the selected student's assigned fee structure.
+  useEffect(() => {
+      if (!selectedStudentId || !paymentFeeTypeId || loadingStudentFeeAssignments || studentFeeAssignmentsError) {
       setResolvedStructureAmount(null);
+      setLoadingStructure(false);
       return;
     }
     let cancelled = false;
@@ -242,29 +292,14 @@ const FeeManagement = () => {
       setLoadingStructure(true);
       setResolvedStructureAmount(null);
       try {
-        const feeTypeId = parseInt(selectedFeeType, 10);
+        const feeTypeId = parseInt(paymentFeeTypeId, 10);
         const feeType = feeTypes.find(type => type.id === feeTypeId);
-        let structureFeeTypeId = feeTypeId;
-
-        if (feeType?.has_sub_types) {
-          const assignments = await feeService.getStudentSubTypes({
-            student: selectedStudent.id,
-            main_fee_type: feeTypeId,
-          });
-          const assignment = assignments.find(item => item.main_fee_type === feeTypeId);
-          if (assignment?.sub_fee_type) structureFeeTypeId = assignment.sub_fee_type;
-        }
-
-        let structures = await feeService.getFeeStructures({
+        const assignment = studentFeeAssignments.find(item => item.main_fee_type === feeTypeId);
+        const structureFeeTypeId = assignment?.sub_fee_type || feeTypeId;
+        const structures = await feeService.getFeeStructures({
           fee_type: structureFeeTypeId,
-          level: selectedStudent.class_level,
+          level: selectedStudentClassLevel,
         });
-        if (structures.length === 0 && structureFeeTypeId !== feeTypeId) {
-          structures = await feeService.getFeeStructures({
-            fee_type: feeTypeId,
-            level: selectedStudent.class_level,
-          });
-        }
         if (cancelled) return;
 
         const amount = structures[0]?.amount ?? null;
@@ -281,7 +316,7 @@ const FeeManagement = () => {
 
     void loadStructureAmount();
     return () => { cancelled = true; };
-  }, [selectedStudent?.id, selectedStudent?.class_level, selectedFeeType, feeTypes]);
+  }, [selectedStudentId, selectedStudentClassLevel, paymentFeeTypeId, feeTypes, studentFeeAssignments, loadingStudentFeeAssignments, studentFeeAssignmentsError]);
 
   const fetchSetupData = async () => {
     try {
@@ -435,14 +470,14 @@ const FeeManagement = () => {
 
   const validatePaymentForm = (): boolean => {
     const errors: Record<string, string> = {};
-    const selectedFeeTypeObj = feeTypes.find(type => String(type.id) === selectedFeeType);
+    const selectedFeeTypeObj = feeTypes.find(type => String(type.id) === paymentFeeTypeId);
     const isDaily = selectedFeeTypeObj?.collection_frequency === 'DAILY';
     
     if (!selectedStudent) {
       errors.student = 'Please select a student';
     }
     
-    if (!selectedFeeType) {
+    if (!paymentFeeTypeId) {
       errors.feeType = 'Please select a fee type';
     }
     
@@ -477,7 +512,7 @@ const FeeManagement = () => {
       return;
     }
 
-    const isDaily = feeTypes.find(type => String(type.id) === selectedFeeType)?.collection_frequency === 'DAILY';
+    const isDaily = feeTypes.find(type => String(type.id) === paymentFeeTypeId)?.collection_frequency === 'DAILY';
     const amount = isDaily ? resolvedStructureAmount! : parseFloat(paymentAmount);
 
     try {
@@ -486,7 +521,7 @@ const FeeManagement = () => {
       
       const payment = await feeService.createFeePayment({
         student: selectedStudent!.id,
-        fee_type: parseInt(selectedFeeType),
+        fee_type: parseInt(paymentFeeTypeId),
         amount_paid: amount,
         payment_method: paymentMethod,
         reference_number: referenceNumber || undefined,
@@ -534,10 +569,23 @@ const FeeManagement = () => {
   const resetPaymentForm = () => {
     setSelectedStudent(null);
     // Don't reset selectedFeeType here as it's used for filtering
+    setPaymentFeeTypeId('');
+    setStudentFeeAssignments([]);
+    setStudentFeeAssignmentsError(false);
     setPaymentAmount('');
     setPaymentMethod('CASH');
     setReferenceNumber('');
     setNotes('');
+    setValidationErrors({});
+  };
+
+  const selectStudentForPayment = (student: StudentSearchResult) => {
+    setSelectedStudent(student);
+    setPaymentFeeTypeId('');
+    setPaymentAmount('');
+    setResolvedStructureAmount(null);
+    setStudentFeeAssignments([]);
+    setStudentFeeAssignmentsError(false);
     setValidationErrors({});
   };
 
@@ -1460,7 +1508,7 @@ const FeeManagement = () => {
                         className={`p-3 border-b cursor-pointer hover:bg-muted/50 ${
                           selectedStudent?.id === student.id ? 'bg-primary/10 border-primary' : ''
                         }`}
-                        onClick={() => setSelectedStudent(student)}
+                        onClick={() => selectStudentForPayment(student)}
                       >
                         <div className="flex justify-between items-start">
                           <div>
@@ -1491,7 +1539,7 @@ const FeeManagement = () => {
 
               {/* Payment Form */}
               {(() => {
-                const selFeeTypeObj = feeTypes.find(ft => String(ft.id) === selectedFeeType && selectedFeeType !== 'all') ?? null;
+                const selFeeTypeObj = feeTypes.find(ft => String(ft.id) === paymentFeeTypeId) ?? null;
                 const isDaily = selFeeTypeObj?.collection_frequency === 'DAILY';
                 return (
               <div className="fees-collection-form border rounded-lg p-4 bg-muted/20">
@@ -1502,21 +1550,28 @@ const FeeManagement = () => {
                   <div className="space-y-2">
                     <Label>Fee Type *</Label>
                     <Select 
-                      value={selectedFeeType && selectedFeeType !== 'all' ? selectedFeeType : ''} 
+                      value={paymentFeeTypeId}
+                      disabled={!selectedStudent || loadingStudentFeeAssignments || studentFeeAssignmentsError}
                       onValueChange={(value) => {
-                        setSelectedFeeType(value);
+                        setPaymentFeeTypeId(value);
                         setPaymentAmount('');
                         setResolvedStructureAmount(null);
                         setValidationErrors(prev => ({ ...prev, feeType: '' }));
                       }}
                     >
                       <SelectTrigger className={validationErrors.feeType ? 'border-red-500' : ''}>
-                        <SelectValue placeholder="Select fee type" />
+                        <SelectValue placeholder={
+                          !selectedStudent
+                            ? 'Select a student first'
+                            : loadingStudentFeeAssignments
+                              ? 'Loading assigned fees…'
+                              : 'Select assigned fee'
+                        } />
                       </SelectTrigger>
                       <SelectContent>
-                        {(feeTypes || []).map((type) => (
-                          <SelectItem key={type.id} value={type.id.toString()}>
-                            {type.name}
+                        {paymentFeeOptions.map(({ feeType, label }) => (
+                          <SelectItem key={feeType.id} value={feeType.id.toString()}>
+                            {label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1657,7 +1712,7 @@ const FeeManagement = () => {
                   <Button 
                     onClick={collectFee} 
                     className={`flex-1 ${isDaily ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white' : ''}`}
-                    disabled={paymentLoading || !selectedStudent || !selectedFeeType || selectedFeeType === 'all' || (isDaily ? resolvedStructureAmount == null : !paymentAmount)}
+                    disabled={paymentLoading || !selectedStudent || !paymentFeeTypeId || loadingStudentFeeAssignments || studentFeeAssignmentsError || (isDaily ? resolvedStructureAmount == null : !paymentAmount)}
                   >
                     {paymentLoading ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -1669,7 +1724,7 @@ const FeeManagement = () => {
                     {paymentLoading ? 'Recording…' : isDaily ? 'Mark as Paid' : 'Record Payment'}
                   </Button>
                   {selectedStudent && (
-                    <Button variant="outline" onClick={() => setSelectedStudent(null)} disabled={paymentLoading}>
+                    <Button variant="outline" onClick={resetPaymentForm} disabled={paymentLoading}>
                       Clear Student
                     </Button>
                   )}
