@@ -40,7 +40,7 @@ RUN echo '#!/bin/sh' > /start.sh && \
     echo 'echo "=== Ensuring SaaS owner superadmin exists ==="' >> /start.sh && \
     echo 'python manage.py seed_production' >> /start.sh && \
     echo 'echo "=== Starting Gunicorn Server on port $PORT ==="' >> /start.sh && \
-    echo 'exec gunicorn school_report_saas.wsgi:application --bind 0.0.0.0:${PORT:-8080} --workers=5 --worker-class=gevent --timeout=120 --log-level=info --access-logfile - --error-logfile -' >> /start.sh && \
+    echo 'exec gunicorn school_report_saas.wsgi:application --bind 0.0.0.0:${PORT:-8080} --workers="${WEB_CONCURRENCY:-2}" --worker-class=gevent --worker-connections="${GUNICORN_WORKER_CONNECTIONS:-5}" --timeout=120 --log-level=info --access-logfile - --error-logfile -' >> /start.sh && \
     chmod +x /start.sh
 
 # Add healthcheck for container monitoring

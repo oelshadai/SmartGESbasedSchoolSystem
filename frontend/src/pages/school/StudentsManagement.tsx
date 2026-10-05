@@ -103,8 +103,13 @@ const StudentsManagement = () => {
   };
 
   const handleSaveFeeTier = async (mainFeeTypeId: number, subFeeTypeId: number | null) => {
-    if (!selectedStudent || !subFeeTypeId) return;
+    if (!selectedStudent) return;
     const studentId = selectedStudent.id;
+    const previousSubFeeTypeId = studentFeeTiers[studentId]?.[mainFeeTypeId] ?? null;
+    setStudentFeeTiers(prev => ({
+      ...prev,
+      [studentId]: { ...prev[studentId], [mainFeeTypeId]: subFeeTypeId },
+    }));
     setSavingFeeTier(mainFeeTypeId);
     try {
       await feeService.setStudentSubType({
@@ -118,6 +123,11 @@ const StudentsManagement = () => {
       }));
     } catch (e: any) {
       console.error('Failed to save fee tier', e);
+      setStudentFeeTiers(prev => ({
+        ...prev,
+        [studentId]: { ...prev[studentId], [mainFeeTypeId]: previousSubFeeTypeId },
+      }));
+      toast.error(e?.response?.data?.detail || e?.message || 'Failed to save fee assignment');
     } finally {
       setSavingFeeTier(null);
     }
@@ -882,8 +892,7 @@ const StudentsManagement = () => {
                             value={studentFeeTiers[selectedStudent.id]?.[ft.id] != null ? String(studentFeeTiers[selectedStudent.id][ft.id]) : '__none__'}
                             onValueChange={v => {
                               const subId = v === '__none__' ? null : parseInt(v);
-                              setStudentFeeTiers(prev => ({ ...prev, [ft.id]: subId }));
-                              if (subId) handleSaveFeeTier(ft.id, subId);
+                              void handleSaveFeeTier(ft.id, subId);
                             }}
                           >
                             <SelectTrigger className="w-44 h-8 text-xs">

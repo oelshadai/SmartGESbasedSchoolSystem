@@ -16,9 +16,9 @@ python manage.py collectstatic --noinput --clear || echo "Static files collectio
 echo "Starting Gunicorn server..."
 exec gunicorn school_report_saas.wsgi:application \
   --bind 0.0.0.0:${PORT:-8000} \
-  --workers 4 \
+  --workers "${WEB_CONCURRENCY:-2}" \
   --worker-class gevent \
-  --worker-connections 1000 \
+  --worker-connections "${GUNICORN_WORKER_CONNECTIONS:-5}" \
   --timeout 300 \
   --keep-alive 5 \
   --log-level info

@@ -100,10 +100,12 @@ if _database_url:
     DATABASES = {
         "default": dj_database_url.parse(
             _database_url,
-            conn_max_age=600,
+            # Avoid idle per-worker connections exhausting small production databases.
+            conn_max_age=int(os.environ.get("DB_CONN_MAX_AGE", "0")),
             ssl_require=not DEBUG  # no SSL needed for local dev
         )
     }
+    DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 elif DEBUG:
     # Local development only — SQLite is fine here
     DATABASES = {
