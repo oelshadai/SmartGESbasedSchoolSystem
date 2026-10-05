@@ -197,6 +197,104 @@ class FeeSearchApiTests(TestCase):
         self.assertEqual(response.data['daily_school_days'], 4)
         self.assertEqual(response.data['daily_expected'], 40.0)
 
+    def test_daily_expected_income_uses_main_fee_for_unassigned_students(self):
+        parent_fee = FeeType.objects.create(
+            school=self.school,
+            name='Daily Transport',
+            collection_frequency='DAILY',
+        )
+        bus_fee = FeeType.objects.create(
+            school=self.school,
+            name='Bus Users',
+            collection_frequency='DAILY',
+            parent_fee_type=parent_fee,
+        )
+        walking_fee = FeeType.objects.create(
+            school=self.school,
+            name='Walkers',
+            collection_frequency='DAILY',
+            parent_fee_type=parent_fee,
+        )
+        FeeStructure.objects.create(
+            school=self.school,
+            fee_type=parent_fee,
+            level=self.class_room.level,
+            amount=Decimal('100.00'),
+        )
+        FeeStructure.objects.create(
+            school=self.school,
+            fee_type=bus_fee,
+            level=self.class_room.level,
+            amount=Decimal('10.00'),
+        )
+        FeeStructure.objects.create(
+            school=self.school,
+            fee_type=walking_fee,
+            level=self.class_room.level,
+            amount=Decimal('5.00'),
+        )
+
+        students = []
+        for student_id in (
+            'STD-BUS-001',
+            'STD-WALK-001',
+            'STD-UNASSIGNED-001',
+            'STD-MAIN-ASSIGNED-001',
+        ):
+            student = Student(
+                school=self.school,
+                student_id=student_id,
+                first_name='Daily',
+                last_name='Fee Student',
+                gender='F',
+                date_of_birth='2012-01-01',
+                current_class=self.class_room,
+                guardian_name='Guardian',
+                guardian_phone='0201111111',
+                guardian_address='Test address',
+                admission_date='2024-01-01',
+                user=None,
+            )
+            student._skip_account_creation = True
+            student.save()
+            students.append(student)
+
+        StudentFeeSubType.objects.create(
+            student=students[0],
+            school=self.school,
+            main_fee_type=parent_fee,
+            sub_fee_type=bus_fee,
+        )
+        StudentFeeSubType.objects.create(
+            student=students[1],
+            school=self.school,
+            main_fee_type=parent_fee,
+            sub_fee_type=walking_fee,
+        )
+        StudentFeeSubType.objects.create(
+            student=students[3],
+            school=self.school,
+            main_fee_type=parent_fee,
+            sub_fee_type=None,
+        )
+
+        self.school.term_reopening_date = date(2026, 10, 5)
+        self.school.term_closing_date = date(2026, 10, 9)
+        self.school.daily_fee_closed_dates = ['2026-10-07']
+        self.school.save(update_fields=[
+            'term_reopening_date',
+            'term_closing_date',
+            'daily_fee_closed_dates',
+        ])
+
+        client = APIClient()
+        client.force_authenticate(user=self.admin)
+        response = client.get('/api/fees/reports/collection_summary/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['daily_school_days'], 4)
+        self.assertEqual(response.data['daily_expected'], 860.0)
+
     def test_parent_fee_structure_applies_when_student_has_no_subtype_assignment(self):
         student = Student(
             school=self.school,

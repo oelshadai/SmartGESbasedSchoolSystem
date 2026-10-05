@@ -720,25 +720,60 @@ class FeeReportViewSet(viewsets.ViewSet):
             school=school,
             collection_frequency='DAILY',
             is_active=True,
-        )
+            parent_fee_type__isnull=True,
+        ).prefetch_related('structures', 'sub_types__structures')
         for ft in daily_fee_types:
-            for structure in FeeStructure.objects.filter(school=school, fee_type=ft):
-                student_count = StudentModel.objects.filter(
-                    current_class__school=school,
+            fee_sub_types = list(ft.sub_types.all())
+            main_fee_structures = list(
+                ft.structures.filter(school=school, tier_label='')
+            )
+            if fee_sub_types:
+                fee_structures = [
+                    (sub_type, structure)
+                    for sub_type in fee_sub_types
+                    for structure in sub_type.structures.filter(school=school)
+                ]
+            else:
+                fee_structures = [(None, structure) for structure in main_fee_structures]
+
+            current_term = school.current_term
+            billable_days = daily_school_days
+            if billable_days is None:
+                billable_days = current_term.total_days if current_term and current_term.total_days > 0 else 0
+
+            if fee_sub_types:
+                for structure in main_fee_structures:
+                    students_on_sub_fee_with_structure = StudentFeeSubType.objects.filter(
+                        school=school,
+                        main_fee_type=ft,
+                        sub_fee_type__structures__school=school,
+                        sub_fee_type__structures__level=structure.level,
+                    ).values('student_id')
+                    unassigned_student_count = StudentModel.objects.filter(
+                        school=school,
+                        current_class__level=structure.level,
+                        is_active=True,
+                    ).exclude(
+                        id__in=students_on_sub_fee_with_structure,
+                    ).count()
+                    daily_expected += (
+                        float(structure.amount) * billable_days * unassigned_student_count
+                    )
+
+            for sub_type, structure in fee_structures:
+                eligible_students = StudentModel.objects.filter(
+                    school=school,
                     current_class__level=structure.level,
                     is_active=True,
-                ).count()
-                # Expected = amount per day × billable school days × student count
-                current_term = school.current_term if hasattr(school, 'current_term') and school.current_term else None
-                if not current_term and hasattr(school, 'current_term_id') and school.current_term_id:
-                    from schools.models import Term as TermModel
-                    try:
-                        current_term = TermModel.objects.get(id=school.current_term_id)
-                    except TermModel.DoesNotExist:
-                        current_term = None
-                billable_days = daily_school_days
-                if billable_days is None:
-                    billable_days = current_term.total_days if current_term and current_term.total_days > 0 else 0
+                )
+                if sub_type:
+                    assigned_students = StudentFeeSubType.objects.filter(
+                        school=school,
+                        main_fee_type=ft,
+                        sub_fee_type=sub_type,
+                    ).values('student_id')
+                    eligible_students = eligible_students.filter(id__in=assigned_students)
+                student_count = eligible_students.count()
                 daily_expected += float(structure.amount) * billable_days * student_count
 
         # --- Non-daily (term/year) stats from TermBills ---
