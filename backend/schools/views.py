@@ -217,7 +217,7 @@ class ClassViewSet(viewsets.ModelViewSet):
             if level_group == 'PRIMARY':
                 # Nursery, kindergarten, and Basic 1-6
                 queryset = queryset.filter(level__in=[
-                    'NURSERY', 'KG1', 'KG2',
+                    'NURSERY', 'NURSERY_2', 'KG1', 'KG2',
                     'BASIC_1', 'BASIC_2', 'BASIC_3', 'BASIC_4', 'BASIC_5', 'BASIC_6'
                 ])
             elif level_group == 'JHS':

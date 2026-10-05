@@ -316,10 +316,11 @@ class Term(models.Model):
 
 
 class Class(models.Model):
-    """Class Model (Nursery, KG1-KG2, and Basic 1-9)"""
+    """Class Model (Nursery, Nursery 2, KG1-KG2, and Basic 1-9)"""
     
     LEVEL_CHOICES = [
         ('NURSERY', 'Nursery'),
+        ('NURSERY_2', 'Nursery 2'),
         ('KG1', 'KG 1'),
         ('KG2', 'KG 2'),
         ('BASIC_1', 'Basic 1'),
