@@ -170,6 +170,9 @@ class DailyAttendance(models.Model):
         db_table = 'daily_attendance'
         unique_together = ['student', 'date']
         ordering = ['-date', 'student__last_name', 'student__first_name']
+        indexes = [
+            models.Index(fields=['date'], name='daily_att_date_idx'),
+        ]
     
     def __str__(self):
         return f"{self.student.get_full_name()} - {self.date} - {self.get_status_display()}"
@@ -318,4 +321,3 @@ class ProfileChangeRequest(models.Model):
 
     def __str__(self):
         return f"{self.requester_name} – {self.status} ({self.created_at:%Y-%m-%d})"
-

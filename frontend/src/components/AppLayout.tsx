@@ -157,12 +157,15 @@ const AppLayout = () => {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const seenIds = useRef<Set<number>>(new Set());
+  const isFetchingNotifications = useRef(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const { user, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
 
   const fetchNotifications = useCallback(async () => {
+    if (isFetchingNotifications.current) return;
+    isFetchingNotifications.current = true;
     try {
       const data = await secureApiClient.get<AppNotification[]>('/notifications/notifications/');
       const list = Array.isArray(data) ? data : [];
@@ -190,14 +193,23 @@ const AppLayout = () => {
       newUnread.forEach(n => seenIds.current.add(n.id));
     } catch {
       // silently fail
+    } finally {
+      isFetchingNotifications.current = false;
     }
   }, []);
 
   useEffect(() => {
     if (!user) return;
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
+    const pollIfVisible = () => {
+      if (document.visibilityState === 'visible') void fetchNotifications();
+    };
+    pollIfVisible();
+    const interval = window.setInterval(pollIfVisible, 30000);
+    document.addEventListener('visibilitychange', pollIfVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', pollIfVisible);
+    };
   }, [user, fetchNotifications]);
 
   // Close notification panel on outside click

@@ -446,12 +446,12 @@ def admin_dashboard(request):
             return Response({'error': 'School not assigned'}, status=400)
 
         try:
-            from students.models import Student, Attendance
+            from students.models import Student, DailyAttendance
             from teachers.models import Teacher
             from schools.models import Class, Term
             from assignments.models import Assignment
-            from django.db.models import Count, Q, Avg
-            from datetime import datetime, timedelta
+            from django.db.models import Count, Q
+            from django.utils import timezone
 
             # Basic counts
             students_count = Student.objects.filter(school=school, is_active=True).count()
@@ -478,79 +478,62 @@ def admin_dashboard(request):
                 'attendance_rate': 0,
                 'classes_with_low_attendance': 0
             }
-            
-            if current_term:
-                today = datetime.now().date()
-                
-                # Today's attendance
-                today_attendance = Attendance.objects.filter(
-                    student__school=school,
-                    term=current_term,
-                    date=today
-                ).aggregate(
-                    present=Count('id', filter=Q(status='PRESENT')),
-                    absent=Count('id', filter=Q(status='ABSENT'))
-                )
-                
-                attendance_stats['total_present_today'] = today_attendance['present'] or 0
-                attendance_stats['total_absent_today'] = today_attendance['absent'] or 0
-                
-                # Overall attendance rate for current term
-                total_attendance_records = Attendance.objects.filter(
-                    student__school=school,
-                    term=current_term
-                ).count()
-                
-                if total_attendance_records > 0:
-                    present_records = Attendance.objects.filter(
-                        student__school=school,
-                        term=current_term,
-                        status='PRESENT'
-                    ).count()
-                    attendance_stats['attendance_rate'] = round((present_records / total_attendance_records) * 100, 1)
-                
-                # Classes with low attendance (below 80%)
-                classes_with_low_attendance = 0
-                for class_obj in Class.objects.filter(school=school):
-                    class_attendance = Attendance.objects.filter(
-                        student__current_class=class_obj,
-                        term=current_term
-                    ).aggregate(
-                        total=Count('id'),
-                        present=Count('id', filter=Q(status='PRESENT'))
-                    )
-                    
-                    if class_attendance['total'] and class_attendance['total'] > 0:
-                        class_rate = (class_attendance['present'] / class_attendance['total']) * 100
-                        if class_rate < 80:
-                            classes_with_low_attendance += 1
-                
-                attendance_stats['classes_with_low_attendance'] = classes_with_low_attendance
 
-            # Class statistics with student counts and attendance
+            today = timezone.localdate()
+            today_attendance = DailyAttendance.objects.filter(
+                student__school=school,
+                date=today
+            ).aggregate(
+                present=Count('id', filter=Q(status__in=('present', 'late'))),
+                absent=Count('id', filter=Q(status='absent'))
+            )
+            attendance_stats['total_present_today'] = today_attendance['present'] or 0
+            attendance_stats['total_absent_today'] = today_attendance['absent'] or 0
+
+            attendance_by_class = {}
+            if current_term:
+                term_attendance = DailyAttendance.objects.filter(
+                    student__school=school,
+                    date__range=(current_term.start_date, current_term.end_date),
+                ).values('class_instance_id').annotate(
+                    total=Count('id'),
+                    present=Count('id', filter=Q(status__in=('present', 'late'))),
+                )
+                attendance_by_class = {
+                    row['class_instance_id']: row
+                    for row in term_attendance
+                }
+
+                total_attendance_records = sum(row['total'] for row in attendance_by_class.values())
+                present_records = sum(row['present'] for row in attendance_by_class.values())
+                if total_attendance_records > 0:
+                    attendance_stats['attendance_rate'] = round((present_records / total_attendance_records) * 100, 1)
+
+                attendance_stats['classes_with_low_attendance'] = sum(
+                    1
+                    for row in attendance_by_class.values()
+                    if row['total'] > 0 and row['present'] / row['total'] * 100 < 80
+                )
+
+            # Aggregate roster sizes in one query rather than querying once per class.
             class_stats = []
-            for class_obj in Class.objects.filter(school=school).select_related('class_teacher'):
-                student_count = Student.objects.filter(current_class=class_obj, is_active=True).count()
-                
-                # Class attendance rate
+            classes = Class.objects.filter(school=school).select_related('class_teacher').annotate(
+                student_count=Count('students', filter=Q(students__is_active=True), distinct=True)
+            )
+            for class_obj in classes:
                 class_attendance_rate = 0
-                if current_term:
-                    class_attendance = Attendance.objects.filter(
-                        student__current_class=class_obj,
-                        term=current_term
-                    ).aggregate(
-                        total=Count('id'),
-                        present=Count('id', filter=Q(status='PRESENT'))
+                class_attendance = attendance_by_class.get(class_obj.id)
+                if class_attendance and class_attendance['total'] > 0:
+                    class_attendance_rate = round(
+                        (class_attendance['present'] / class_attendance['total']) * 100,
+                        1,
                     )
-                    
-                    if class_attendance['total'] and class_attendance['total'] > 0:
-                        class_attendance_rate = round((class_attendance['present'] / class_attendance['total']) * 100, 1)
                 
                 class_stats.append({
                     'id': class_obj.id,
-                    'name': class_obj.name,
+                    'name': class_obj.full_name,
                     'level': class_obj.level,
-                    'student_count': student_count,
+                    'student_count': class_obj.student_count,
                     'class_teacher': class_obj.class_teacher.get_full_name() if class_obj.class_teacher else 'Not Assigned',
                     'attendance_rate': class_attendance_rate
                 })

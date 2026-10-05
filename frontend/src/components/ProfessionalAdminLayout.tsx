@@ -713,7 +713,6 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
         <div className="p-3 lg:p-4 border-t border-[#f0c040]/20">
           {collapsed ? (
             <div className="flex flex-col items-center gap-2">
-              {user?.role !== 'TEACHER' && user?.role !== 'STUDENT' && <NotificationPanel />}
               <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
                 <AlertDialogTrigger asChild>
                   <button className="h-8 w-8 rounded-md flex items-center justify-center bg-red-500/10 text-red-400 hover:bg-red-500/20">
@@ -736,12 +735,6 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
             </div>
           ) : (
             <div className="space-y-2">
-              {user?.role !== 'TEACHER' && user?.role !== 'STUDENT' && (
-                <div className="px-1">
-                  <NotificationPanel />
-                </div>
-              )}
-              
               <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
                 <AlertDialogTrigger asChild>
                   <Button

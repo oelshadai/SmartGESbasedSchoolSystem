@@ -36,8 +36,11 @@ const NotificationPanel = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
+  const isFetching = useRef(false);
 
   const fetchNotifications = useCallback(async () => {
+    if (isFetching.current) return;
+    isFetching.current = true;
     try {
       const data = await secureApiClient.get<{ results?: Notification[] } | Notification[]>(
         '/notifications/notifications/?ordering=-created_at&page_size=30'
@@ -47,13 +50,22 @@ const NotificationPanel = () => {
       setUnread(list.filter((n) => !n.read).length);
     } catch {
       // silently ignore — user may not be logged in yet
+    } finally {
+      isFetching.current = false;
     }
   }, []);
 
   useEffect(() => {
-    fetchNotifications();
-    const id = setInterval(fetchNotifications, POLL_INTERVAL);
-    return () => clearInterval(id);
+    const pollIfVisible = () => {
+      if (document.visibilityState === 'visible') void fetchNotifications();
+    };
+    pollIfVisible();
+    const id = window.setInterval(pollIfVisible, POLL_INTERVAL);
+    document.addEventListener('visibilitychange', pollIfVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', pollIfVisible);
+    };
   }, [fetchNotifications]);
 
   // Close on outside click
