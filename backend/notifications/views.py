@@ -5,7 +5,6 @@ from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from .models import Notification, SupportTicket, PushSubscription, SmsLog
 from .serializers import NotificationSerializer, SupportTicketSerializer, SmsLogSerializer
-from django.db.models import Q
 from .email_service import EmailService
 from django.conf import settings
 
@@ -96,13 +95,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        user = self.request.user
-        if user.role == 'SCHOOL_ADMIN':
-            return Notification.objects.filter(
-                Q(user=user) | Q(user__school=user.school)
-            ).distinct()
-        else:
-            return Notification.objects.filter(user=user)
+        return Notification.objects.filter(user=self.request.user)
     
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -294,7 +287,8 @@ class SmsLogViewSet(viewsets.ReadOnlyModelViewSet):
         qs = SmsLog.objects.filter(school=user.school)
         sms_type = self.request.query_params.get('type')
         if sms_type:
-            qs = qs.filter(sms_type=sms_type)
+            sms_types = [value.strip() for value in sms_type.split(',') if value.strip()]
+            qs = qs.filter(sms_type__in=sms_types)
         status_filter = self.request.query_params.get('status')
         if status_filter:
             qs = qs.filter(status=status_filter)
