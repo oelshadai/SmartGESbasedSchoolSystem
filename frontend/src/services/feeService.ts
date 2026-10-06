@@ -680,10 +680,10 @@ class FeeService {
     );
   }
 
-  async getClassCollectionRoster(classId: number, mainFeeTypeId: number): Promise<TeacherCollectionRosterEntry[]> {
+  async getClassCollectionRoster(classId: number, mainFeeTypeId: number, date?: string): Promise<TeacherCollectionRosterEntry[]> {
     return this.makeRequest(async () => {
       const response = await secureApiClient.get('/fees/student-sub-types/class_roster/', {
-        params: { class_id: classId, main_fee_type: mainFeeTypeId },
+        params: { class_id: classId, main_fee_type: mainFeeTypeId, date },
       });
       return { data: Array.isArray(response) ? response : response?.results || [] };
     });

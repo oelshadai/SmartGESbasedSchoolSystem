@@ -111,7 +111,7 @@ class StudentFeeSerializer(serializers.ModelSerializer):
         ]
     
     def get_student_name(self, obj):
-        return f"{obj.student.user.first_name} {obj.student.user.last_name}"
+        return obj.student.get_full_name()
 
 
 class FeePaymentSerializer(serializers.ModelSerializer):
@@ -138,7 +138,7 @@ class FeePaymentSerializer(serializers.ModelSerializer):
         read_only_fields = ['payment_date', 'created_at', 'updated_at']
     
     def get_student_name(self, obj):
-        return f"{obj.student.user.first_name} {obj.student.user.last_name}"
+        return obj.student.get_full_name()
 
     def get_school_logo(self, obj):
         if not obj.school.logo:
@@ -397,7 +397,7 @@ class TermBillSerializer(serializers.ModelSerializer):
         read_only_fields = ['amount_paid', 'balance', 'status', 'created_at', 'updated_at']
 
     def get_student_name(self, obj):
-        return f"{obj.student.user.first_name} {obj.student.user.last_name}"
+        return obj.student.get_full_name()
 
 
 class GenerateBillsSerializer(serializers.Serializer):
@@ -442,7 +442,7 @@ class WeeklyBillSerializer(serializers.ModelSerializer):
         read_only_fields = ['amount_paid', 'balance', 'status', 'created_at', 'updated_at']
 
     def get_student_name(self, obj):
-        return f"{obj.student.user.first_name} {obj.student.user.last_name}"
+        return obj.student.get_full_name()
 
 
 class StudentInitiatePaymentSerializer(serializers.Serializer):

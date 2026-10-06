@@ -300,7 +300,7 @@ const ProfessionalLoginPage = () => {
                         <button
                           type="button"
                           onClick={() => { setShowForgot(true); setForgotMessage(''); setForgotError(''); }}
-                          className="text-[9px] sm:text-[11px] text-[#0f2a5e] hover:text-blue-700 transition-colors"
+                          className="login-navy-text text-[9px] sm:text-[11px] hover:text-blue-700 transition-colors"
                         >
                           Forgot Password?
                         </button>

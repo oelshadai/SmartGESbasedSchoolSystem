@@ -37,12 +37,9 @@ const AttendanceManagement = () => {
   const [attendance, setAttendance] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
   const [attendanceAlreadyTaken, setAttendanceAlreadyTaken] = useState(false);
-  // Daily fee collection embedded in attendance
+  // Daily fees enabled for class teachers are recorded when attendance is saved.
   const [dailyFeeType, setDailyFeeType] = useState<FeeType | null>(null);
   const [feeRoster, setFeeRoster] = useState<TeacherCollectionRosterEntry[]>([]);
-  const [feePaid, setFeePaid] = useState<Record<number, boolean>>({});
-  const [savedFeeAmount, setSavedFeeAmount] = useState<number>(0);
-  const [savedFeeCount, setSavedFeeCount] = useState<number>(0);
   // Cover classes
   const [coverClassIds, setCoverClassIds] = useState<number[]>([]);
   const [coverClasses, setCoverClasses] = useState<Class[]>([]);
@@ -197,25 +194,13 @@ const AttendanceManagement = () => {
           !ft.parent_fee_type
       ) ?? null;
       setDailyFeeType(dailyType);
-      setFeePaid({});
-      setSavedFeeAmount(0);
-      setSavedFeeCount(0);
       if (dailyType) {
         const roster = await feeService.getClassCollectionRoster(
           parseInt(selectedClass),
-          dailyType.id
+          dailyType.id,
+          format(date, "yyyy-MM-dd")
         );
-        console.log('[Attendance] Fee roster loaded:', roster);
         setFeeRoster(roster || []);
-        // Restore already-collected amount from backend
-        const alreadyCollected = (roster || []).reduce((s, r) => s + (r.paid_today || 0), 0);
-        const alreadyCount = (roster || []).filter(r => (r.paid_today || 0) > 0).length;
-        setSavedFeeAmount(alreadyCollected);
-        setSavedFeeCount(alreadyCount);
-        // Pre-mark students who already paid today
-        const prePaid: Record<number, boolean> = {};
-        (roster || []).forEach(r => { if ((r.paid_today || 0) > 0) prePaid[r.student_id] = true; });
-        setFeePaid(prePaid);
       } else {
         setFeeRoster([]);
       }
@@ -265,38 +250,26 @@ const AttendanceManagement = () => {
         attendance: attendanceData
       });
 
-      // Also record daily fee payments if any student was marked paid
       let feeMsg = "";
-      if (dailyFeeType) {
-        const paidStudents = feeRoster.filter(
-          (r) => feePaid[r.student_id] && r.amount != null && !(r.paid_today && r.paid_today > 0)
-        );
-        if (paidStudents.length > 0) {
-          try {
-            const feeRes = await feeService.bulkCollect({
-              fee_type: dailyFeeType.id,
-              class_id: parseInt(selectedClass),
-              payments: paidStudents.map((r) => ({ student: r.student_id, amount: r.amount! })),
-              payment_method: "CASH",
-            });
-            setSavedFeeAmount(prev => prev + (feeRes.total_amount || 0));
-            setSavedFeeCount(prev => prev + (feeRes.recorded || 0));
-            feeMsg = ` · GH₵${feeRes.total_amount.toFixed(2)} fee collected from ${feeRes.recorded} student(s).`;
-          } catch {
-            toast({ title: "Fee warning", description: "Attendance saved but fee collection failed.", variant: "destructive" });
-          }
-        }
+      if (response.daily_fee_count > 0) {
+        feeMsg = ` ${response.daily_fee_count} daily fee payment(s) recorded automatically (GH₵${response.daily_fee_total.toFixed(2)}).`;
       }
 
-      toast({ 
-        title: "Success", 
-        description: `Attendance saved. ${response.saved_count} new records, ${response.updated_count} updated.${feeMsg}`
-      });
+      const attendanceMessage = `Attendance saved. ${response.saved_count} new records, ${response.updated_count} updated.${feeMsg}`;
+      if (response.errors?.length) {
+        toast({
+          title: "Attendance saved with errors",
+          description: `${attendanceMessage} ${response.errors.join(' ')}`,
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Success", description: attendanceMessage });
+      }
       
       // Refresh classes to update attendance status
       fetchClasses();
+      if (dailyFeeType) void fetchDailyFees();
       setAttendanceAlreadyTaken(true);
-      setFeePaid({});
       
     } catch (error: any) {
       console.error('Error saving attendance:', error);
@@ -320,6 +293,11 @@ const AttendanceManagement = () => {
   };
 
   const summary = getAttendanceSummary();
+  const pendingDailyFeeAmount = feeRoster.reduce((total, entry) => {
+    const isPresent = attendance[entry.student_id] === 'present' || attendance[entry.student_id] === 'late';
+    if (!isPresent || entry.amount == null) return total;
+    return total + Math.max(0, entry.amount - (entry.paid_today || 0));
+  }, 0);
 
   return (
     <div className="attendance-page min-h-full w-full max-w-full overflow-x-hidden">
@@ -414,15 +392,11 @@ const AttendanceManagement = () => {
                   const roster = feeRoster || [];
                   const withAmount = roster.filter(r => r.amount != null);
                   const totalCollectable = withAmount.reduce((s, r) => s + (r.amount || 0), 0);
-                  const pendingCollect = roster.filter(r => feePaid[r.student_id] && r.amount != null).reduce((s, r) => s + (r.amount || 0), 0);
-                  const collected = savedFeeAmount + pendingCollect;
                   return (
                     <div className="text-center col-span-2 sm:col-span-1">
-                      <p className="text-xl sm:text-2xl font-bold text-emerald-600">
-                        GH₵{collected.toFixed(2)}
-                      </p>
+                      <p className="text-xl sm:text-2xl font-bold text-emerald-600">GH₵{pendingDailyFeeAmount.toFixed(2)}</p>
                       <p className="text-xs sm:text-sm text-muted-foreground">
-                        {totalCollectable > 0 ? `of GH₵${totalCollectable.toFixed(2)}` : 'Fee Collected'}
+                        {totalCollectable > 0 ? 'Daily fee to mark paid' : 'Daily fee'}
                       </p>
                     </div>
                   );
@@ -466,8 +440,11 @@ const AttendanceManagement = () => {
                     {students.map(student => {
                           const rosterEntry = (feeRoster || []).find(r => r.student_id === student.id);
                           const hasFee = dailyFeeType && rosterEntry && rosterEntry.amount != null;
-                          const alreadyPaidToday = !!(rosterEntry?.paid_today && rosterEntry.paid_today > 0);
-                          const paid = !!feePaid[student.id];
+                          const paidToday = rosterEntry?.paid_today || 0;
+                          const remainingAmount = rosterEntry?.amount == null
+                            ? 0
+                            : Math.max(0, rosterEntry.amount - paidToday);
+                          const willAutoMarkPaid = ['present', 'late'].includes(attendance[student.id]) && remainingAmount > 0;
                           return (
                             <tr key={student.id} className={`hover:bg-muted/50 ${paid ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''}`}>
                               <td className="px-4 py-3 text-sm font-medium">{student.student_id}</td>
@@ -513,26 +490,23 @@ const AttendanceManagement = () => {
                               {dailyFeeType && (
                                 <td className="px-4 py-3 text-center">
                                   {hasFee ? (
-                                    alreadyPaidToday ? (
+                                    remainingAmount === 0 && paidToday > 0 ? (
                                       <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border bg-emerald-100 border-emerald-400 text-emerald-800 dark:bg-emerald-900/40 dark:border-emerald-600 dark:text-emerald-300 cursor-default">
                                         <CheckCircle className="h-3 w-3" />
-                                        Paid GH₵{rosterEntry!.paid_today!.toFixed(2)}
+                                        Paid GH₵{paidToday.toFixed(2)}
                                       </span>
                                     ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setFeePaid(prev => ({ ...prev, [student.id]: !prev[student.id] }));
-                                      }}
-                                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border transition-colors ${
-                                        paid
-                                          ? 'bg-emerald-100 border-emerald-400 text-emerald-800 dark:bg-emerald-900/40 dark:border-emerald-600 dark:text-emerald-300'
-                                          : 'bg-card border-border text-muted-foreground hover:border-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-400'
-                                      }`}
-                                    >
-                                      <DollarSign className="h-3 w-3" />
-                                      {paid ? `Paid  GH₵${rosterEntry!.amount!.toFixed(2)}` : `GH₵${rosterEntry!.amount!.toFixed(2)}`}
-                                    </button>
+                                      <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border ${
+                                        willAutoMarkPaid
+                                          ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                                          : 'bg-card border-border text-muted-foreground'
+                                      }`}>
+                                        {willAutoMarkPaid
+                                          ? `Paid on save GH₵${remainingAmount.toFixed(2)}`
+                                          : paidToday > 0
+                                            ? `GH₵${paidToday.toFixed(2)} paid`
+                                            : 'Not charged'}
+                                      </span>
                                     )
                                   ) : rosterEntry && rosterEntry.amount == null ? (
                                     <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
@@ -556,11 +530,14 @@ const AttendanceManagement = () => {
                 {students.map(student => {
                   const rosterEntry = (feeRoster || []).find(r => r.student_id === student.id);
                   const hasFee = dailyFeeType && rosterEntry && rosterEntry.amount != null;
-                  const alreadyPaidToday = !!(rosterEntry?.paid_today && rosterEntry.paid_today > 0);
-                  const paid = !!feePaid[student.id];
                   const status = attendance[student.id];
+                  const paidToday = rosterEntry?.paid_today || 0;
+                  const remainingAmount = rosterEntry?.amount == null
+                    ? 0
+                    : Math.max(0, rosterEntry.amount - paidToday);
+                  const willAutoMarkPaid = ['present', 'late'].includes(status) && remainingAmount > 0;
                   return (
-                    <div key={student.id} className={`border rounded-xl p-3 space-y-2.5 ${paid ? 'bg-emerald-50 border-emerald-200' : 'bg-card'}`}>
+                    <div key={student.id} className="border rounded-xl p-3 space-y-2.5 bg-card">
                       {/* Student info row */}
                       <div className="flex items-center gap-3">
                         {student.photo ? (
@@ -586,50 +563,50 @@ const AttendanceManagement = () => {
                           size="sm"
                           variant={status === "present" ? "default" : "outline"}
                           onClick={() => markAttendance(student.id, "present")}
-                          className={`flex-1 h-9 text-xs ${status === "present" ? "bg-green-600 hover:bg-green-700" : ""}`}
+                          aria-pressed={status === "present"}
+                          className={`flex-1 min-w-0 h-11 px-1 text-xs ${status === "present" ? "bg-green-600 hover:bg-green-700" : ""}`}
                         >
-                          <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                          <CheckCircle className="h-3.5 w-3.5 mr-1 shrink-0" />
                           Present
                         </Button>
                         <Button
                           size="sm"
                           variant={status === "absent" ? "destructive" : "outline"}
                           onClick={() => markAttendance(student.id, "absent")}
-                          className="flex-1 h-9 text-xs"
+                          aria-pressed={status === "absent"}
+                          className="flex-1 min-w-0 h-11 px-1 text-xs"
                         >
-                          <XCircle className="h-3.5 w-3.5 mr-1" />
+                          <XCircle className="h-3.5 w-3.5 mr-1 shrink-0" />
                           Absent
                         </Button>
                         <Button
                           size="sm"
                           variant={status === "late" ? "secondary" : "outline"}
                           onClick={() => markAttendance(student.id, "late")}
-                          className={`flex-1 h-9 text-xs ${status === "late" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : ""}`}
+                          aria-pressed={status === "late"}
+                          className={`flex-1 min-w-0 h-11 px-1 text-xs ${status === "late" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : ""}`}
                         >
-                          <Clock className="h-3.5 w-3.5 mr-1" />
+                          <Clock className="h-3.5 w-3.5 mr-1 shrink-0" />
                           Late
                         </Button>
                       </div>
-                      {/* Fee toggle */}
-                      {dailyFeeType && hasFee && alreadyPaidToday && (
+                      {dailyFeeType && hasFee && remainingAmount === 0 && paidToday > 0 && (
                         <span className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold border bg-emerald-100 border-emerald-400 text-emerald-800 cursor-default">
                           <CheckCircle className="h-3 w-3" />
-                          Paid GH₵{rosterEntry!.paid_today!.toFixed(2)}
+                          Paid GH₵{paidToday.toFixed(2)}
                         </span>
                       )}
-                      {dailyFeeType && hasFee && !alreadyPaidToday && (
-                        <button
-                          type="button"
-                          onClick={() => setFeePaid(prev => ({ ...prev, [student.id]: !prev[student.id] }))}
-                          className={`w-full inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold border transition-colors ${
-                            paid
-                              ? 'bg-emerald-100 border-emerald-400 text-emerald-800'
-                              : 'bg-white border-gray-300 text-foreground/70 hover:border-emerald-400 hover:text-emerald-700'
-                          }`}
-                        >
+                      {dailyFeeType && hasFee && remainingAmount > 0 && (
+                        <span className={`w-full inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold border ${
+                          willAutoMarkPaid
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                            : 'bg-muted border-border text-muted-foreground'
+                        }`}>
                           <DollarSign className="h-3 w-3" />
-                          {paid ? `Paid GH₵${rosterEntry!.amount!.toFixed(2)}` : `Pay GH₵${rosterEntry!.amount!.toFixed(2)}`}
-                        </button>
+                          {willAutoMarkPaid
+                            ? `Will be marked paid on save: GH₵${remainingAmount.toFixed(2)}`
+                            : `Daily fee: GH₵${remainingAmount.toFixed(2)}`}
+                        </span>
                       )}
                       {dailyFeeType && !hasFee && rosterEntry && rosterEntry.amount == null && (
                         <div className="w-full text-center text-xs text-amber-600 font-medium flex items-center justify-center gap-1 py-1">
@@ -644,25 +621,17 @@ const AttendanceManagement = () => {
 
               {/* Fee collection summary before save */}
               {dailyFeeType && (() => {
-                const paidStudents = (feeRoster || []).filter(r => feePaid[r.student_id] && r.amount != null);
                 const unassignedCount = (feeRoster || []).filter(r => r.amount == null).length;
-                const totalFee = paidStudents.reduce((sum, r) => sum + (r.amount || 0), 0);
-                return (paidStudents.length > 0 || unassignedCount > 0) ? (
+                return (pendingDailyFeeAmount > 0 || unassignedCount > 0) ? (
                   <div className="p-3 sm:p-4 rounded-lg border space-y-2 bg-emerald-50 border-emerald-200">
                     <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
                       <DollarSign className="h-4 w-4" />
-                      Fee Collection Summary
+                      Attendance-linked daily fee
                     </div>
-                    {paidStudents.length > 0 && (
+                    {pendingDailyFeeAmount > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-emerald-700">Students paying:</span>
-                        <span className="font-bold text-emerald-800">{paidStudents.length} student{paidStudents.length !== 1 ? 's' : ''}</span>
-                      </div>
-                    )}
-                    {paidStudents.length > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-emerald-700">Total to collect:</span>
-                        <span className="font-bold text-emerald-800 text-base">GH₵{totalFee.toFixed(2)}</span>
+                        <span className="text-emerald-700">To be marked paid when attendance is saved:</span>
+                        <span className="font-bold text-emerald-800 text-base">GH₵{pendingDailyFeeAmount.toFixed(2)}</span>
                       </div>
                     )}
                     {unassignedCount > 0 && (
@@ -678,16 +647,14 @@ const AttendanceManagement = () => {
               <Button 
                 onClick={saveAttendance} 
                 disabled={loading || students.length === 0} 
-                className="w-full"
+                className="sticky bottom-3 z-10 w-full min-h-12 shadow-lg sm:static sm:shadow-none"
                 size="lg"
               >
-                {loading ? "Saving..." : (() => {
-                  const paidCount = (feeRoster || []).filter(r => feePaid[r.student_id] && r.amount != null).length;
-                  const totalFee = (feeRoster || []).filter(r => feePaid[r.student_id] && r.amount != null).reduce((s, r) => s + (r.amount || 0), 0);
-                  return paidCount > 0
-                    ? `Save Attendance & Collect GH₵${totalFee.toFixed(2)}`
-                    : "Save Attendance";
-                })()}
+                {loading
+                  ? "Saving..."
+                  : pendingDailyFeeAmount > 0
+                    ? `Save Attendance · Mark GH₵${pendingDailyFeeAmount.toFixed(2)} paid`
+                    : "Save Attendance"}
               </Button>
             </>
           )}

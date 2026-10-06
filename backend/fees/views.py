@@ -182,11 +182,16 @@ class StudentFeeSubTypeViewSet(viewsets.ModelViewSet):
         """
         class_id = request.query_params.get('class_id')
         main_fee_type_id = request.query_params.get('main_fee_type')
+        requested_date = request.query_params.get('date')
         if not class_id or not main_fee_type_id:
             return Response(
                 {'error': 'class_id and main_fee_type are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        from django.utils import timezone
+        selected_date = parse_date(requested_date) if requested_date else timezone.localdate()
+        if selected_date is None:
+            return Response({'error': 'date must be a valid YYYY-MM-DD date'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             main_fee_type = FeeType.objects.get(id=main_fee_type_id, school=request.user.school)
@@ -234,15 +239,14 @@ class StudentFeeSubTypeViewSet(viewsets.ModelViewSet):
                 tier_label='',
             ).first()
 
-        # Today's already-collected payments for this fee type + class
-        from django.utils import timezone
-        today = timezone.localdate()
+        # Include attendance-linked and manually collected daily payments for the selected day.
         today_payments = {}
         for p in FeePayment.objects.filter(
             school=request.user.school,
             fee_type=main_fee_type,
             student__current_class_id=class_id,
-            payment_date__date=today,
+        ).filter(
+            Q(attendance_date=selected_date) | Q(payment_date__date=selected_date)
         ).values('student_id').annotate(paid_today=Sum('amount_paid')):
             today_payments[p['student_id']] = float(p['paid_today'])
 
@@ -1394,7 +1398,7 @@ class TermBillViewSet(viewsets.ModelViewSet):
         return Response({
             'student': {
                 'id': student.id,
-                'name': f"{student.user.first_name} {student.user.last_name}",
+                'name': student.get_full_name(),
                 'student_id': student.student_id,
                 'class': str(student.current_class) if student.current_class else '',
             },
@@ -2161,7 +2165,7 @@ class StudentPaymentViewSet(viewsets.ViewSet):
         return Response({
             'student': {
                 'id': student.id,
-                'name': f"{student.user.first_name} {student.user.last_name}",
+                'name': student.get_full_name(),
                 'student_id': student.student_id,
                 'class': str(student.current_class) if student.current_class else '',
             },

@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from fees.models import FeePayment, FeeStructure, FeeType, StudentFeeSubType
+from fees.models import FeePayment, FeeStructure, FeeType, StudentFee, StudentFeeSubType
 from fees.serializers import FeePaymentCreateSerializer, GenerateWeeklyBillsSerializer
 from schools.models import School, Class
 from students.models import Student
@@ -76,6 +76,51 @@ class FeeSearchApiTests(TestCase):
         self.assertEqual(response.data[0]['student_id'], 'STD-001')
         self.assertEqual(response.data[0]['first_name'], 'Ada')
         self.assertEqual(response.data[0]['last_name'], 'Lovelace')
+
+    def test_fee_lists_serialize_students_without_portal_accounts(self):
+        student = Student(
+            school=self.school,
+            student_id='STD-NO-PORTAL-001',
+            first_name='Ada',
+            last_name='Lovelace',
+            gender='F',
+            date_of_birth='2012-01-01',
+            current_class=self.class_room,
+            guardian_name='Guardian',
+            guardian_phone='0201111111',
+            guardian_address='Test address',
+            admission_date='2024-01-01',
+            user=None,
+        )
+        student._skip_account_creation = True
+        student.save()
+        fee_type = FeeType.objects.create(
+            school=self.school,
+            name='Tuition',
+            collection_frequency='TERM',
+        )
+        StudentFee.objects.create(
+            student=student,
+            school=self.school,
+            total_amount=Decimal('100.00'),
+        )
+        FeePayment.objects.create(
+            student=student,
+            school=self.school,
+            fee_type=fee_type,
+            amount_paid=Decimal('25.00'),
+            collected_by=self.admin,
+        )
+
+        client = APIClient()
+        client.force_authenticate(user=self.admin)
+        student_fees_response = client.get('/api/fees/student-fees/')
+        payments_response = client.get('/api/fees/payments/')
+
+        self.assertEqual(student_fees_response.status_code, 200)
+        self.assertEqual(payments_response.status_code, 200)
+        self.assertEqual(student_fees_response.data['results'][0]['student_name'], 'Ada Lovelace')
+        self.assertEqual(payments_response.data['results'][0]['student_name'], 'Ada Lovelace')
 
     def test_daily_payment_requires_assigned_subtype_structure_instead_of_main_fee_fallback(self):
         student = Student(

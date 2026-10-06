@@ -3079,6 +3079,11 @@ const FeeManagement = () => {
                         </Label>
                       </div>
                     </div>
+                    {ftFreq === 'DAILY' && (
+                      <p className="text-xs text-muted-foreground">
+                        When enabled, present or late attendance automatically records this daily fee as paid for the class teacher's own class.
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground">
                       School Admin and Principal can always collect any fee type.
                     </p>

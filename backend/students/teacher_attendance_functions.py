@@ -2,10 +2,104 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from django.db import transaction
+from django.db.models import Q, Sum
 from django.utils.dateparse import parse_date
 from datetime import date
 from students.models import DailyAttendance, Student
 from schools.models import Class
+
+
+def _auto_record_daily_fee(student, attendance_date, marked_by):
+    from decimal import Decimal
+
+    from django.utils import timezone
+    from fees.models import FeePayment, FeeStructure, FeeType, StudentFee
+
+    class_instance = student.current_class
+    if class_instance is None:
+        return Decimal('0')
+
+    fee_type = FeeType.objects.filter(
+        school=student.school,
+        collection_frequency='DAILY',
+        is_active=True,
+        allow_class_teacher_collection=True,
+        parent_fee_type__isnull=True,
+    ).order_by('name').first()
+    if fee_type is None:
+        return Decimal('0')
+
+    assignment = None
+    if fee_type.sub_types.exists():
+        from fees.models import StudentFeeSubType
+
+        assignment = StudentFeeSubType.objects.filter(
+            student=student,
+            school=student.school,
+            main_fee_type=fee_type,
+        ).first()
+
+    structure_fee_type_id = (
+        assignment.sub_fee_type_id
+        if assignment and assignment.sub_fee_type_id
+        else fee_type.id
+    )
+    structure = FeeStructure.objects.filter(
+        school=student.school,
+        fee_type_id=structure_fee_type_id,
+        level=class_instance.level,
+        tier_label='',
+    ).first()
+    if structure is None or structure.amount <= 0:
+        return Decimal('0')
+
+    with transaction.atomic():
+        already_paid = FeePayment.objects.filter(
+            student=student,
+            school=student.school,
+            fee_type=fee_type,
+        ).filter(
+            Q(attendance_date=attendance_date)
+            | Q(payment_date__date=attendance_date)
+        ).aggregate(total=Sum('amount_paid'))['total'] or Decimal('0')
+        amount_to_record = max(Decimal('0'), structure.amount - already_paid)
+        if amount_to_record <= 0:
+            return Decimal('0')
+
+        payment, created = FeePayment.objects.get_or_create(
+            student=student,
+            fee_type=fee_type,
+            attendance_date=attendance_date,
+            defaults={
+                'school': student.school,
+                'amount_paid': amount_to_record,
+                'payment_method': 'CASH',
+                'collected_by': marked_by,
+                'notes': f'Auto-recorded from attendance on {attendance_date}',
+                'is_verified': True,
+            },
+        )
+        if not created:
+            return Decimal('0')
+
+        student_fee, _ = StudentFee.objects.get_or_create(
+            student=student,
+            school=student.school,
+            defaults={'total_amount': Decimal('0'), 'amount_paid': Decimal('0'), 'balance': Decimal('0')},
+        )
+        student_fee = StudentFee.objects.select_for_update().get(pk=student_fee.pk)
+        student_fee.amount_paid += payment.amount_paid
+        balance = student_fee.total_amount - student_fee.amount_paid
+        student_fee.balance = balance if balance > Decimal('0') else Decimal('0')
+        student_fee.last_payment_date = timezone.now()
+        if student_fee.total_amount > 0 and student_fee.balance <= 0:
+            student_fee.status = 'PAID'
+        elif student_fee.amount_paid > 0:
+            student_fee.status = 'PARTIAL'
+        student_fee.save()
+        return payment.amount_paid
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -129,6 +223,8 @@ def teacher_attendance_save(request):
     
     saved_count = 0
     updated_count = 0
+    daily_fee_count = 0
+    daily_fee_total = 0
     errors = []
     
     for item in attendance_data:
@@ -156,6 +252,16 @@ def teacher_attendance_save(request):
                     'marked_by': request.user
                 }
             )
+
+            if status_value in ('present', 'late'):
+                recorded_amount = _auto_record_daily_fee(
+                    student,
+                    selected_date,
+                    request.user,
+                )
+                if recorded_amount > 0:
+                    daily_fee_count += 1
+                    daily_fee_total += recorded_amount
             
             if created:
                 saved_count += 1
@@ -174,5 +280,7 @@ def teacher_attendance_save(request):
         'saved_count': saved_count,
         'updated_count': updated_count,
         'total_processed': saved_count + updated_count,
+        'daily_fee_count': daily_fee_count,
+        'daily_fee_total': float(daily_fee_total),
         'errors': errors
     })
