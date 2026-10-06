@@ -31,7 +31,7 @@ class StudentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Student
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['school', 'created_at', 'updated_at']
 
 
 class StudentCreateSerializer(serializers.ModelSerializer):
