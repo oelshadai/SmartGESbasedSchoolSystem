@@ -45,13 +45,21 @@ class StudentCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Student
         exclude = ['school']
-    
+        extra_kwargs = {
+            'student_id': {'validators': []},
+        }
+
     def validate_student_id(self, value):
         """Validate student ID using SecurityValidator"""
-        validation = SecurityValidator.validate_student_id(value)
+        normalized_value = value.strip()
+        validation = SecurityValidator.validate_student_id(normalized_value)
         if not validation['valid']:
             raise serializers.ValidationError(validation['error'])
-        return value
+        if Student.objects.filter(student_id__iexact=normalized_value).exists():
+            raise serializers.ValidationError(
+                'This student ID is already in use. Please enter a different ID.'
+            )
+        return normalized_value
     
     def validate_email(self, value):
         """Validate email using SecurityValidator"""

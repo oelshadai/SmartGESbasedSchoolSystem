@@ -33,6 +33,59 @@ class StudentAccountManagementTests(TestCase):
             'admission_date': date(2024, 9, 1),
         }
 
+    def test_student_id_availability_endpoint_reports_duplicate_without_student_details(self):
+        Student.objects.create(**self.student_data('REPEATED01'), school=self.school)
+        admin = get_user_model().objects.create_user(
+            email='availability-admin@example.edu',
+            password='admin-password',
+            role='SCHOOL_ADMIN',
+            school=self.school,
+        )
+        client = APIClient()
+        client.force_authenticate(user=admin)
+
+        response = client.get(
+            '/api/students/check-student-id/',
+            {'student_id': ' repeated01 '},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data['available'])
+        self.assertIn('already in use', response.data['message'])
+        self.assertNotIn('student', response.data)
+
+    def test_student_create_serializer_rejects_case_insensitive_duplicate_id(self):
+        Student.objects.create(**self.student_data('REPEATED02'), school=self.school)
+        serializer = StudentCreateSerializer(
+            data=self.student_data('repeated02'),
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('student_id', serializer.errors)
+        self.assertIn('already in use', str(serializer.errors['student_id']))
+
+    def test_student_create_api_returns_duplicate_id_as_field_error(self):
+        Student.objects.create(**self.student_data('REPEATED03'), school=self.school)
+        admin = get_user_model().objects.create_user(
+            email='duplicate-create-admin@example.edu',
+            password='admin-password',
+            role='SCHOOL_ADMIN',
+            school=self.school,
+        )
+        client = APIClient()
+        client.force_authenticate(user=admin)
+        payload = {
+            key: value.isoformat() if isinstance(value, date) else value
+            for key, value in self.student_data('REPEATED03').items()
+        }
+        payload['create_account'] = 'false'
+
+        response = client.post('/api/students/', payload, format='multipart')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('student_id', response.data)
+        self.assertIn('already in use', str(response.data['student_id']))
+
     def test_create_account_opt_out_creates_student_without_user_or_credentials(self):
         raw_request = APIRequestFactory().post(
             '/api/students/', {'create_account': 'false'}, format='multipart'

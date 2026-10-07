@@ -12,6 +12,23 @@ import { feeService, FeeType } from '@/services/feeService';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuthStore } from '@/stores/authStore';
 
+const studentIdConflictMessage = 'This student ID is already in use. Please enter a different ID.';
+
+const getStudentIdConflictMessage = (error: any): string | null => {
+  const studentIdErrors = error?.response?.data?.student_id;
+  if (
+    Array.isArray(studentIdErrors) &&
+    studentIdErrors.some((message: unknown) =>
+      ['already exists', 'already in use'].some(phrase =>
+        String(message).toLowerCase().includes(phrase)
+      )
+    )
+  ) {
+    return studentIdConflictMessage;
+  }
+  return null;
+};
+
 const StudentsManagement = () => {
   // ... existing state ...
 
@@ -46,6 +63,7 @@ const StudentsManagement = () => {
   });
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [studentIdCheck, setStudentIdCheck] = useState<'idle' | 'checking' | 'available' | 'taken' | 'error'>('idle');
   const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
   const [credentials, setCredentials] = useState<{ student_name: string; username: string; password: string; class_name: string; parent_account_created?: boolean; parent_generated_password?: string | null; guardian_email?: string } | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -461,6 +479,39 @@ const StudentsManagement = () => {
     fetchClasses();
   }, []);
 
+  const checkStudentIdAvailability = async (studentId: string): Promise<boolean> => {
+    const result = await secureApiClient.get<{ available: boolean; message: string }>(
+      `/students/check-student-id/?student_id=${encodeURIComponent(studentId.trim())}`
+    );
+    return result.available;
+  };
+
+  useEffect(() => {
+    const studentId = form.student_id.trim();
+    if (!showDialog || editingStudent || !studentId) {
+      setStudentIdCheck('idle');
+      return;
+    }
+
+    let active = true;
+    setStudentIdCheck('checking');
+    const timeout = window.setTimeout(() => {
+      checkStudentIdAvailability(studentId).then(
+        available => {
+          if (active) setStudentIdCheck(available ? 'available' : 'taken');
+        },
+        () => {
+          if (active) setStudentIdCheck('error');
+        },
+      );
+    }, 350);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [showDialog, editingStudent, form.student_id]);
+
   const handleOpenDialog = () => {
     setForm({
       student_id: '',
@@ -484,10 +535,23 @@ const StudentsManagement = () => {
 
   const handleFormChange = (field: string, value: string | File | null) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+    if (field === 'student_id') {
+      setFormError(null);
+    }
   };
+
+  const hasDuplicateStudentId = !editingStudent && Boolean(form.student_id.trim()) &&
+    (studentIdCheck === 'taken' || students.some((student) =>
+      String(student.student_id ?? '').trim().toLowerCase() === form.student_id.trim().toLowerCase()
+    ));
 
   const handleCreateStudent = async () => {
     setFormError(null);
+
+    if (hasDuplicateStudentId) {
+      setFormError(studentIdConflictMessage);
+      return;
+    }
 
     if (!form.student_id || !form.first_name || !form.last_name || !form.gender || !form.date_of_birth || !form.guardian_name || !form.guardian_phone || !form.guardian_address || !form.admission_date) {
       setFormError('Please fill all required fields.');
@@ -495,6 +559,19 @@ const StudentsManagement = () => {
     }
 
     if (!editingStudent) {
+      try {
+        const available = await checkStudentIdAvailability(form.student_id);
+        setStudentIdCheck(available ? 'available' : 'taken');
+        if (!available) {
+          setFormError(studentIdConflictMessage);
+          return;
+        }
+      } catch {
+        setStudentIdCheck('error');
+        setFormError('We could not verify this student ID. Check your connection and try again.');
+        return;
+      }
+
       // New student: close the form and ask whether to create a login account
       setPendingStudentSnapshot({ ...form });
       setConfirmError(null);
@@ -521,7 +598,7 @@ const StudentsManagement = () => {
       setEditingStudent(null);
       await fetchStudents();
     } catch (err: any) {
-      setFormError(err.message || 'Failed to update student');
+      setFormError(getStudentIdConflictMessage(err) || err.message || 'Failed to update student');
     } finally {
       setCreating(false);
     }
@@ -529,10 +606,10 @@ const StudentsManagement = () => {
 
   const handleAccountConfirmed = async (createAccount: boolean) => {
     if (!pendingStudentSnapshot) return;
+    const snapshot = pendingStudentSnapshot;
     setConfirmSubmitting(true);
     setConfirmError(null);
     try {
-      const snapshot = pendingStudentSnapshot;
       const formData = new FormData();
       Object.entries(snapshot).forEach(([key, value]) => {
         if (value !== null && value !== '') {
@@ -570,7 +647,17 @@ const StudentsManagement = () => {
       }
       await fetchStudents();
     } catch (err: any) {
-      setConfirmError(err.message || 'Failed to create student');
+      const duplicateMessage = getStudentIdConflictMessage(err);
+      if (duplicateMessage) {
+        setShowAccountConfirmDialog(false);
+        setPendingStudentSnapshot(null);
+        setForm(snapshot);
+        setFormError(duplicateMessage);
+        setStudentIdCheck('taken');
+        setShowDialog(true);
+      } else {
+        setConfirmError(err.message || 'Failed to create student');
+      }
     } finally {
       setConfirmSubmitting(false);
     }
@@ -775,7 +862,33 @@ const StudentsManagement = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block text-xs sm:text-sm font-medium mb-1 text-foreground">Student ID *</label>
-                <Input value={form.student_id} onChange={e => handleFormChange('student_id', e.target.value)} placeholder="Student ID" className="text-foreground" />
+                <Input
+                  value={form.student_id}
+                  onChange={e => handleFormChange('student_id', e.target.value)}
+                  placeholder="Student ID"
+                  className="text-foreground"
+                  aria-invalid={hasDuplicateStudentId}
+                />
+                {hasDuplicateStudentId && (
+                  <p className="mt-1 text-sm text-destructive" role="alert">
+                    {studentIdConflictMessage}
+                  </p>
+                )}
+                {!hasDuplicateStudentId && studentIdCheck === 'checking' && (
+                  <p className="mt-1 text-sm text-muted-foreground" role="status">
+                    Checking student ID availability…
+                  </p>
+                )}
+                {!hasDuplicateStudentId && studentIdCheck === 'available' && (
+                  <p className="mt-1 text-sm text-green-700" role="status">
+                    Student ID is available.
+                  </p>
+                )}
+                {!hasDuplicateStudentId && studentIdCheck === 'error' && (
+                  <p className="mt-1 text-sm text-amber-700" role="alert">
+                    Could not verify this ID yet. We’ll check again before continuing.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium mb-1 text-foreground">Admission Date *</label>

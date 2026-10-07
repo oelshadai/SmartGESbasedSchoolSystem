@@ -1,7 +1,8 @@
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from django.db import transaction
+from rest_framework import serializers
+from django.db import IntegrityError, transaction
 from django.utils.dateparse import parse_date
 from .validation import StudentInputValidator, StudentValidationMixin
 from .models import Student, Attendance, Behaviour, StudentPromotion, DailyAttendance
@@ -54,7 +55,53 @@ class StudentViewSet(StudentValidationMixin, viewsets.ModelViewSet):
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
 
         return queryset
-    
+
+    @action(detail=False, methods=['get'], url_path='check-student-id')
+    def check_student_id(self, request):
+        """Check ID availability without exposing any matching student details."""
+        if not getattr(request.user, 'school', None):
+            raise permissions.PermissionDenied("User is not attached to a school")
+
+        student_id = (request.query_params.get('student_id') or '').strip()
+        if not student_id:
+            return Response(
+                {'error': 'Enter a student ID to check availability.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        validation = StudentInputValidator.validate_student_registration(
+            {'student_id': student_id}
+        )
+        if not validation['valid']:
+            return Response(
+                {'error': validation['errors'].get('student_id', 'Invalid student ID.')},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        available = not Student.objects.filter(student_id__iexact=student_id).exists()
+        return Response({
+            'available': available,
+            'message': (
+                'Student ID is available.'
+                if available
+                else 'This student ID is already in use. Please enter a different ID.'
+            ),
+        })
+
+    def _save_student(self, serializer, **kwargs):
+        try:
+            with transaction.atomic():
+                return serializer.save(**kwargs)
+        except IntegrityError:
+            student_id = serializer.validated_data.get('student_id')
+            if student_id and Student.objects.filter(student_id__iexact=student_id).exists():
+                raise serializers.ValidationError({
+                    'student_id': [
+                        'This student ID is already in use. Please enter a different ID.'
+                    ]
+                })
+            raise
+
     def perform_create(self, serializer):
         user = self.request.user
         if not getattr(user, 'school', None):
@@ -87,16 +134,16 @@ class StudentViewSet(StudentValidationMixin, viewsets.ModelViewSet):
                     raise permissions.PermissionDenied("Invalid class for this school")
                 if cls.class_teacher_id != user.id:
                     raise permissions.PermissionDenied("You can only add students to your assigned class")
-                    serializer.save(school=user.school, is_active=True)
+                self._save_student(serializer, school=user.school, is_active=True)
             else:
                 # Auto-assign if teacher has exactly one class; otherwise require explicit selection
                 if len(teacher_classes) == 1:
-                    serializer.save(school=user.school, current_class=teacher_classes[0], is_active=True)
+                    self._save_student(serializer, school=user.school, current_class=teacher_classes[0], is_active=True)
                 else:
                     raise permissions.PermissionDenied("Please choose a class to add the student to")
         else:
             # Admin/Principal can create for any class within their school
-            serializer.save(school=user.school)
+            self._save_student(serializer, school=user.school)
 
     def perform_update(self, serializer):
         user = self.request.user
