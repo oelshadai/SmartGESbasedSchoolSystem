@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
-  Settings, Globe, Shield, Bell, Database, Key, Save, Loader2,
-  RefreshCw, AlertTriangle, CheckCircle, ToggleLeft, ToggleRight,
-  Mail, MessageSquare, Clock, Users, Lock, Eye, EyeOff, Zap, Server
+  Settings, Globe, Shield, Bell, Database, Save, Loader2,
+  AlertTriangle, Mail, MessageSquare, Users, Lock, Eye, EyeOff, Zap, Server
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -190,6 +189,28 @@ export default function AdminSettings() {
     { key: 'system',        label: 'System',        icon: Server },
   ] as const;
 
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const currentIndex = tabs.findIndex(tab => tab.key === activeTab);
+    let nextIndex = currentIndex;
+
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextIndex = (currentIndex + 1) % tabs.length;
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = tabs.length - 1;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    const nextTab = tabs[nextIndex];
+    setActiveTab(nextTab.key);
+    document.getElementById(`settings-tab-${nextTab.key}`)?.focus();
+  };
+
   const accents = {
     blue:   { gradient: 'from-blue-500 to-cyan-400',    border: 'border-blue-500/20',   bg: 'bg-blue-500/10',   iconColor: 'text-blue-400',   topBar: 'from-blue-500 to-cyan-400' },
     red:    { gradient: 'from-red-500 to-orange-400',   border: 'border-red-500/20',    bg: 'bg-red-500/10',    iconColor: 'text-red-400',    topBar: 'from-red-500 to-orange-400' },
@@ -201,7 +222,7 @@ export default function AdminSettings() {
   };
 
   return (
-    <div className="flex flex-col w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 min-h-full relative">
+    <div className="flex min-h-full w-full flex-col relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
       {/* Background effects */}
       <div className="hidden sm:block absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
@@ -209,16 +230,24 @@ export default function AdminSettings() {
       </div>
       <div className="hidden sm:block absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
-      <div className="relative p-4 sm:p-6 space-y-6">
+      <div className="relative mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8 space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white">Settings</h1>
-            <p className="text-slate-400 text-sm mt-0.5">Platform-wide configuration and preferences</p>
+        <div className="sticky top-0 z-20 -mx-4 -mt-4 flex flex-col gap-4 border-b border-slate-800/70 bg-slate-950/95 px-4 py-4 backdrop-blur-xl sm:-mx-6 sm:-mt-6 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:-mx-8 lg:-mt-8 lg:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-blue-400/20 bg-blue-500/10 sm:flex">
+              <Settings className="h-5 w-5 text-blue-300" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Platform settings</h1>
+                <Badge className="border border-blue-400/20 bg-blue-500/10 text-blue-200">Super Admin</Badge>
+              </div>
+              <p className="mt-1 text-sm text-slate-400">Manage platform access, security, integrations, and system limits.</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-3">
             {settings.maintenanceMode && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+              <div className="flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                 <span className="text-xs text-amber-400 font-medium">Maintenance Mode ON</span>
               </div>
@@ -249,26 +278,37 @@ export default function AdminSettings() {
         )}
 
         {/* Tabs */}
-        <div className="flex gap-1 p-1 rounded-xl bg-slate-800/50 border border-slate-700/50 overflow-x-auto">
+        <div
+          role="tablist"
+          aria-label="Platform settings categories"
+          className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-700/60 bg-slate-900/70 p-2 sm:grid-cols-3 lg:grid-cols-5"
+        >
           {tabs.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
+              id={`settings-tab-${key}`}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === key}
+              aria-controls={`settings-panel-${key}`}
+              tabIndex={activeTab === key ? 0 : -1}
               onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 flex-1 justify-center ${
+              onKeyDown={handleTabKeyDown}
+              className={`flex min-h-12 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
                 activeTab === key
-                  ? 'bg-gradient-to-r from-blue-600/30 to-cyan-600/30 border border-blue-500/30 text-white'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'
+                  ? 'border-blue-400/30 bg-blue-500/15 text-white shadow-sm shadow-blue-950/30'
+                  : 'border-transparent text-slate-400 hover:border-slate-700 hover:bg-slate-800/80 hover:text-slate-100'
               }`}
             >
-              <Icon className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{label}</span>
+              <Icon className="h-4 w-4 shrink-0" />
+              <span>{label}</span>
             </button>
           ))}
         </div>
 
         {/* ── GENERAL ── */}
         {activeTab === 'general' && (
-          <div className="space-y-4">
+          <div id="settings-panel-general" role="tabpanel" aria-labelledby="settings-tab-general" tabIndex={0} className="grid gap-4 lg:grid-cols-2">
             <SectionCard icon={Globe} title="Platform" subtitle="Core platform identity and access" accent={accents.blue}>
               <Field label="Platform Name" description="Displayed across the UI and emails">
                 <Input value={settings.platformName} onChange={set('platformName')} className={inputCls} placeholder="SmartGES" />
@@ -304,7 +344,7 @@ export default function AdminSettings() {
 
         {/* ── SECURITY ── */}
         {activeTab === 'security' && (
-          <div className="space-y-4">
+          <div id="settings-panel-security" role="tabpanel" aria-labelledby="settings-tab-security" tabIndex={0} className="grid gap-4 lg:grid-cols-2">
             <SectionCard icon={Lock} title="Authentication" subtitle="Login and session security policies" accent={accents.red}>
               <Field label="Require 2FA" description="Enforce two-factor authentication for all admin accounts">
                 <div className="flex items-center gap-3">
@@ -343,7 +383,7 @@ export default function AdminSettings() {
 
         {/* ── NOTIFICATIONS ── */}
         {activeTab === 'notifications' && (
-          <div className="space-y-4">
+          <div id="settings-panel-notifications" role="tabpanel" aria-labelledby="settings-tab-notifications" tabIndex={0} className="grid gap-4 lg:grid-cols-2">
             <SectionCard icon={Mail} title="Email Notifications" subtitle="System-generated email alerts" accent={accents.blue}>
               <Field label="Email Notifications" description="Send automated emails for key system events">
                 <div className="flex items-center gap-3">
@@ -370,7 +410,7 @@ export default function AdminSettings() {
 
         {/* ── INTEGRATIONS ── */}
         {activeTab === 'integrations' && (
-          <div className="space-y-4">
+          <div id="settings-panel-integrations" role="tabpanel" aria-labelledby="settings-tab-integrations" tabIndex={0} className="grid gap-4 lg:grid-cols-2">
             <SectionCard icon={Mail} title="SMTP / Email" subtitle="Outbound email delivery configuration" accent={accents.blue}>
               <Field label="SMTP Host" description="Mail server hostname">
                 <Input value={settings.smtpHost} onChange={set('smtpHost')} className={inputCls} placeholder="smtp.gmail.com" />
@@ -429,7 +469,7 @@ export default function AdminSettings() {
 
         {/* ── SYSTEM ── */}
         {activeTab === 'system' && (
-          <div className="space-y-4">
+          <div id="settings-panel-system" role="tabpanel" aria-labelledby="settings-tab-system" tabIndex={0} className="grid gap-4 lg:grid-cols-2">
             <SectionCard icon={Database} title="Database & Backups" subtitle="Automated backup configuration" accent={accents.cyan}>
               <Field label="Automated Backups" description="Periodically back up the database">
                 <div className="flex items-center gap-3">
@@ -457,7 +497,7 @@ export default function AdminSettings() {
             </SectionCard>
 
             {/* Danger Zone */}
-            <div className="relative rounded-2xl border border-red-500/20 bg-red-500/5 backdrop-blur-sm overflow-hidden">
+            <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-red-500/5 backdrop-blur-sm lg:col-span-2">
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-red-500 to-orange-400 opacity-60" />
               <div className="flex items-center gap-3 px-5 py-4 border-b border-red-500/10 bg-red-500/5">
                 <div className="p-2 rounded-xl bg-red-500/10 border border-red-500/20">
@@ -493,21 +533,6 @@ export default function AdminSettings() {
           </div>
         )}
 
-        {/* Save footer */}
-        <div className="flex items-center justify-between pt-2 border-t border-slate-800/50">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <CheckCircle className="h-3.5 w-3.5 text-slate-600" />
-            Changes are applied immediately after saving
-          </div>
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white gap-2 shadow-lg shadow-blue-500/20"
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            {saving ? 'Saving…' : 'Save Changes'}
-          </Button>
-        </div>
       </div>
     </div>
   );
