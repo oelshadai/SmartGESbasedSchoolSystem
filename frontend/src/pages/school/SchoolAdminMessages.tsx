@@ -37,6 +37,27 @@ interface SmsRecipient {
   name: string;
 }
 
+const getSmsErrorMessage = (error: unknown) => {
+  if (error && typeof error === 'object') {
+    const errorRecord = error as Record<string, unknown>;
+    const response = errorRecord.response;
+    const responseData = response && typeof response === 'object'
+      ? (response as Record<string, unknown>).data
+      : undefined;
+
+    if (responseData && typeof responseData === 'object') {
+      const data = responseData as Record<string, unknown>;
+      for (const key of ['error', 'detail', 'message']) {
+        if (typeof data[key] === 'string') return data[key];
+      }
+    }
+
+    if (error instanceof Error && error.message) return error.message;
+  }
+
+  return 'The SMS request failed. Please try again.';
+};
+
 export default function SchoolAdminMessages() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('inbox');
@@ -57,8 +78,7 @@ export default function SchoolAdminMessages() {
     { phone: '', name: '' }
   ]);
   const [smsMessage, setSmsMessage] = useState('');
-  const [sendingDirect, setSendingDirect] = useState(false);
-  const [previewMode, setPreviewMode] = useState(false);
+  const [sendingMode, setSendingMode] = useState<'preview' | 'send' | null>(null);
 
   // Saved parents state
   const [savedParents, setSavedParents] = useState<SmsRecipient[]>([]);
@@ -207,50 +227,62 @@ export default function SchoolAdminMessages() {
     setRecipients(updated);
   };
 
-  const sendDirectSms = async () => {
+  const sendDirectSms = async (dryRun: boolean) => {
     // Validate
     const validRecipients = recipients.filter(r => r.phone.trim());
     if (validRecipients.length === 0) {
-      toast.error('Please add at least one recipient with a phone number');
+      toast({
+        title: 'No recipients selected',
+        description: 'Please add at least one recipient with a phone number.',
+        variant: 'destructive',
+      });
       return;
     }
     if (!smsMessage.trim()) {
-      toast.error('Please enter a message');
+      toast({
+        title: 'Message required',
+        description: 'Please enter a message before continuing.',
+        variant: 'destructive',
+      });
       return;
     }
 
-    setSendingDirect(true);
+    setSendingMode(dryRun ? 'preview' : 'send');
     try {
       const payload = {
         recipients: validRecipients,
         message: smsMessage.trim(),
-        dry_run: previewMode,
+        dry_run: dryRun,
       };
 
       const result = await secureApiClient.post<any>('/notifications/sms-logs/send_direct_sms/', payload);
 
-      if (previewMode) {
-        // Show preview results
-        toast.success(`Preview: ${result.sent}/${result.total} would receive SMS`);
+      if (dryRun) {
+        toast({
+          title: 'SMS preview',
+          description: `${result.sent}/${result.total} selected recipient(s) would receive this SMS.`,
+        });
       } else {
         // Confirm sent
         const parts = [`SMS sent to ${result.sent} recipient(s)`];
         if (result.failed > 0) parts.push(`${result.failed} failed`);
-        toast.success(parts.join('. '));
+        toast({ title: 'SMS sent', description: parts.join('. ') });
         
         // Reset form
         setRecipients([{ phone: '', name: '' }]);
         setSmsMessage('');
-        setPreviewMode(false);
         
         // Refresh logs
         await fetchSmsLogs();
       }
-    } catch (e: any) {
-      const msg = e?.response?.data?.error || e?.message || 'Failed to send SMS';
-      toast.error(msg);
+    } catch (e: unknown) {
+      toast({
+        title: dryRun ? 'SMS preview failed' : 'SMS could not be sent',
+        description: getSmsErrorMessage(e),
+        variant: 'destructive',
+      });
     } finally {
-      setSendingDirect(false);
+      setSendingMode(null);
     }
   };
 
@@ -397,7 +429,8 @@ export default function SchoolAdminMessages() {
                 <div className="flex items-center justify-between">
                   <Label className="text-foreground font-medium">Quick Add Parent</Label>
                   <Button 
-                    size="sm" 
+                    type="button"
+                    size="sm"
                     variant="outline"
                     onClick={() => {
                       setShowSavedParents(!showSavedParents);
@@ -503,6 +536,7 @@ export default function SchoolAdminMessages() {
                       </div>
                       {recipients.length > 1 && (
                         <Button
+                          type="button"
                           variant="ghost"
                           size="sm"
                           onClick={() => removeRecipient(idx)}
@@ -527,22 +561,19 @@ export default function SchoolAdminMessages() {
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => setPreviewMode(true)}
-                  disabled={sendingDirect || !smsMessage.trim() || recipients.filter(r => r.phone.trim()).length === 0}
+                  onClick={() => sendDirectSms(true)}
+                  disabled={sendingMode !== null || !smsMessage.trim() || recipients.filter(r => r.phone.trim()).length === 0}
                   className="bg-foreground/5 border-foreground/20 text-foreground hover:bg-foreground/10 hover:text-foreground font-medium"
                 >
-                  {sendingDirect && previewMode ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                  {sendingMode === 'preview' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                   Preview
                 </Button>
                 <Button
-                  onClick={() => {
-                    setPreviewMode(false);
-                    sendDirectSms();
-                  }}
-                  disabled={sendingDirect || !smsMessage.trim() || recipients.filter(r => r.phone.trim()).length === 0}
+                  onClick={() => sendDirectSms(false)}
+                  disabled={sendingMode !== null || !smsMessage.trim() || recipients.filter(r => r.phone.trim()).length === 0}
                   className="sm:flex-1 font-medium"
                 >
-                  {sendingDirect && !previewMode ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                  {sendingMode === 'send' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
                   Send SMS
                 </Button>
               </div>
