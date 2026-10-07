@@ -135,6 +135,76 @@ class SmsLogFilterTests(TestCase):
         self.assertEqual(log.status, 'failed')
         self.assertEqual(log.details[0]['reason'], 'SMS provider error')
 
+    @patch('notifications.sms_service.SmsService.send')
+    def test_direct_sms_history_is_created_before_dispatch_and_keeps_partial_results(self, mock_send):
+        self.school.sms_enabled = True
+        self.school.sms_balance = 10
+        self.school.arkesel_api_key = 'test-api-key'
+        self.school.save(update_fields=['sms_enabled', 'sms_balance', 'arkesel_api_key'])
+
+        def send_one_recipient(recipients, message, school):
+            log = SmsLog.objects.get(school=school, filters_used={'type': 'direct_sms'})
+            self.assertEqual(log.status, 'pending')
+            if recipients[0].endswith('1111'):
+                School.objects.filter(pk=school.pk).update(sms_balance=F('sms_balance') - 1)
+                return True
+            raise TimeoutError('Provider request timed out')
+
+        mock_send.side_effect = send_one_recipient
+
+        response = self.client.post(
+            '/api/notifications/sms-logs/send_direct_sms/',
+            {
+                'recipients': [
+                    {'phone': '0240001111', 'name': 'Parent One'},
+                    {'phone': '0240002222', 'name': 'Parent Two'},
+                ],
+                'message': 'Test message',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        log = SmsLog.objects.get(school=self.school, filters_used={'type': 'direct_sms'})
+        self.assertEqual(log.status, 'partial')
+        self.assertEqual(log.sent_count, 1)
+        self.assertEqual(log.failed_count, 1)
+        self.assertEqual([detail['status'] for detail in log.details], ['sent', 'failed'])
+
+    @patch('notifications.sms_service.SmsService.send')
+    def test_direct_sms_history_tracks_all_102_recipients(self, mock_send):
+        self.school.sms_enabled = True
+        self.school.sms_balance = 102
+        self.school.arkesel_api_key = 'test-api-key'
+        self.school.save(update_fields=['sms_enabled', 'sms_balance', 'arkesel_api_key'])
+
+        def send_and_deduct(recipients, message, school):
+            School.objects.filter(pk=school.pk).update(sms_balance=F('sms_balance') - 1)
+            return True
+
+        mock_send.side_effect = send_and_deduct
+        recipients = [
+            {'phone': f'024000{index:04d}', 'name': f'Parent {index}'}
+            for index in range(102)
+        ]
+
+        response = self.client.post(
+            '/api/notifications/sms-logs/send_direct_sms/',
+            {'recipients': recipients, 'message': 'Test message'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['sent'], 102)
+        self.assertEqual(response.data['failed'], 0)
+        self.assertEqual(len(response.data['details']), 102)
+        log = SmsLog.objects.get(school=self.school, filters_used={'type': 'direct_sms'})
+        self.assertEqual(log.status, 'success')
+        self.assertEqual(log.sent_count, 102)
+        self.assertEqual(len(log.details), 102)
+        self.school.refresh_from_db()
+        self.assertEqual(self.school.sms_balance, 0)
+
 
 class NotificationRecipientScopeTests(TestCase):
     def setUp(self):

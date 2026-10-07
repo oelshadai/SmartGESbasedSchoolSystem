@@ -5,7 +5,7 @@ from django.test import TestCase
 from rest_framework.request import Request
 from rest_framework.test import APIClient, APIRequestFactory
 
-from schools.models import School
+from schools.models import Class, School
 from students.models import Student
 from students.serializers import StudentCreateSerializer, StudentSerializer
 
@@ -32,6 +32,75 @@ class StudentAccountManagementTests(TestCase):
             'guardian_address': 'Test address',
             'admission_date': date(2024, 9, 1),
         }
+
+    def test_guardian_directory_includes_ward_names_and_classes(self):
+        basic_1 = Class.objects.create(
+            school=self.school,
+            level='BASIC_1',
+            section='A',
+        )
+        basic_2 = Class.objects.create(
+            school=self.school,
+            level='BASIC_2',
+            section='B',
+        )
+        first_child = Student(
+            **{
+                **self.student_data('WARD1001'),
+                'first_name': 'Ama',
+                'last_name': 'Mensah',
+                'guardian_phone': '0240000000',
+            },
+            school=self.school,
+            current_class=basic_1,
+        )
+        first_child._skip_account_creation = True
+        first_child.save()
+        second_child = Student(
+            **{
+                **self.student_data('WARD1002'),
+                'first_name': 'Kojo',
+                'last_name': 'Mensah',
+                'guardian_phone': '0240000000',
+            },
+            school=self.school,
+            current_class=basic_2,
+        )
+        second_child._skip_account_creation = True
+        second_child.save()
+        admin = get_user_model().objects.create_user(
+            email='guardian-directory-admin@example.edu',
+            password='admin-password',
+            role='SCHOOL_ADMIN',
+            school=self.school,
+        )
+        client = APIClient()
+        client.force_authenticate(user=admin)
+
+        response = client.get('/api/students/guardians/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        parent = response.data[0]
+        self.assertEqual(parent['name'], 'Kofi Mensah')
+        self.assertEqual(parent['phone'], '0240000000')
+        self.assertEqual(
+            parent['wards'],
+            [
+                {
+                    'student_id': first_child.id,
+                    'name': 'Ama Mensah',
+                    'class_id': basic_1.id,
+                    'class_name': 'Basic 1 A',
+                },
+                {
+                    'student_id': second_child.id,
+                    'name': 'Kojo Mensah',
+                    'class_id': basic_2.id,
+                    'class_name': 'Basic 2 B',
+                },
+            ],
+        )
 
     def test_student_id_availability_endpoint_reports_duplicate_without_student_details(self):
         Student.objects.create(**self.student_data('REPEATED01'), school=self.school)

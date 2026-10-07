@@ -371,29 +371,37 @@ class StudentViewSet(StudentValidationMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='guardians')
     def get_guardians(self, request):
-        """Get list of unique guardians (parents) for quick SMS selection"""
+        """Get unique SMS recipients with their active students and classes."""
         user = self.request.user
         if not getattr(user, 'school', None):
             return Response([], safe=False)
         
-        # Get all unique guardian phone/name pairs from active students
         students = Student.objects.filter(
             school=user.school,
             is_active=True,
             guardian_phone__isnull=False
-        ).exclude(guardian_phone='')
+        ).exclude(guardian_phone='').select_related('current_class').order_by(
+            'guardian_name', 'last_name', 'first_name'
+        )
         
-        # Create a dictionary to deduplicate by phone number (since a parent may have multiple kids)
         guardians = {}
         for student in students:
             phone = student.guardian_phone.strip()
-            if phone and phone not in guardians:
+            if not phone:
+                continue
+            if phone not in guardians:
                 guardians[phone] = {
                     'phone': phone,
-                    'name': student.guardian_name or f"Parent of {student.get_full_name()}"
+                    'name': student.guardian_name or f"Parent of {student.get_full_name()}",
+                    'wards': [],
                 }
+            guardians[phone]['wards'].append({
+                'student_id': student.id,
+                'name': student.get_full_name(),
+                'class_id': student.current_class_id,
+                'class_name': student.current_class.full_name if student.current_class else 'No class',
+            })
         
-        # Convert to list and sort by name
         result = sorted(guardians.values(), key=lambda x: x['name'])
         return Response(result)
 

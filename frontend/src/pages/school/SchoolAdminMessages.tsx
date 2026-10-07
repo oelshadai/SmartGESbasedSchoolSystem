@@ -22,7 +22,7 @@ interface InboxMessage {
 interface SmsLog {
   id: number;
   sms_type: string;
-  status: string;
+  status: 'success' | 'partial' | 'failed' | 'pending' | string;
   total_recipients: number;
   sent_count: number;
   failed_count: number;
@@ -38,14 +38,30 @@ interface SmsLogRecipientDetail {
   guardian_phone?: string | null;
   phone?: string;
   result?: string;
-  status?: string;
+  status?: 'sent' | 'failed' | 'pending' | 'would_send' | string;
   reason?: string;
   failure_reason?: string;
+}
+
+interface GuardianWard {
+  student_id: number;
+  name: string;
+  class_id: number | null;
+  class_name: string;
 }
 
 interface SmsRecipient {
   phone: string;
   name: string;
+  wards?: GuardianWard[];
+}
+
+interface SchoolClass {
+  id: number;
+  full_name: string;
+  level?: string;
+  level_display?: string;
+  section?: string;
 }
 
 const getSmsErrorMessage = (error: unknown) => {
@@ -93,14 +109,29 @@ export default function SchoolAdminMessages() {
 
   // Saved parents state
   const [savedParents, setSavedParents] = useState<SmsRecipient[]>([]);
+  const [schoolClasses, setSchoolClasses] = useState<SchoolClass[]>([]);
   const [savedParentsLoading, setSavedParentsLoading] = useState(false);
   const [savedParentsFilter, setSavedParentsFilter] = useState('');
+  const [savedParentsClassFilter, setSavedParentsClassFilter] = useState('all');
   const [showSavedParents, setShowSavedParents] = useState(false);
 
-  const filteredSavedParents = savedParents.filter(parent =>
-    parent.name.toLowerCase().includes(savedParentsFilter.toLowerCase()) ||
-    parent.phone.includes(savedParentsFilter)
-  );
+  const filteredSavedParents = savedParents.flatMap(parent => {
+    const matchingWards = (parent.wards || []).filter(ward =>
+      savedParentsClassFilter === 'all'
+      || (savedParentsClassFilter === 'no-class' && ward.class_id === null)
+      || String(ward.class_id) === savedParentsClassFilter
+    );
+    if (savedParentsClassFilter !== 'all' && matchingWards.length === 0) return [];
+    const search = savedParentsFilter.trim().toLowerCase();
+    const matchesSearch = !search
+      || parent.name.toLowerCase().includes(search)
+      || parent.phone.toLowerCase().includes(search)
+      || matchingWards.some(ward =>
+        ward.name.toLowerCase().includes(search) ||
+        ward.class_name.toLowerCase().includes(search)
+      );
+    return matchesSearch ? [{ ...parent, wards: matchingWards }] : [];
+  });
 
   const recipientPhoneKey = (phone: string) => {
     const digits = phone.replace(/\D/g, '');
@@ -176,9 +207,18 @@ export default function SchoolAdminMessages() {
   const fetchSavedParents = async () => {
     setSavedParentsLoading(true);
     try {
-      const res = await secureApiClient.get<any>('/students/guardians/');
+      const [res, classRes] = await Promise.all([
+        secureApiClient.get<any>('/students/guardians/'),
+        secureApiClient.get<any>('/schools/classes/'),
+      ]);
       const parents = Array.isArray(res) ? res : res.results || [];
+      const classes = Array.isArray(classRes) ? classRes : classRes.results || [];
       setSavedParents(parents);
+      setSchoolClasses(classes.map((schoolClass: SchoolClass) => ({
+        ...schoolClass,
+        full_name: schoolClass.full_name
+          || `${schoolClass.level_display || schoolClass.level || ''} ${schoolClass.section || ''}`.trim(),
+      })));
     } catch (e: any) {
       toast({ title: 'Error loading parents', description: e.message, variant: 'destructive' });
     } finally {
@@ -266,7 +306,11 @@ export default function SchoolAdminMessages() {
         dry_run: dryRun,
       };
 
-      const result = await secureApiClient.post<any>('/notifications/sms-logs/send_direct_sms/', payload);
+      const result = await secureApiClient.post<any>(
+        '/notifications/sms-logs/send_direct_sms/',
+        payload,
+        { timeout: 300_000 }
+      );
 
       if (dryRun) {
         toast({
@@ -287,9 +331,20 @@ export default function SchoolAdminMessages() {
         await fetchSmsLogs();
       }
     } catch (e: unknown) {
+      const errorRecord = e && typeof e === 'object'
+        ? e as Record<string, unknown>
+        : undefined;
+      const isConnectionFailure = Boolean(
+        errorRecord && !errorRecord.response
+      );
+      if (isConnectionFailure) {
+        void fetchSmsLogs();
+      }
       toast({
         title: dryRun ? 'SMS preview failed' : 'SMS could not be sent',
-        description: getSmsErrorMessage(e),
+        description: isConnectionFailure
+          ? `${getSmsErrorMessage(e)} Some messages may already have been accepted. Check SMS History before retrying.`
+          : getSmsErrorMessage(e),
         variant: 'destructive',
       });
     } finally {
@@ -458,11 +513,30 @@ export default function SchoolAdminMessages() {
                 {showSavedParents && (
                   <div className="space-y-2">
                     <Input
-                      placeholder="Search parents by name or phone..."
+                      placeholder="Search by ward, parent, or phone..."
                       value={savedParentsFilter}
                       onChange={(e) => setSavedParentsFilter(e.target.value)}
                       className="text-foreground placeholder:text-foreground/50"
                     />
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <Label htmlFor="parent-class-filter" className="text-sm text-foreground/70 shrink-0">
+                        Filter by class
+                      </Label>
+                      <select
+                        id="parent-class-filter"
+                        value={savedParentsClassFilter}
+                        onChange={(e) => setSavedParentsClassFilter(e.target.value)}
+                        className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                      >
+                        <option value="all">All classes</option>
+                        <option value="no-class">No class assigned</option>
+                        {schoolClasses.map(schoolClass => (
+                          <option key={schoolClass.id} value={String(schoolClass.id)}>
+                            {schoolClass.full_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     
                     {savedParentsLoading ? (
                       <div className="flex justify-center py-4">
@@ -509,6 +583,18 @@ export default function SchoolAdminMessages() {
                                 <div className="min-w-0 flex-1">
                                   <p className="text-sm font-medium text-foreground truncate">{parent.name}</p>
                                   <p className="text-xs text-foreground/60 truncate">{parent.phone}</p>
+                                  <div className="mt-2 space-y-1">
+                                    {parent.wards?.length ? parent.wards.map(ward => (
+                                      <div key={ward.student_id} className="flex flex-wrap items-center gap-1.5">
+                                        <span className="text-xs text-foreground/80">{ward.name}</span>
+                                        <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
+                                          {ward.class_name}
+                                        </Badge>
+                                      </div>
+                                    )) : (
+                                      <span className="text-xs text-foreground/60">Ward details unavailable</span>
+                                    )}
+                                  </div>
                                 </div>
                                 <span className={`text-xs whitespace-nowrap ml-2 flex items-center gap-1 ${
                                   added ? 'text-primary font-medium' : 'text-foreground/60 group-hover:text-foreground'
@@ -630,6 +716,8 @@ export default function SchoolAdminMessages() {
                             <CheckCircle2 className="h-5 w-5 text-green-600" />
                           ) : log.status === 'partial' ? (
                             <AlertCircle className="h-5 w-5 text-yellow-600" />
+                          ) : log.status === 'pending' ? (
+                            <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
                           ) : (
                             <AlertCircle className="h-5 w-5 text-red-600" />
                           )}
@@ -643,15 +731,18 @@ export default function SchoolAdminMessages() {
                                   ? '📣 Attendance Alert'
                                   : '📱 Direct SMS'}
                             </h3>
-                              <Badge variant={log.status === 'success' ? 'default' : log.status === 'partial' ? 'secondary' : 'destructive'}>
+                              <Badge variant={log.status === 'success' ? 'default' : log.status === 'partial' || log.status === 'pending' ? 'secondary' : 'destructive'}>
                               {log.status.toUpperCase()}
                             </Badge>
                               <Badge variant="outline" className="text-xs">
                                 {log.total_recipients} recipient{log.total_recipients === 1 ? '' : 's'}
                               </Badge>
-                            {log.sent_count > 0 && (
+                            {log.total_recipients > 0 && (
                               <Badge variant="outline" className="text-xs">
-                                {log.sent_count} sent {log.failed_count > 0 ? `(${log.failed_count} failed)` : ''}
+                                {log.sent_count} accepted · {log.failed_count} failed
+                                {log.status === 'pending'
+                                  ? ` · ${Math.max(0, log.total_recipients - log.sent_count - log.failed_count)} pending`
+                                  : ''}
                               </Badge>
                             )}
                           </div>
@@ -668,7 +759,7 @@ export default function SchoolAdminMessages() {
                     {smsLogsExpanded === log.id && log.details && log.details.length > 0 && (
                       <div className="mt-4 pt-4 border-t space-y-2">
                         <p className="text-xs font-medium text-foreground/70">
-                          Recipient delivery results (provider accepted status):
+                          Recipient results (accepted means submitted successfully to the SMS provider, not confirmed handset delivery):
                         </p>
                         <div className="max-h-48 overflow-y-auto space-y-2 text-xs">
                           {log.details.map((detail, i) => (
@@ -683,13 +774,17 @@ export default function SchoolAdminMessages() {
                               <Badge variant={
                                 detail.result === 'sent' || detail.status === 'sent' || detail.status === 'would_send'
                                   ? 'default'
-                                  : 'destructive'
+                                  : detail.status === 'pending'
+                                    ? 'secondary'
+                                    : 'destructive'
                               }>
                                 {detail.result === 'sent' || detail.status === 'sent'
-                                  ? '✓ Accepted'
+                                  ? '✓ Accepted by provider'
                                   : detail.result === 'would_send' || detail.status === 'would_send'
                                     ? 'Preview'
-                                    : '✕ Failed'}
+                                    : detail.status === 'pending'
+                                      ? 'In progress'
+                                      : '✕ Failed'}
                               </Badge>
                             </div>
                           ))}

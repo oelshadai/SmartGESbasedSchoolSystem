@@ -353,6 +353,11 @@ class SmsLogViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        phone_recipients = [
+            recipient for recipient in recipients
+            if isinstance(recipient, dict) and str(recipient.get('phone', '')).strip()
+        ]
+
         # Pre-flight checks
         if not dry_run:
             api_key = SmsService._get_api_key(school)
@@ -363,63 +368,96 @@ class SmsLogViewSet(viewsets.ReadOnlyModelViewSet):
                 )
             
             sms_balance = getattr(school, 'sms_balance', 0)
-            if sms_balance < len(recipients):
+            if sms_balance < len(phone_recipients):
                 return Response(
-                    {'error': f'Insufficient SMS credits. Available: {sms_balance}, Required: {len(recipients)}'},
+                    {'error': f'Insufficient SMS credits. Available: {sms_balance}, Required: {len(phone_recipients)}'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
         
-        # Send SMS
-        sent = 0
-        failed = 0
         details = []
-        
         for recipient in recipients:
-            phone = recipient.get('phone', '').strip()
-            name = recipient.get('name', 'Recipient').strip()
-            
+            if not isinstance(recipient, dict):
+                details.append({
+                    'name': 'Recipient',
+                    'phone': '',
+                    'status': 'failed',
+                    'reason': 'Invalid recipient data',
+                })
+                continue
+            phone = str(recipient.get('phone') or '').strip()
+            name = str(recipient.get('name') or 'Recipient').strip()
             if not phone:
                 details.append({'name': name, 'phone': phone, 'status': 'failed', 'reason': 'No phone number'})
-                failed += 1
-                continue
-            
-            detail_record = {'name': name, 'phone': phone}
-            
-            if dry_run:
-                detail_record['status'] = 'would_send'
-                details.append(detail_record)
-                sent += 1
             else:
-                success = SmsService.send([phone], message, school)
-                if success:
-                    detail_record['status'] = 'sent'
-                    details.append(detail_record)
-                    sent += 1
-                else:
-                    detail_record['status'] = 'failed'
-                    detail_record['reason'] = 'SMS provider error'
-                    details.append(detail_record)
-                    failed += 1
-        
-        # Log the SMS batch if not a dry run
+                details.append({'name': name, 'phone': phone, 'status': 'pending'})
+
+        no_phone = sum(
+            1 for detail in details if detail.get('reason') == 'No phone number'
+        )
+        failed = no_phone + sum(
+            1 for detail in details if detail.get('reason') == 'Invalid recipient data'
+        )
+        sent = 0
+        sms_log = None
+
         if not dry_run:
             try:
-                SmsLog.objects.create(
+                sms_log = SmsLog.objects.create(
                     school=school,
                     sent_by=user,
                     sms_type='general',
-                    status='failed' if sent == 0 else 'success' if failed == 0 else 'partial',
+                    status='pending',
                     total_recipients=len(recipients),
-                    sent_count=sent,
+                    sent_count=0,
                     failed_count=failed,
-                    no_phone_count=0,
+                    no_phone_count=no_phone,
                     message_preview=message[:200],
                     filters_used={'type': 'direct_sms'},
                     details=details,
                 )
             except Exception as e:
-                logger.warning(f'Failed to log SMS batch: {e}')
-        
+                logger.exception('Failed to create SMS history record before dispatch.')
+                return Response(
+                    {'error': 'Could not record the SMS send in history, so no messages were sent.'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+        for index, detail_record in enumerate(details):
+            if detail_record['status'] != 'pending':
+                continue
+
+            if dry_run:
+                detail_record['status'] = 'would_send'
+                sent += 1
+            else:
+                try:
+                    success = SmsService.send([detail_record['phone']], message, school)
+                except Exception:
+                    logger.exception(
+                        'Unexpected error sending direct SMS to recipient %s in log %s.',
+                        index,
+                        sms_log.pk,
+                    )
+                    success = False
+
+                if success:
+                    detail_record['status'] = 'sent'
+                    sent += 1
+                else:
+                    detail_record['status'] = 'failed'
+                    detail_record['reason'] = 'SMS provider error'
+                    failed += 1
+
+            if sms_log:
+                sms_log.sent_count = sent
+                sms_log.failed_count = failed
+                sms_log.details = details
+                sms_log.save(update_fields=['sent_count', 'failed_count', 'details'])
+
+        if sms_log:
+            sms_log.status = 'failed' if sent == 0 else 'success' if failed == 0 else 'partial'
+            sms_log.save(update_fields=['status'])
+
         # SmsService.send deducts credits for each accepted recipient; refresh only.
         if not dry_run:
             try:
