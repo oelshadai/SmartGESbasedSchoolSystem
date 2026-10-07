@@ -402,13 +402,13 @@ class SmsLogViewSet(viewsets.ReadOnlyModelViewSet):
                     failed += 1
         
         # Log the SMS batch if not a dry run
-        if not dry_run and sent > 0:
+        if not dry_run:
             try:
                 SmsLog.objects.create(
                     school=school,
                     sent_by=user,
                     sms_type='general',
-                    status='success' if failed == 0 else 'partial',
+                    status='failed' if sent == 0 else 'success' if failed == 0 else 'partial',
                     total_recipients=len(recipients),
                     sent_count=sent,
                     failed_count=failed,
@@ -420,13 +420,12 @@ class SmsLogViewSet(viewsets.ReadOnlyModelViewSet):
             except Exception as e:
                 logger.warning(f'Failed to log SMS batch: {e}')
         
-        # Update SMS balance if not dry run
-        if not dry_run and sent > 0:
+        # SmsService.send deducts credits for each accepted recipient; refresh only.
+        if not dry_run:
             try:
-                school.sms_balance = max(0, getattr(school, 'sms_balance', 0) - sent)
-                school.save(update_fields=['sms_balance'])
+                school.refresh_from_db(fields=['sms_balance'])
             except Exception as e:
-                logger.warning(f'Failed to update SMS balance: {e}')
+                logger.warning(f'Failed to refresh SMS balance after direct send: {e}')
         
         return Response({
             'dry_run': dry_run,
@@ -434,5 +433,5 @@ class SmsLogViewSet(viewsets.ReadOnlyModelViewSet):
             'failed': failed,
             'total': len(recipients),
             'details': details,
-            'sms_balance_remaining': getattr(school, 'sms_balance', 0) - sent if not dry_run else getattr(school, 'sms_balance', 0)
+            'sms_balance_remaining': getattr(school, 'sms_balance', 0)
         })

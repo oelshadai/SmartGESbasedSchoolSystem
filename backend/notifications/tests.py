@@ -1,5 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.db.models import F
+from unittest.mock import patch
 from rest_framework.test import APIClient
 
 from notifications.models import Notification, SmsLog
@@ -58,6 +60,80 @@ class SmsLogFilterTests(TestCase):
         self.assertEqual(response.status_code, 200)
         returned_ids = {entry['id'] for entry in response.data['results']}
         self.assertEqual(returned_ids, {reminder.id, general.id})
+
+    @patch('notifications.sms_service.SmsService.send')
+    def test_direct_sms_history_records_each_recipient_and_failed_reason(self, mock_send):
+        self.school.sms_enabled = True
+        self.school.sms_balance = 10
+        self.school.arkesel_api_key = 'test-api-key'
+        self.school.save(update_fields=['sms_enabled', 'sms_balance', 'arkesel_api_key'])
+
+        def send_and_deduct(recipients, message, school):
+            accepted = recipients[0].endswith('1111')
+            if accepted:
+                School.objects.filter(pk=school.pk).update(sms_balance=F('sms_balance') - 1)
+            return accepted
+
+        mock_send.side_effect = send_and_deduct
+
+        response = self.client.post(
+            '/api/notifications/sms-logs/send_direct_sms/',
+            {
+                'recipients': [
+                    {'phone': '0240001111', 'name': 'Parent One'},
+                    {'phone': '0240002222', 'name': 'Parent Two'},
+                ],
+                'message': 'Test message',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['sent'], 1)
+        self.assertEqual(response.data['failed'], 1)
+        self.assertEqual(response.data['sms_balance_remaining'], 9)
+        self.assertEqual(
+            response.data['details'],
+            [
+                {'name': 'Parent One', 'phone': '0240001111', 'status': 'sent'},
+                {
+                    'name': 'Parent Two',
+                    'phone': '0240002222',
+                    'status': 'failed',
+                    'reason': 'SMS provider error',
+                },
+            ],
+        )
+
+        log = SmsLog.objects.get(school=self.school, filters_used={'type': 'direct_sms'})
+        self.assertEqual(log.status, 'partial')
+        self.assertEqual(log.sent_count, 1)
+        self.assertEqual(log.failed_count, 1)
+        self.assertEqual(log.details, response.data['details'])
+        self.school.refresh_from_db()
+        self.assertEqual(self.school.sms_balance, 9)
+
+    @patch('notifications.sms_service.SmsService.send', return_value=False)
+    def test_direct_sms_history_is_saved_when_all_recipients_fail(self, _mock_send):
+        self.school.sms_enabled = True
+        self.school.sms_balance = 10
+        self.school.arkesel_api_key = 'test-api-key'
+        self.school.save(update_fields=['sms_enabled', 'sms_balance', 'arkesel_api_key'])
+
+        response = self.client.post(
+            '/api/notifications/sms-logs/send_direct_sms/',
+            {
+                'recipients': [{'phone': '0240002222', 'name': 'Parent Two'}],
+                'message': 'Test message',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['failed'], 1)
+        log = SmsLog.objects.get(school=self.school, filters_used={'type': 'direct_sms'})
+        self.assertEqual(log.status, 'failed')
+        self.assertEqual(log.details[0]['reason'], 'SMS provider error')
 
 
 class NotificationRecipientScopeTests(TestCase):

@@ -29,7 +29,18 @@ interface SmsLog {
   no_phone_count: number;
   message_preview: string;
   created_at: string;
-  details?: Array<any>;
+  details?: SmsLogRecipientDetail[];
+}
+
+interface SmsLogRecipientDetail {
+  student?: string;
+  name?: string;
+  guardian_phone?: string | null;
+  phone?: string;
+  result?: string;
+  status?: string;
+  reason?: string;
+  failure_reason?: string;
 }
 
 interface SmsRecipient {
@@ -632,9 +643,12 @@ export default function SchoolAdminMessages() {
                                   ? '📣 Attendance Alert'
                                   : '📱 Direct SMS'}
                             </h3>
-                            <Badge variant={log.status === 'success' ? 'default' : log.status === 'partial' ? 'secondary' : 'destructive'}>
+                              <Badge variant={log.status === 'success' ? 'default' : log.status === 'partial' ? 'secondary' : 'destructive'}>
                               {log.status.toUpperCase()}
                             </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {log.total_recipients} recipient{log.total_recipients === 1 ? '' : 's'}
+                              </Badge>
                             {log.sent_count > 0 && (
                               <Badge variant="outline" className="text-xs">
                                 {log.sent_count} sent {log.failed_count > 0 ? `(${log.failed_count} failed)` : ''}
@@ -653,16 +667,29 @@ export default function SchoolAdminMessages() {
 
                     {smsLogsExpanded === log.id && log.details && log.details.length > 0 && (
                       <div className="mt-4 pt-4 border-t space-y-2">
-                        <p className="text-xs font-medium text-foreground/70">Recipient Details:</p>
+                        <p className="text-xs font-medium text-foreground/70">
+                          Recipient delivery results (provider accepted status):
+                        </p>
                         <div className="max-h-48 overflow-y-auto space-y-2 text-xs">
                           {log.details.map((detail, i) => (
                             <div key={i} className="flex items-center justify-between p-2 rounded bg-muted/50">
                               <div>
                                 <p className="font-medium text-foreground">{detail.student || detail.name}</p>
                                 <p className="text-foreground/70">{detail.guardian_phone || detail.phone}</p>
+                                {(detail.reason || detail.failure_reason) && (
+                                  <p className="text-destructive mt-1">{detail.reason || detail.failure_reason}</p>
+                                )}
                               </div>
-                              <Badge variant={detail.result === 'sent' || detail.result === 'would_send' ? 'default' : 'secondary'}>
-                                {detail.result === 'sent' ? '✓ Sent' : detail.result === 'would_send' ? 'Preview' : detail.status || detail.result}
+                              <Badge variant={
+                                detail.result === 'sent' || detail.status === 'sent' || detail.status === 'would_send'
+                                  ? 'default'
+                                  : 'destructive'
+                              }>
+                                {detail.result === 'sent' || detail.status === 'sent'
+                                  ? '✓ Accepted'
+                                  : detail.result === 'would_send' || detail.status === 'would_send'
+                                    ? 'Preview'
+                                    : '✕ Failed'}
                               </Badge>
                             </div>
                           ))}
