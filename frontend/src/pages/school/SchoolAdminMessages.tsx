@@ -66,6 +66,25 @@ export default function SchoolAdminMessages() {
   const [savedParentsFilter, setSavedParentsFilter] = useState('');
   const [showSavedParents, setShowSavedParents] = useState(false);
 
+  const filteredSavedParents = savedParents.filter(parent =>
+    parent.name.toLowerCase().includes(savedParentsFilter.toLowerCase()) ||
+    parent.phone.includes(savedParentsFilter)
+  );
+
+  const recipientPhoneKey = (phone: string) => {
+    const digits = phone.replace(/\D/g, '');
+    return digits.startsWith('0') && digits.length === 10
+      ? `233${digits.slice(1)}`
+      : digits;
+  };
+
+  const isParentAdded = (parent: SmsRecipient) => {
+    const phoneKey = recipientPhoneKey(parent.phone);
+    return recipients.some(recipient =>
+      phoneKey && recipientPhoneKey(recipient.phone) === phoneKey
+    );
+  };
+
   useEffect(() => { 
     fetchInbox();
     if (activeTab === 'sms-logs') {
@@ -137,11 +156,26 @@ export default function SchoolAdminMessages() {
   };
 
   const addRecipientFromParent = (parent: SmsRecipient) => {
-    // Check if already added
-    if (!recipients.some(r => r.phone === parent.phone)) {
-      setRecipients([...recipients, parent]);
-      setSavedParentsFilter('');
-    }
+    const phoneKey = recipientPhoneKey(parent.phone);
+    if (!phoneKey) return;
+    setRecipients(current => current.some(recipient =>
+      recipientPhoneKey(recipient.phone) === phoneKey
+    ) ? current : [...current, parent]);
+  };
+
+  const addAllVisibleParents = () => {
+    setRecipients(current => {
+      const addedPhoneKeys = new Set(
+        current.map(recipient => recipientPhoneKey(recipient.phone)).filter(Boolean)
+      );
+      const newRecipients = filteredSavedParents.filter(parent => {
+        const phoneKey = recipientPhoneKey(parent.phone);
+        if (!phoneKey || addedPhoneKeys.has(phoneKey)) return false;
+        addedPhoneKeys.add(phoneKey);
+        return true;
+      });
+      return newRecipients.length ? [...current, ...newRecipients] : current;
+    });
   };
 
   const openMessage = async (msg: InboxMessage) => {
@@ -393,26 +427,55 @@ export default function SchoolAdminMessages() {
                     ) : savedParents.length === 0 ? (
                       <p className="text-sm text-foreground/60 py-4 text-center">No parents found in system.</p>
                     ) : (
-                      <div className="max-h-64 overflow-y-auto border rounded-lg bg-muted/30">
-                        {savedParents
-                          .filter(p => 
-                            p.name.toLowerCase().includes(savedParentsFilter.toLowerCase()) ||
-                            p.phone.includes(savedParentsFilter)
-                          )
-                          .map((parent, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => addRecipientFromParent(parent)}
-                              className="w-full text-left px-3 py-2 hover:bg-muted/50 border-b last:border-b-0 transition-colors flex items-center justify-between group"
-                            >
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium text-foreground truncate">{parent.name}</p>
-                                <p className="text-xs text-foreground/60 truncate">{parent.phone}</p>
-                              </div>
-                              <span className="text-xs text-foreground/60 group-hover:text-foreground whitespace-nowrap ml-2">+ Add</span>
-                            </button>
-                          ))}
-                      </div>
+                      <>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs text-foreground/60">
+                            {filteredSavedParents.length} parent{filteredSavedParents.length === 1 ? '' : 's'} match
+                            {savedParentsFilter ? ' your search' : ''}
+                          </p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={addAllVisibleParents}
+                            disabled={!filteredSavedParents.some(parent => !isParentAdded(parent))}
+                            className="bg-foreground/5 border-foreground/20 text-foreground hover:bg-foreground/10 font-medium"
+                          >
+                            Add all matching ({filteredSavedParents.filter(parent => !isParentAdded(parent)).length})
+                          </Button>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto border rounded-lg bg-muted/30">
+                          {filteredSavedParents.length === 0 ? (
+                            <p className="text-sm text-foreground/60 py-4 text-center">No parents match your search.</p>
+                          ) : filteredSavedParents.map((parent) => {
+                            const added = isParentAdded(parent);
+                            return (
+                              <button
+                                key={recipientPhoneKey(parent.phone) || parent.phone}
+                                type="button"
+                                onClick={() => addRecipientFromParent(parent)}
+                                disabled={added}
+                                aria-pressed={added}
+                                className={`w-full text-left px-3 py-2 border-b last:border-b-0 transition-colors flex items-center justify-between group ${
+                                  added
+                                    ? 'bg-primary/10 cursor-default'
+                                    : 'hover:bg-muted/50'
+                                }`}
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium text-foreground truncate">{parent.name}</p>
+                                  <p className="text-xs text-foreground/60 truncate">{parent.phone}</p>
+                                </div>
+                                <span className={`text-xs whitespace-nowrap ml-2 flex items-center gap-1 ${
+                                  added ? 'text-primary font-medium' : 'text-foreground/60 group-hover:text-foreground'
+                                }`}>
+                                  {added ? <><CheckCircle2 className="h-3.5 w-3.5" /> Added</> : '+ Add'}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
@@ -428,6 +491,7 @@ export default function SchoolAdminMessages() {
                           placeholder="Phone number"
                           value={recipient.phone}
                           onChange={(e) => updateRecipient(idx, 'phone', e.target.value)}
+                          aria-label={`Recipient ${idx + 1} phone number`}
                           className="text-foreground placeholder:text-foreground/50"
                         />
                         <Input
