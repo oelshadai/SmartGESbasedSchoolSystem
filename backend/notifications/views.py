@@ -7,8 +7,10 @@ from .models import Notification, SupportTicket, PushSubscription, SmsLog
 from .serializers import NotificationSerializer, SupportTicketSerializer, SmsLogSerializer
 from .email_service import EmailService
 from django.conf import settings
+import logging
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 class SupportTicketViewSet(viewsets.ModelViewSet):
     serializer_class = SupportTicketSerializer
@@ -273,7 +275,7 @@ def vapid_public_key(request):
 
 
 class SmsLogViewSet(viewsets.ReadOnlyModelViewSet):
-    """Read-only list/detail for SMS dispatch logs scoped to the user's school."""
+    """SMS dispatch history and retry actions scoped to the user's school."""
     serializer_class = SmsLogSerializer
     permission_classes = [IsAuthenticated]
 
@@ -293,6 +295,139 @@ class SmsLogViewSet(viewsets.ReadOnlyModelViewSet):
         if status_filter:
             qs = qs.filter(status=status_filter)
         return qs
+
+    @action(detail=True, methods=['post'], url_path='resend-failed')
+    def resend_failed(self, request, pk=None):
+        from django.db import transaction
+        from notifications.sms_service import SmsService
+
+        if getattr(request.user, 'role', '') not in ('SUPER_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL'):
+            return Response(
+                {'error': 'Only school admins can resend SMS.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        with transaction.atomic():
+            sms_log = self.get_queryset().select_for_update().filter(pk=pk).first()
+            if not sms_log:
+                return Response({'error': 'SMS history record not found.'}, status=status.HTTP_404_NOT_FOUND)
+            if sms_log.sms_type != 'general' or sms_log.filters_used.get('type') != 'direct_sms':
+                return Response(
+                    {'error': 'Only direct SMS messages can be resent from history.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            resend_message = sms_log.message_body
+            if not resend_message and 0 < len(sms_log.message_preview) < 200:
+                resend_message = sms_log.message_preview
+            if not resend_message:
+                return Response(
+                    {'error': 'The original message text is unavailable for this older SMS record.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            details = list(sms_log.details or [])
+            failed_indices = [
+                index for index, detail in enumerate(details)
+                if isinstance(detail, dict) and detail.get('status') == 'failed'
+            ]
+            if not failed_indices:
+                return Response(
+                    {'error': 'There are no failed recipients to resend.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            school = request.user.school
+            if not getattr(school, 'sms_enabled', False):
+                return Response(
+                    {'error': 'SMS is not enabled for this school.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if not SmsService._get_api_key(school):
+                return Response(
+                    {'error': 'SMS API key not configured.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            retry_recipients = [
+                details[index] for index in failed_indices
+                if str(details[index].get('phone') or details[index].get('guardian_phone') or '').strip()
+            ]
+            if not retry_recipients:
+                return Response(
+                    {'error': 'The failed records do not contain recipient phone numbers.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if getattr(school, 'sms_balance', 0) < len(retry_recipients):
+                return Response(
+                    {
+                        'error': (
+                            f'Insufficient SMS credits. Available: {school.sms_balance}, '
+                            f'Required: {len(retry_recipients)}.'
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            for index in failed_indices:
+                details[index] = {**details[index], 'status': 'pending', 'reason': 'Retry in progress'}
+            sms_log.details = details
+            sms_log.status = 'pending'
+            sms_log.save(update_fields=['details', 'status'])
+
+        sent = 0
+        failed = 0
+        for index in failed_indices:
+            detail = details[index]
+            phone = str(detail.get('phone') or detail.get('guardian_phone') or '').strip()
+            if not phone:
+                detail.update(status='failed', reason='No phone number')
+                failed += 1
+            else:
+                try:
+                    accepted = SmsService.send([phone], resend_message, request.user.school)
+                except Exception:
+                    logger.exception(
+                        'Unexpected error resending direct SMS log %s to recipient index %s.',
+                        sms_log.pk,
+                        index,
+                    )
+                    accepted = False
+
+                if accepted:
+                    detail.update(status='sent')
+                    detail.pop('reason', None)
+                    sent += 1
+                else:
+                    detail.update(status='failed', reason='SMS provider error')
+                    failed += 1
+
+            sms_log.details = details
+            sms_log.sent_count = sum(
+                1 for item in details
+                if isinstance(item, dict) and item.get('status') == 'sent'
+            )
+            sms_log.failed_count = sum(
+                1 for item in details
+                if isinstance(item, dict) and item.get('status') == 'failed'
+            )
+            sms_log.save(update_fields=['details', 'sent_count', 'failed_count'])
+
+        sms_log.status = (
+            'failed' if sms_log.sent_count == 0
+            else 'partial' if sms_log.failed_count > 0
+            else 'success'
+        )
+        sms_log.save(update_fields=['status'])
+        request.user.school.refresh_from_db(fields=['sms_balance'])
+
+        return Response({
+            'sent': sent,
+            'failed': failed,
+            'total': len(failed_indices),
+            'sms_balance_remaining': request.user.school.sms_balance,
+            'log': SmsLogSerializer(sms_log).data,
+        })
 
     @action(detail=False, methods=['post'])
     def send_direct_sms(self, request):
@@ -412,6 +547,7 @@ class SmsLogViewSet(viewsets.ReadOnlyModelViewSet):
                     failed_count=failed,
                     no_phone_count=no_phone,
                     message_preview=message[:200],
+                    message_body=message,
                     filters_used={'type': 'direct_sms'},
                     details=details,
                 )

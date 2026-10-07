@@ -205,6 +205,89 @@ class SmsLogFilterTests(TestCase):
         self.school.refresh_from_db()
         self.assertEqual(self.school.sms_balance, 0)
 
+    @patch('notifications.sms_service.SmsService.send')
+    def test_resend_failed_only_retries_failed_recipients_with_original_message(self, mock_send):
+        self.school.sms_enabled = True
+        self.school.sms_balance = 2
+        self.school.arkesel_api_key = 'test-api-key'
+        self.school.save(update_fields=['sms_enabled', 'sms_balance', 'arkesel_api_key'])
+        original_message = 'A' * 250
+        sms_log = SmsLog.objects.create(
+            school=self.school,
+            sent_by=self.admin,
+            sms_type='general',
+            status='partial',
+            total_recipients=2,
+            sent_count=1,
+            failed_count=1,
+            message_preview=original_message[:200],
+            message_body=original_message,
+            filters_used={'type': 'direct_sms'},
+            details=[
+                {'name': 'Parent One', 'phone': '0240001111', 'status': 'sent'},
+                {
+                    'name': 'Parent Two',
+                    'phone': '0240002222',
+                    'status': 'failed',
+                    'reason': 'SMS provider error',
+                },
+            ],
+        )
+        history_response = self.client.get('/api/notifications/sms-logs/')
+        self.assertTrue(history_response.data['results'][0]['can_resend_failed'])
+        self.assertNotIn('message_body', history_response.data['results'][0])
+
+        def send_and_deduct(recipients, message, school):
+            self.assertEqual(recipients, ['0240002222'])
+            self.assertEqual(message, original_message)
+            School.objects.filter(pk=school.pk).update(sms_balance=F('sms_balance') - 1)
+            return True
+
+        mock_send.side_effect = send_and_deduct
+
+        response = self.client.post(
+            f'/api/notifications/sms-logs/{sms_log.id}/resend-failed/',
+            {},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['sent'], 1)
+        self.assertEqual(response.data['failed'], 0)
+        sms_log.refresh_from_db()
+        self.assertEqual(sms_log.status, 'success')
+        self.assertEqual(sms_log.sent_count, 2)
+        self.assertEqual(sms_log.failed_count, 0)
+        self.assertEqual([detail['status'] for detail in sms_log.details], ['sent', 'sent'])
+        self.school.refresh_from_db()
+        self.assertEqual(self.school.sms_balance, 1)
+
+    def test_resend_failed_rejects_logs_from_another_school(self):
+        other_school = School.objects.create(
+            name='Other SMS History School',
+            address='Test address',
+            location='Test location',
+            phone_number='0200000001',
+            email='other-sms-history@example.edu',
+        )
+        sms_log = SmsLog.objects.create(
+            school=other_school,
+            sms_type='general',
+            status='failed',
+            failed_count=1,
+            message_body='Test',
+            filters_used={'type': 'direct_sms'},
+            details=[{'name': 'Parent', 'phone': '0240002222', 'status': 'failed'}],
+        )
+
+        response = self.client.post(
+            f'/api/notifications/sms-logs/{sms_log.id}/resend-failed/',
+            {},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 404)
+
 
 class NotificationRecipientScopeTests(TestCase):
     def setUp(self):

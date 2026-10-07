@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Mail, MailOpen, Loader2, Bell, MessageSquare, Send, CheckCircle2, AlertCircle, Copy, Download } from 'lucide-react';
+import { Mail, MailOpen, Loader2, Bell, MessageSquare, Send, CheckCircle2, AlertCircle, Copy, Download, RotateCcw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +28,8 @@ interface SmsLog {
   failed_count: number;
   no_phone_count: number;
   message_preview: string;
+  can_resend_failed: boolean;
+  filters_used: Record<string, unknown>;
   created_at: string;
   details?: SmsLogRecipientDetail[];
 }
@@ -99,6 +101,7 @@ export default function SchoolAdminMessages() {
   const [smsLogs, setSmsLogs] = useState<SmsLog[]>([]);
   const [smsLogsLoading, setSmsLogsLoading] = useState(false);
   const [smsLogsExpanded, setSmsLogsExpanded] = useState<number | null>(null);
+  const [resendingLogId, setResendingLogId] = useState<number | null>(null);
 
   // Send SMS state
   const [recipients, setRecipients] = useState<SmsRecipient[]>([
@@ -201,6 +204,30 @@ export default function SchoolAdminMessages() {
       toast({ title: 'Error loading SMS logs', description: e.message, variant: 'destructive' });
     } finally {
       setSmsLogsLoading(false);
+    }
+  };
+
+  const resendFailedRecipients = async (log: SmsLog) => {
+    setResendingLogId(log.id);
+    try {
+      const result = await secureApiClient.post<{ sent: number; failed: number }>(
+        `/notifications/sms-logs/${log.id}/resend-failed/`,
+        {}
+      );
+      const description = [
+        `${result.sent} failed recipient(s) resent successfully.`,
+        result.failed ? `${result.failed} still failed.` : '',
+      ].filter(Boolean).join(' ');
+      toast({ title: 'Retry complete', description });
+      await fetchSmsLogs();
+    } catch (error: unknown) {
+      toast({
+        title: 'Could not resend failed messages',
+        description: getSmsErrorMessage(error),
+        variant: 'destructive',
+      });
+    } finally {
+      setResendingLogId(null);
     }
   };
 
@@ -758,9 +785,37 @@ export default function SchoolAdminMessages() {
 
                     {smsLogsExpanded === log.id && log.details && log.details.length > 0 && (
                       <div className="mt-4 pt-4 border-t space-y-2">
-                        <p className="text-xs font-medium text-foreground/70">
-                          Recipient results (accepted means submitted successfully to the SMS provider, not confirmed handset delivery):
-                        </p>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <p className="text-xs font-medium text-foreground/70">
+                            Recipient results (accepted means submitted to the SMS provider, not confirmed handset delivery):
+                          </p>
+                          {log.filters_used?.type === 'direct_sms'
+                            && log.failed_count > 0
+                            && log.can_resend_failed && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={resendingLogId !== null}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void resendFailedRecipients(log);
+                              }}
+                            >
+                              {resendingLogId === log.id
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <RotateCcw className="h-4 w-4" />}
+                              Resend failed ({log.failed_count})
+                            </Button>
+                          )}
+                          {log.filters_used?.type === 'direct_sms'
+                            && log.failed_count > 0
+                            && !log.can_resend_failed && (
+                              <p className="text-xs text-muted-foreground">
+                                This older record does not contain the complete message, so it cannot be resent safely.
+                              </p>
+                            )}
+                        </div>
                         <div className="max-h-48 overflow-y-auto space-y-2 text-xs">
                           {log.details.map((detail, i) => (
                             <div key={i} className="flex items-center justify-between p-2 rounded bg-muted/50">

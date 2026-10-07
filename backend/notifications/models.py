@@ -141,6 +141,7 @@ class SmsLog(models.Model):
 
     # Message & filters used
     message_preview = models.TextField(blank=True)  # first 200 chars of message
+    message_body = models.TextField(blank=True)
     filters_used = models.JSONField(default=dict, blank=True)  # {class, fee_type, statuses}
 
     # Per-recipient detail snapshot
