@@ -212,7 +212,8 @@ export default function SchoolAdminMessages() {
     try {
       const result = await secureApiClient.post<{ sent: number; failed: number }>(
         `/notifications/sms-logs/${log.id}/resend-failed/`,
-        {}
+        {},
+        { timeout: 600_000 }
       );
       const description = [
         `${result.sent} failed recipient(s) resent successfully.`,
@@ -221,9 +222,20 @@ export default function SchoolAdminMessages() {
       toast({ title: 'Retry complete', description });
       await fetchSmsLogs();
     } catch (error: unknown) {
+      const errorRecord = error && typeof error === 'object'
+        ? error as Record<string, unknown>
+        : undefined;
+      const isConnectionFailure = Boolean(
+        errorRecord && !errorRecord.response
+      );
+      if (isConnectionFailure) {
+        void fetchSmsLogs();
+      }
       toast({
         title: 'Could not resend failed messages',
-        description: getSmsErrorMessage(error),
+        description: isConnectionFailure
+          ? `${getSmsErrorMessage(error)} The retry may still be processing on the server. Check SMS History before trying again.`
+          : getSmsErrorMessage(error),
         variant: 'destructive',
       });
     } finally {

@@ -240,6 +240,8 @@ class SmsLogFilterTests(TestCase):
         def send_and_deduct(recipients, message, school):
             self.assertEqual(recipients, ['0240002222'])
             self.assertEqual(message, original_message)
+            in_progress_response = self.client.get('/api/notifications/sms-logs/')
+            self.assertFalse(in_progress_response.data['results'][0]['can_resend_failed'])
             School.objects.filter(pk=school.pk).update(sms_balance=F('sms_balance') - 1)
             return True
 

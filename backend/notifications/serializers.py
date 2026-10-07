@@ -54,9 +54,13 @@ class SmsLogSerializer(serializers.ModelSerializer):
         complete_message_available = bool(obj.message_body) or (
             0 < len(obj.message_preview) < 200
         )
+        has_failed_recipient = any(
+            isinstance(detail, dict) and detail.get('status') == 'failed'
+            for detail in (obj.details or [])
+        )
         return (
             obj.sms_type == 'general'
             and obj.filters_used.get('type') == 'direct_sms'
-            and obj.failed_count > 0
+            and has_failed_recipient
             and complete_message_available
         )
