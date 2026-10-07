@@ -32,7 +32,7 @@ import {
   type StudentSearchResult, type FeeType, type StudentFee, type FeePayment,
   type StudentFeeSubType,
   type FeeStructure, type TermBill, type WeeklyBill, type GenerateBillsResult,
-  type DailyFeeCollectionReport,
+  type DailyFeeCollectionReport, type DailyPaymentRoster,
   FREQUENCY_LABELS, type CollectionFrequency,
 } from '@/services/feeService';
 import secureApiClient from '@/lib/secureApiClient';
@@ -66,6 +66,9 @@ const BILL_STATUS_COLORS: Record<string, string> = {
   WAIVED: 'bg-gray-100 text-gray-800 border-gray-200',
 };
 
+const toLocalDateInputValue = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
 const PIE_STATUS_COLORS: Record<string, string> = {
   'Paid': '#10b981',
   'Partial': '#f59e0b',
@@ -95,6 +98,15 @@ const FeeManagement = () => {
   const [selectedFeeType, setSelectedFeeType] = useState('all');
   const [selectedStudent, setSelectedStudent] = useState<StudentSearchResult | null>(null);
   const [paymentFeeTypeId, setPaymentFeeTypeId] = useState('');
+  const [dailyPaidStudentIds, setDailyPaidStudentIds] = useState<number[]>([]);
+  const [dailyStatusLoading, setDailyStatusLoading] = useState(false);
+  const [dailyStatusError, setDailyStatusError] = useState('');
+  const [dailyRosterClassId, setDailyRosterClassId] = useState('');
+  const [dailyRosterFeeTypeId, setDailyRosterFeeTypeId] = useState('');
+  const [dailyRosterDate, setDailyRosterDate] = useState(() => toLocalDateInputValue(new Date()));
+  const [dailyRoster, setDailyRoster] = useState<DailyPaymentRoster | null>(null);
+  const [dailyRosterLoading, setDailyRosterLoading] = useState(false);
+  const [dailyRosterError, setDailyRosterError] = useState('');
   const [studentFeeAssignments, setStudentFeeAssignments] = useState<StudentFeeSubType[]>([]);
   const [loadingStudentFeeAssignments, setLoadingStudentFeeAssignments] = useState(false);
   const [studentFeeAssignmentsError, setStudentFeeAssignmentsError] = useState(false);
@@ -216,6 +228,82 @@ const FeeManagement = () => {
   const [lastWeeklyBillResult, setLastWeeklyBillResult] = useState<GenerateBillsResult | null>(null);
   const [termBillsLoading, setTermBillsLoading] = useState(false);
   const [sendingReminders, setSendingReminders] = useState(false);
+  const [reminderClassFilter, setReminderClassFilter] = useState('all');
+  const [selectedReminderStudentIds, setSelectedReminderStudentIds] = useState<string[]>([]);
+  const [reminderSelectionKey, setReminderSelectionKey] = useState('');
+
+  const reminderRecipients = useMemo(() => {
+    const byStudent = new Map<string, {
+      student_id: string;
+      student_name: string;
+      class_id: number | null;
+      class_level: string;
+      class_section: string;
+      balance: number;
+    }>();
+    termBills.forEach((bill) => {
+      if (!['UNPAID', 'PARTIAL'].includes(bill.status) || Number(bill.balance) <= 0) return;
+      const existing = byStudent.get(bill.student_id);
+      if (existing) {
+        existing.balance += Number(bill.balance);
+        return;
+      }
+      byStudent.set(bill.student_id, {
+        student_id: bill.student_id,
+        student_name: bill.student_name,
+        class_id: bill.class_id,
+        class_level: bill.class_level,
+        class_section: bill.class_section,
+        balance: Number(bill.balance),
+      });
+    });
+    return [...byStudent.values()];
+  }, [termBills]);
+
+  const visibleReminderRecipients = useMemo(
+    () => reminderRecipients.filter(recipient =>
+      reminderClassFilter === 'all' ||
+      (reminderClassFilter === '_unassigned'
+        ? recipient.class_id == null
+        : String(recipient.class_id ?? '') === reminderClassFilter)
+    ),
+    [reminderRecipients, reminderClassFilter],
+  );
+  const selectedReminderCount = reminderRecipients.filter(recipient =>
+    selectedReminderStudentIds.includes(recipient.student_id)
+  ).length;
+  const selectedVisibleReminderIds = visibleReminderRecipients
+    .filter(recipient => selectedReminderStudentIds.includes(recipient.student_id))
+    .map(recipient => recipient.student_id);
+
+  const selectedPaymentFeeType = feeTypes.find(type => String(type.id) === paymentFeeTypeId);
+  const isDailyPaymentSelected = selectedPaymentFeeType?.collection_frequency === 'DAILY';
+
+  useEffect(() => {
+    if (!isDailyPaymentSelected || !paymentFeeTypeId) {
+      setDailyPaidStudentIds([]);
+      setDailyStatusError('');
+      setDailyStatusLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setDailyStatusLoading(true);
+    setDailyStatusError('');
+    secureApiClient.get<{ paid_student_ids: number[] }>('/fees/payments/daily-status/', {
+      params: { fee_type: Number(paymentFeeTypeId) },
+    }).then((response) => {
+      if (!cancelled) setDailyPaidStudentIds(response.paid_student_ids || []);
+    }).catch((error: any) => {
+      if (!cancelled) {
+        setDailyStatusError(error?.message || 'Could not check which students have paid today.');
+      }
+    }).finally(() => {
+      if (!cancelled) setDailyStatusLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [isDailyPaymentSelected, paymentFeeTypeId]);
 
   useEffect(() => { fetchInitialData(); }, []);
   useEffect(() => { if (activeTab === 'setup') fetchSetupData(); }, [activeTab]);
@@ -513,6 +601,10 @@ const FeeManagement = () => {
     }
 
     const isDaily = feeTypes.find(type => String(type.id) === paymentFeeTypeId)?.collection_frequency === 'DAILY';
+    if (isDaily && selectedStudent && dailyPaidStudentIds.includes(selectedStudent.id)) {
+      toast.info('This student is already marked as paid for this daily fee today.');
+      return;
+    }
     const amount = isDaily ? resolvedStructureAmount! : parseFloat(paymentAmount);
 
     try {
@@ -527,6 +619,27 @@ const FeeManagement = () => {
         reference_number: referenceNumber || undefined,
         notes: notes || undefined
       });
+      if (isDaily && selectedStudent) {
+        setDailyPaidStudentIds(previous => previous.includes(selectedStudent.id)
+          ? previous
+          : [...previous, selectedStudent.id]);
+        if (
+          dailyRoster &&
+          dailyRosterFeeTypeId === paymentFeeTypeId &&
+          dailyRosterDate === toLocalDateInputValue(new Date())
+        ) {
+          setDailyRoster(previous => previous
+            ? {
+                ...previous,
+                students: previous.students.map(rosterStudent =>
+                  rosterStudent.student_id === selectedStudent.id
+                    ? { ...rosterStudent, paid: true, amount_paid: amount }
+                    : rosterStudent
+                ),
+              }
+            : previous);
+        }
+      }
 
       toast.success(
         <div className="flex items-center gap-2">
@@ -567,9 +680,12 @@ const FeeManagement = () => {
   };
 
   const resetPaymentForm = () => {
+    const keepDailyFeeStatus = feeTypes.some(
+      feeType => String(feeType.id) === paymentFeeTypeId && feeType.collection_frequency === 'DAILY'
+    );
     setSelectedStudent(null);
     // Don't reset selectedFeeType here as it's used for filtering
-    setPaymentFeeTypeId('');
+    if (!keepDailyFeeStatus) setPaymentFeeTypeId('');
     setStudentFeeAssignments([]);
     setStudentFeeAssignmentsError(false);
     setPaymentAmount('');
@@ -577,6 +693,30 @@ const FeeManagement = () => {
     setReferenceNumber('');
     setNotes('');
     setValidationErrors({});
+  };
+
+  const loadDailyPaymentRoster = async () => {
+    if (!dailyRosterClassId || !dailyRosterFeeTypeId || !dailyRosterDate) {
+      setDailyRosterError('Select a class, daily fee, and date to view the roster.');
+      setDailyRoster(null);
+      return;
+    }
+
+    setDailyRosterLoading(true);
+    setDailyRosterError('');
+    try {
+      const roster = await feeService.getDailyPaymentRoster({
+        class_id: Number(dailyRosterClassId),
+        fee_type: Number(dailyRosterFeeTypeId),
+        date: dailyRosterDate,
+      });
+      setDailyRoster(roster);
+    } catch (error: any) {
+      setDailyRoster(null);
+      setDailyRosterError(error?.message || 'Could not load the daily payment roster.');
+    } finally {
+      setDailyRosterLoading(false);
+    }
   };
 
   const selectStudentForPayment = (student: StudentSearchResult) => {
@@ -630,25 +770,24 @@ const FeeManagement = () => {
   }, []);
 
   const sendSmsReminders = async (dryRun: boolean) => {
+    const reminderStudentIds = [...new Set(smsEligibleRecords.map(bill => bill.student_id))];
+    if (reminderStudentIds.length === 0) {
+      toast.info('No unpaid or partially paid bills match the current filters.');
+      return;
+    }
+
     setSmsSending(true);
     if (!dryRun) setSmsPreview(null);
     try {
-      const statuses = recStatusFilter === 'all'
-        ? ['UNPAID', 'PARTIAL']
-        : [recStatusFilter];
+      const statuses = [...new Set(smsEligibleRecords.map(bill => bill.status))];
 
       const payload: Record<string, unknown> = {
         statuses,
+        student_ids: reminderStudentIds,
         dry_run: dryRun,
         skip_already_messaged: skipAlreadyMessaged,
       };
-      if (recClassFilter !== 'all') {
-        const cls = classes.find(c => c.level === recClassFilter);
-        if (cls) payload.class_id = cls.id;
-      }
-      // IMPORTANT: Do NOT filter by fee type when sending SMS reminders
-      // We want ONE consolidated message per parent with ALL their arrears,
-      // not separate messages for each fee type. The recFeeTypeFilter is only for display.
+      if (recFeeTypeFilter !== 'all') payload.fee_types = [Number(recFeeTypeFilter)];
       if (smsMessage.trim()) payload.message = smsMessage.trim();
 
       const result = await secureApiClient.post<{
@@ -1028,6 +1167,20 @@ const FeeManagement = () => {
         ordering: '-updated_at',
       });
       setTermBills(data.results);
+      const selectionKey = `${billTermId}:${billFeeTypeId || 'all'}`;
+      const eligibleStudentIds = [...new Set(
+        data.results
+          .filter(bill => ['UNPAID', 'PARTIAL'].includes(bill.status) && Number(bill.balance) > 0)
+          .map(bill => bill.student_id)
+      )];
+      setSelectedReminderStudentIds(previous => {
+        if (reminderSelectionKey !== selectionKey) return eligibleStudentIds;
+        const eligible = new Set(eligibleStudentIds);
+        const retained = previous.filter(studentId => eligible.has(studentId));
+        const retainedSet = new Set(retained);
+        return [...retained, ...eligibleStudentIds.filter(studentId => !retainedSet.has(studentId))];
+      });
+      setReminderSelectionKey(selectionKey);
     } catch (e: any) {
       toast.error(e.message || 'Failed to load bills');
     } finally {
@@ -1279,6 +1432,12 @@ const FeeManagement = () => {
     return true;
   }), [recordsBills, recClassFilter, recFeeTypeFilter, recStatusFilter, recSearchQuery]);
 
+  const smsEligibleRecords = useMemo(
+    () => filteredRecords.filter(bill => bill.status === 'UNPAID' || bill.status === 'PARTIAL'),
+    [filteredRecords],
+  );
+  const smsEligibleStudentCount = new Set(smsEligibleRecords.map(bill => bill.student_id)).size;
+
   const recTotals = useMemo(() => ({
     billed: filteredRecords.reduce((s, b) => s + Number(b.amount_billed), 0),
     paid: filteredRecords.reduce((s, b) => s + Number(b.amount_paid), 0),
@@ -1501,6 +1660,16 @@ const FeeManagement = () => {
               {students && students.length > 0 && (
                 <div className="space-y-2">
                   <Label>Search Results ({students.length} students)</Label>
+                  {isDailyPaymentSelected && (
+                    <div className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${
+                      dailyStatusError
+                        ? 'bg-destructive/10 text-destructive'
+                        : 'bg-muted text-muted-foreground'
+                    }`}>
+                      {dailyStatusLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {dailyStatusError || 'Daily fee status is shown for the selected fee and today.'}
+                    </div>
+                  )}
                   <div className="max-h-60 overflow-y-auto border rounded-md">
                     {students.map((student) => (
                       <div
@@ -1521,8 +1690,19 @@ const FeeManagement = () => {
                           </div>
                           <div className="text-right">
                             <div className="text-sm font-medium">
-                              Balance: {formatCurrency(student.current_balance)}
+                              {isDailyPaymentSelected ? 'Other fees balance: ' : 'Balance: '}
+                              {formatCurrency(student.current_balance)}
                             </div>
+                            {isDailyPaymentSelected && !dailyStatusLoading && !dailyStatusError && (
+                              <Badge
+                                variant="outline"
+                                className={dailyPaidStudentIds.includes(student.id)
+                                  ? 'mt-1 border-green-200 bg-green-50 text-green-700'
+                                  : 'mt-1 border-amber-200 bg-amber-50 text-amber-700'}
+                              >
+                                {dailyPaidStudentIds.includes(student.id) ? '✓ Paid today' : 'Not paid today'}
+                              </Badge>
+                            )}
                             <Badge 
                               variant="outline" 
                               className={statusColors[student.payment_status] || statusColors.NOT_STARTED}
@@ -1712,7 +1892,7 @@ const FeeManagement = () => {
                   <Button 
                     onClick={collectFee} 
                     className={`flex-1 ${isDaily ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white' : ''}`}
-                    disabled={paymentLoading || !selectedStudent || !paymentFeeTypeId || loadingStudentFeeAssignments || studentFeeAssignmentsError || (isDaily ? resolvedStructureAmount == null : !paymentAmount)}
+                    disabled={paymentLoading || !selectedStudent || !paymentFeeTypeId || loadingStudentFeeAssignments || studentFeeAssignmentsError || (isDaily && (dailyStatusLoading || Boolean(dailyStatusError) || dailyPaidStudentIds.includes(selectedStudent?.id ?? -1))) || (isDaily ? resolvedStructureAmount == null : !paymentAmount)}
                   >
                     {paymentLoading ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -1721,7 +1901,7 @@ const FeeManagement = () => {
                     ) : (
                       <Receipt className="h-4 w-4 mr-2" />
                     )}
-                    {paymentLoading ? 'Recording…' : isDaily ? 'Mark as Paid' : 'Record Payment'}
+                    {paymentLoading ? 'Recording…' : isDaily && selectedStudent && dailyPaidStudentIds.includes(selectedStudent.id) ? 'Paid Today' : isDaily ? 'Mark as Paid' : 'Record Payment'}
                   </Button>
                   {selectedStudent && (
                     <Button variant="outline" onClick={resetPaymentForm} disabled={paymentLoading}>
@@ -1732,6 +1912,165 @@ const FeeManagement = () => {
               </div>
               );
               })()}
+            </CardContent>
+          </Card>
+
+          <Card variant="elevated" className="border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarDays className="h-5 w-5 text-primary" />
+                Daily Fee Check-Out
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Choose a class, daily fee, and date to check which active students have paid.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-2">
+                  <Label htmlFor="daily-roster-class">Class</Label>
+                  <Select value={dailyRosterClassId} onValueChange={setDailyRosterClassId}>
+                    <SelectTrigger id="daily-roster-class">
+                      <SelectValue placeholder="Select class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classes.map(cls => (
+                        <SelectItem key={cls.id} value={String(cls.id)}>
+                          {cls.full_name || `${cls.level} ${cls.section}`.trim()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="daily-roster-fee">Daily Fee</Label>
+                  <Select value={dailyRosterFeeTypeId} onValueChange={setDailyRosterFeeTypeId}>
+                    <SelectTrigger id="daily-roster-fee">
+                      <SelectValue placeholder="Select daily fee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {feeTypes.filter(feeType => feeType.collection_frequency === 'DAILY').map(feeType => (
+                        <SelectItem key={feeType.id} value={String(feeType.id)}>
+                          {feeType.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="daily-roster-date">Date</Label>
+                  <Input
+                    id="daily-roster-date"
+                    type="date"
+                    value={dailyRosterDate}
+                    onChange={event => setDailyRosterDate(event.target.value)}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    className="w-full"
+                    onClick={loadDailyPaymentRoster}
+                    disabled={dailyRosterLoading || !dailyRosterClassId || !dailyRosterFeeTypeId || !dailyRosterDate}
+                  >
+                    {dailyRosterLoading
+                      ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      : <Search className="mr-2 h-4 w-4" />}
+                    {dailyRosterLoading ? 'Checking…' : 'Check Class Payments'}
+                  </Button>
+                </div>
+              </div>
+
+              {dailyRosterError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{dailyRosterError}</AlertDescription>
+                </Alert>
+              )}
+
+              {dailyRoster && (
+                <div className="space-y-3">
+                  <div className="flex flex-col gap-2 rounded-lg bg-muted/40 p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-semibold">{dailyRoster.class_name} · {dailyRoster.fee_type_name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(`${dailyRoster.date}T00:00:00`).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                        {dailyRoster.students.filter(student => student.paid).length} Paid
+                      </Badge>
+                      <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
+                        {dailyRoster.students.filter(student => !student.paid).length} Unpaid
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {dailyRoster.students.length === 0 ? (
+                    <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+                      No active students are assigned to this class.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="hidden overflow-x-auto rounded-md border sm:block">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted/50">
+                            <tr>
+                              <th className="p-3 text-left">Student</th>
+                              <th className="p-3 text-left">Student ID</th>
+                              <th className="p-3 text-right">Paid</th>
+                              <th className="p-3 text-center">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {dailyRoster.students.map(student => (
+                              <tr key={student.student_id} className="border-t">
+                                <td className="p-3 font-medium">{student.student_name}</td>
+                                <td className="p-3 font-mono text-muted-foreground">{student.student_code}</td>
+                                <td className="p-3 text-right font-mono">{formatCurrency(student.amount_paid)}</td>
+                                <td className="p-3 text-center">
+                                  <Badge
+                                    variant="outline"
+                                    className={student.paid
+                                      ? 'border-green-200 bg-green-50 text-green-700'
+                                      : 'border-amber-200 bg-amber-50 text-amber-700'}
+                                  >
+                                    {student.paid ? 'Paid' : 'Unpaid'}
+                                  </Badge>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="space-y-2 sm:hidden">
+                        {dailyRoster.students.map(student => (
+                          <div key={student.student_id} className="flex items-center gap-3 rounded-md border p-3">
+                            {student.paid
+                              ? <CheckCircle className="h-5 w-5 shrink-0 text-green-600" />
+                              : <XCircle className="h-5 w-5 shrink-0 text-amber-600" />}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium">{student.student_name}</p>
+                              <p className="text-xs text-muted-foreground">{student.student_code}</p>
+                            </div>
+                            <div className="text-right">
+                              <Badge
+                                variant="outline"
+                                className={student.paid
+                                  ? 'border-green-200 bg-green-50 text-green-700'
+                                  : 'border-amber-200 bg-amber-50 text-amber-700'}
+                              >
+                                {student.paid ? 'Paid' : 'Unpaid'}
+                              </Badge>
+                              <p className="mt-1 text-xs font-mono">{formatCurrency(student.amount_paid)}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -1863,7 +2202,7 @@ const FeeManagement = () => {
                   <MessageSquare className="h-4 w-4 text-orange-600" />
                   <span className="text-sm font-semibold text-orange-700 dark:text-orange-400">Send SMS to Parents</span>
                   <Badge variant="outline" className="text-xs border-orange-300 text-orange-700">
-                    {filteredRecords.filter(b => b.status !== 'WAIVED').length} parent{filteredRecords.filter(b => b.status !== 'WAIVED').length !== 1 ? 's' : ''} in current filter
+                    {smsEligibleStudentCount} student{smsEligibleStudentCount !== 1 ? 's' : ''} with arrears
                   </Badge>
                 </div>
                 {showSmsPanel ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
@@ -1896,19 +2235,13 @@ const FeeManagement = () => {
                   <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 px-3 py-2">
                     <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
                     <p className="text-sm text-emerald-700">
-                      <span className="font-semibold">{smsBalance} SMS credits</span> available
-                      {filteredRecords.filter(b => b.status !== 'WAIVED').length > 0 && smsBalance < filteredRecords.filter(b => b.status !== 'WAIVED').length && (
-                        <span className="text-orange-600 ml-2">
-                          ⚠ Only enough for {smsBalance} of {filteredRecords.filter(b => b.status !== 'WAIVED').length} recipients —{' '}
-                          <button className="underline" onClick={() => navigate('/school/sms-purchase')}>top up</button>
-                        </span>
-                      )}
+                      <span className="font-semibold">{smsBalance} SMS credits</span> available. Preview to check the matching guardian recipients before sending.
                     </p>
                   </div>
                 ) : null}
 
                 <p className="text-xs text-muted-foreground">
-                  SMS will be sent to parents matching the <strong>current filters</strong> above (class, fee type, status).
+                  SMS will be sent to guardians of students matching the <strong>current search and filters</strong> (class, fee type, and status), limited to unpaid or partially paid bills. Matching fee records are consolidated into one reminder per guardian.
                   Use <code className="bg-muted px-1 rounded">{'{student}'}</code> and <code className="bg-muted px-1 rounded">{'{balance}'}</code> as placeholders in your message.
                   Leave the message blank to use the default reminder text.
                 </p>
@@ -1916,7 +2249,7 @@ const FeeManagement = () => {
                 {/* Status summary */}
                 <div className="flex flex-wrap gap-2">
                   {(['UNPAID', 'PARTIAL', 'PAID'] as const).map(s => {
-                    const count = filteredRecords.filter(b => b.status === s).length;
+                    const count = new Set(filteredRecords.filter(b => b.status === s).map(b => b.student_id)).size;
                     const colors: Record<string, string> = {
                       UNPAID: 'border-red-300 bg-red-50 text-red-700',
                       PARTIAL: 'border-yellow-300 bg-yellow-50 text-yellow-700',
@@ -1962,7 +2295,7 @@ const FeeManagement = () => {
                   <Button
                     size="sm" variant="outline"
                     onClick={() => sendSmsReminders(true)}
-                    disabled={smsSending || filteredRecords.length === 0}
+                    disabled={smsSending || smsEligibleStudentCount === 0}
                   >
                     {smsSending && smsPreview === null ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Filter className="h-3.5 w-3.5 mr-1.5" />}
                     Preview (dry run)
@@ -1971,7 +2304,7 @@ const FeeManagement = () => {
                     size="sm"
                     className="bg-orange-600 hover:bg-orange-700 text-white"
                     onClick={() => sendSmsReminders(false)}
-                    disabled={smsSending || filteredRecords.filter(b => b.status !== 'WAIVED').length === 0 || smsBalance === 0}
+                    disabled={smsSending || smsEligibleStudentCount === 0 || smsBalance === 0}
                     title={smsBalance === 0 ? 'No SMS credits — purchase credits first' : undefined}
                   >
                     {smsSending && smsPreview !== null ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
@@ -2021,7 +2354,7 @@ const FeeManagement = () => {
 
           {/* Summary totals row */}
           {recBillType === 'term' && filteredRecords.length > 0 && (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-lg border bg-blue-50 border-blue-200 p-3 text-center">
                 <div className="text-xs text-blue-600 font-medium mb-0.5">Total Billed</div>
                 <div className="text-lg font-bold text-blue-800">{formatCurrency(recTotals.billed)}</div>
@@ -3544,18 +3877,31 @@ const FeeManagement = () => {
                         size="sm"
                         variant="outline"
                         className="gap-1 border-orange-300 text-orange-700 hover:bg-orange-50"
-                        disabled={sendingReminders || termBillsLoading}
+                        disabled={sendingReminders || termBillsLoading || selectedVisibleReminderIds.length === 0}
                         onClick={async () => {
                           setSendingReminders(true);
                           try {
                             const result = await secureApiClient.post<{ sent: number; no_phone: number; skipped: number; dry_run: boolean; sms_balance_remaining?: number }>(
                               '/fees/term-bills/send-fee-reminders/',
-                              { term: billTermId }
+                              {
+                                term: billTermId,
+                                student_ids: selectedVisibleReminderIds,
+                                ...(billFeeTypeId ? { fee_types: [Number(billFeeTypeId)] } : {}),
+                              }
                             );
                             if (result.sms_balance_remaining !== undefined) setSmsBalance(result.sms_balance_remaining);
-                            toast.success(`Fee reminders sent to ${result.sent} student(s).${
+                            const resultMessage = `Fee reminders sent to ${result.sent} guardian(s) for the selected students.${
                               result.no_phone > 0 ? ` ${result.no_phone} skipped (no phone number on file).` : ''
-                            }${result.sms_balance_remaining !== undefined ? ` Credits remaining: ${result.sms_balance_remaining}.` : ''}`);
+                            }${result.sms_balance_remaining !== undefined ? ` Credits remaining: ${result.sms_balance_remaining}.` : ''}`;
+                            if (result.sent > 0) {
+                              toast.success(resultMessage);
+                            } else if (result.no_phone > 0) {
+                              toast.warning(`No reminders were sent. ${result.no_phone} recipient(s) have no phone number on file.`);
+                            } else if (result.skipped > 0) {
+                              toast.error('No reminders were sent. Check the SMS balance and provider settings.');
+                            } else {
+                              toast.info('No outstanding bills matched the selected students.');
+                            }
                           } catch (e: any) {
                             const msg = e?.response?.data?.error || e.message || 'Failed to send reminders';
                             if (msg.toLowerCase().includes('insufficient') || msg.toLowerCase().includes('balance')) {
@@ -3577,6 +3923,112 @@ const FeeManagement = () => {
                       </Button>
                     </div>
                   </div>
+                  {!termBillsLoading && termBills.length > 0 && (
+                    <Card variant="elevated" className="mb-4 border-primary/20">
+                      <CardHeader className="pb-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <CardTitle className="text-base">Choose reminder recipients</CardTitle>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              Students with unpaid or partial bills are selected by default. Uncheck anyone who should not receive a reminder. Sending applies to checked students shown by the active class filter.
+                            </p>
+                          </div>
+                          <Badge variant="secondary" className="w-fit">
+                            {selectedReminderCount} selected across all classes
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="w-full sm:max-w-xs">
+                            <Label htmlFor="reminder-class-filter" className="sr-only">Filter recipients by class</Label>
+                            <Select value={reminderClassFilter} onValueChange={setReminderClassFilter}>
+                              <SelectTrigger id="reminder-class-filter">
+                                <SelectValue placeholder="Filter by class" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All classes</SelectItem>
+                                {classes.map(cls => (
+                                  <SelectItem key={cls.id} value={String(cls.id)}>
+                                    {cls.full_name || `${cls.level} ${cls.section}`.trim()}
+                                  </SelectItem>
+                                ))}
+                                {reminderRecipients.some(recipient => recipient.class_id == null) && (
+                                  <SelectItem value="_unassigned">No class assigned</SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={visibleReminderRecipients.length === 0}
+                              onClick={() => setSelectedReminderStudentIds(previous => [
+                                ...new Set([
+                                  ...previous,
+                                  ...visibleReminderRecipients.map(recipient => recipient.student_id),
+                                ]),
+                              ])}
+                            >
+                              Select shown
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              disabled={visibleReminderRecipients.length === 0}
+                              onClick={() => {
+                                const visibleIds = new Set(visibleReminderRecipients.map(recipient => recipient.student_id));
+                                setSelectedReminderStudentIds(previous => previous.filter(id => !visibleIds.has(id)));
+                              }}
+                            >
+                              Clear shown
+                            </Button>
+                          </div>
+                        </div>
+
+                        {visibleReminderRecipients.length === 0 ? (
+                          <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+                            {reminderRecipients.length === 0
+                              ? 'There are no students with an outstanding bill for this term.'
+                              : 'No outstanding recipients match this class filter.'}
+                          </p>
+                        ) : (
+                          <div className="max-h-72 divide-y overflow-y-auto rounded-md border">
+                            {visibleReminderRecipients.map(recipient => (
+                              <label
+                                key={recipient.student_id}
+                                className="flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-muted/50"
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 accent-primary"
+                                  checked={selectedReminderStudentIds.includes(recipient.student_id)}
+                                  onChange={event => setSelectedReminderStudentIds(previous =>
+                                    event.target.checked
+                                      ? [...new Set([...previous, recipient.student_id])]
+                                      : previous.filter(id => id !== recipient.student_id)
+                                  )}
+                                />
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-sm font-medium">{recipient.student_name}</span>
+                                  <span className="block text-xs text-muted-foreground">
+                                    {recipient.student_id} · {recipient.class_level} {recipient.class_section}
+                                  </span>
+                                </span>
+                                <span className="shrink-0 text-right">
+                                  <span className="block text-xs text-muted-foreground">Outstanding</span>
+                                  <span className="text-sm font-semibold text-destructive">{formatCurrency(recipient.balance)}</span>
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
                   {termBillsLoading ? (
                     <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
                   ) : termBills.length === 0 ? (

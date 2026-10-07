@@ -380,6 +380,7 @@ class FeeCollectionReportSerializer(serializers.Serializer):
 class TermBillSerializer(serializers.ModelSerializer):
     student_id = serializers.CharField(source='student.student_id', read_only=True)
     student_name = serializers.SerializerMethodField()
+    class_id = serializers.IntegerField(source='student.current_class_id', read_only=True, allow_null=True)
     class_level = serializers.CharField(source='student.current_class.level', read_only=True)
     class_section = serializers.CharField(source='student.current_class.section', read_only=True)
     fee_type_name = serializers.CharField(source='fee_type.name', read_only=True)
@@ -389,7 +390,7 @@ class TermBillSerializer(serializers.ModelSerializer):
     class Meta:
         model = TermBill
         fields = [
-            'id', 'student_id', 'student_name', 'class_level', 'class_section',
+            'id', 'student_id', 'student_name', 'class_id', 'class_level', 'class_section',
             'fee_type', 'fee_type_name', 'term', 'term_name', 'academic_year_name',
             'amount_billed', 'amount_paid', 'balance', 'status',
             'due_date', 'notes', 'created_at', 'updated_at',

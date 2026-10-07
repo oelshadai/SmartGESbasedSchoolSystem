@@ -101,8 +101,21 @@ export default function SchoolAdminMessages() {
   const fetchSmsLogs = async () => {
     setSmsLogsLoading(true);
     try {
-      const res = await secureApiClient.get<any>('/notifications/sms-logs/?type=fee_reminder,general&ordering=-created_at');
-      setSmsLogs(Array.isArray(res) ? res : res.results || []);
+      const allLogs: SmsLog[] = [];
+      let page = 1;
+      let response: any;
+      do {
+        response = await secureApiClient.get<any>(
+          `/notifications/sms-logs/?ordering=-created_at&page=${page}`
+        );
+        if (Array.isArray(response)) {
+          allLogs.push(...response);
+          break;
+        }
+        allLogs.push(...(response.results || []));
+        page += 1;
+      } while (response.next);
+      setSmsLogs(allLogs);
     } catch (e: any) {
       toast({ title: 'Error loading SMS logs', description: e.message, variant: 'destructive' });
     } finally {
@@ -518,7 +531,11 @@ export default function SchoolAdminMessages() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-medium text-sm">
-                              {log.sms_type === 'fee_reminder' ? '📋 Fee Reminder' : '📱 Direct SMS'}
+                              {log.sms_type === 'fee_reminder'
+                                ? '📋 Fee Reminder'
+                                : log.sms_type === 'attendance'
+                                  ? '📣 Attendance Alert'
+                                  : '📱 Direct SMS'}
                             </h3>
                             <Badge variant={log.status === 'success' ? 'default' : log.status === 'partial' ? 'secondary' : 'destructive'}>
                               {log.status.toUpperCase()}

@@ -376,6 +376,135 @@ class FeePaymentViewSet(viewsets.ModelViewSet):
                 )
         
         return queryset
+
+    @action(detail=False, methods=['get'], url_path='daily-status')
+    def daily_status(self, request):
+        """Return student IDs with a payment for a DAILY fee on the requested school date."""
+        fee_type_id = request.query_params.get('fee_type')
+        if not fee_type_id:
+            return Response(
+                {'error': 'fee_type is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            fee_type = FeeType.objects.get(
+                pk=fee_type_id,
+                school=request.user.school,
+            )
+        except (FeeType.DoesNotExist, TypeError, ValueError):
+            return Response(
+                {'error': 'Fee type not found for this school.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if fee_type.collection_frequency != 'DAILY':
+            return Response(
+                {'error': 'Daily payment status is only available for DAILY fee types.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        raw_date = request.query_params.get('date')
+        selected_date = parse_date(raw_date) if raw_date else timezone.localdate()
+        if selected_date is None:
+            return Response(
+                {'error': 'date must use YYYY-MM-DD format.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        fee_type_ids = [fee_type.id, *fee_type.sub_types.values_list('id', flat=True)]
+        paid_student_ids = FeePayment.objects.filter(
+            school=request.user.school,
+            fee_type_id__in=fee_type_ids,
+        ).filter(
+            Q(attendance_date=selected_date) |
+            Q(payment_date__date=selected_date)
+        ).values_list('student_id', flat=True).distinct()
+
+        return Response({
+            'date': selected_date.isoformat(),
+            'fee_type': fee_type.id,
+            'paid_student_ids': list(paid_student_ids),
+        })
+
+    @action(detail=False, methods=['get'], url_path='daily-roster')
+    def daily_roster(self, request):
+        """Return all active students in a class with paid/unpaid status for a daily fee."""
+        class_id = request.query_params.get('class_id')
+        fee_type_id = request.query_params.get('fee_type')
+        if not class_id or not fee_type_id:
+            return Response(
+                {'error': 'class_id and fee_type are required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            class_obj = Class.objects.get(pk=class_id, school=request.user.school)
+        except (Class.DoesNotExist, TypeError, ValueError):
+            return Response(
+                {'error': 'Class not found for this school.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            fee_type = FeeType.objects.get(pk=fee_type_id, school=request.user.school)
+        except (FeeType.DoesNotExist, TypeError, ValueError):
+            return Response(
+                {'error': 'Fee type not found for this school.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if fee_type.collection_frequency != 'DAILY':
+            return Response(
+                {'error': 'Daily roster is only available for DAILY fee types.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        raw_date = request.query_params.get('date')
+        selected_date = parse_date(raw_date) if raw_date else timezone.localdate()
+        if selected_date is None:
+            return Response(
+                {'error': 'date must use YYYY-MM-DD format.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        fee_type_ids = [fee_type.id, *fee_type.sub_types.values_list('id', flat=True)]
+        paid_amounts = {
+            payment['student_id']: float(payment['amount_paid'])
+            for payment in FeePayment.objects.filter(
+                school=request.user.school,
+                fee_type_id__in=fee_type_ids,
+                student__current_class=class_obj,
+                student__is_active=True,
+            ).filter(
+                Q(attendance_date=selected_date) |
+                Q(payment_date__date=selected_date)
+            ).values('student_id').annotate(amount_paid=Sum('amount_paid'))
+        }
+
+        students = Student.objects.filter(
+            school=request.user.school,
+            current_class=class_obj,
+            is_active=True,
+        ).order_by('last_name', 'first_name', 'student_id')
+
+        return Response({
+            'date': selected_date.isoformat(),
+            'fee_type': fee_type.id,
+            'fee_type_name': fee_type.name,
+            'class_id': class_obj.id,
+            'class_name': class_obj.full_name,
+            'students': [
+                {
+                    'student_id': student.id,
+                    'student_code': student.student_id,
+                    'student_name': student.get_full_name(),
+                    'paid': student.id in paid_amounts,
+                    'amount_paid': paid_amounts.get(student.id, 0),
+                }
+                for student in students
+            ],
+        })
     
     def get_serializer_class(self):
         if self.action == 'create':
@@ -1640,6 +1769,7 @@ class TermBillViewSet(viewsets.ModelViewSet):
           {
             "term": <id>,                 // filter to a specific term
             "class_id": <id>,             // filter to a class
+            "student_ids": [<id>, ...],   // optional student IDs to include
             "fee_type": <id>,             // DEPRECATED: use fee_types instead
             "fee_types": [<id>, ...],     // filter to specific fee types (array)
             "message": "...",             // custom SMS message (uses default if omitted)
@@ -1667,7 +1797,12 @@ class TermBillViewSet(viewsets.ModelViewSet):
         dry_run = request.data.get('dry_run', False)
         custom_message = request.data.get('message', '').strip()
         skip_already_messaged = request.data.get('skip_already_messaged', False)
-
+        selected_student_ids = request.data.get('student_ids')
+        if selected_student_ids is not None and not isinstance(selected_student_ids, list):
+            return Response(
+                {'error': 'student_ids must be a list of student IDs.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         # Pre-flight: check SMS balance and API key before doing any work
         if not dry_run:
             from notifications.sms_service import SmsService as _Svc
@@ -1705,10 +1840,18 @@ class TermBillViewSet(viewsets.ModelViewSet):
         if class_id:
             qs = qs.filter(student__current_class_id=class_id)
 
+        if selected_student_ids is not None:
+            selected_student_ids = [
+                str(student_id).strip()
+                for student_id in selected_student_ids
+                if str(student_id).strip()
+            ]
+            qs = qs.filter(student__student_id__in=selected_student_ids)
+
         # Support both single fee_type (deprecated) and fee_types array
         fee_types = request.data.get('fee_types', [])
+        fee_type_id = request.data.get('fee_type')
         if not fee_types:
-            fee_type_id = request.data.get('fee_type')
             if fee_type_id:
                 fee_types = [fee_type_id]
         
@@ -1804,6 +1947,7 @@ class TermBillViewSet(viewsets.ModelViewSet):
                 'total_billed': total_billed,
                 'total_paid': total_paid,
                 'total_balance': total_balance,
+                'message_preview': sms_text[:200],
                 'bills': [
                     {
                         'student': b.student.get_full_name(),
@@ -1905,8 +2049,12 @@ class TermBillViewSet(viewsets.ModelViewSet):
                     filters_snapshot['class_id'] = class_id
                 if fee_type_id:
                     filters_snapshot['fee_type_id'] = fee_type_id
+                if fee_types:
+                    filters_snapshot['fee_types'] = fee_types
                 if term_id:
                     filters_snapshot['term_id'] = term_id
+                if selected_student_ids is not None:
+                    filters_snapshot['student_ids'] = selected_student_ids
 
                 # First 200 chars of the message used
                 sample_msg = ''

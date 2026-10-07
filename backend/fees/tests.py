@@ -4,11 +4,12 @@ from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
-from fees.models import FeePayment, FeeStructure, FeeType, StudentFee, StudentFeeSubType
+from fees.models import FeePayment, FeeStructure, FeeType, StudentFee, StudentFeeSubType, TermBill
 from fees.serializers import FeePaymentCreateSerializer, GenerateWeeklyBillsSerializer
-from schools.models import School, Class
+from schools.models import AcademicYear, School, Class, Term
 from students.models import Student
 
 
@@ -76,6 +77,201 @@ class FeeSearchApiTests(TestCase):
         self.assertEqual(response.data[0]['student_id'], 'STD-001')
         self.assertEqual(response.data[0]['first_name'], 'Ada')
         self.assertEqual(response.data[0]['last_name'], 'Lovelace')
+
+    def test_daily_status_returns_students_paid_for_that_daily_fee(self):
+        student = Student(
+            school=self.school,
+            student_id='DAILY-STATUS-001',
+            first_name='Daily',
+            last_name='Student',
+            gender='F',
+            date_of_birth='2012-01-01',
+            current_class=self.class_room,
+            guardian_name='Guardian',
+            guardian_phone='0201111111',
+            guardian_address='Test address',
+            admission_date='2024-01-01',
+            user=None,
+        )
+        student._skip_account_creation = True
+        student.save()
+        daily_fee = FeeType.objects.create(
+            school=self.school,
+            name='Daily Meals',
+            collection_frequency='DAILY',
+        )
+        FeePayment.objects.create(
+            student=student,
+            school=self.school,
+            fee_type=daily_fee,
+            amount_paid=Decimal('5.00'),
+            attendance_date=timezone.localdate(),
+            collected_by=self.admin,
+        )
+
+        client = APIClient()
+        client.force_authenticate(user=self.admin)
+        response = client.get(
+            '/api/fees/payments/daily-status/',
+            {'fee_type': daily_fee.id},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['paid_student_ids'], [student.id])
+
+    def test_daily_roster_shows_paid_and_unpaid_students_for_selected_class(self):
+        daily_fee = FeeType.objects.create(
+            school=self.school,
+            name='Daily Lunch',
+            collection_frequency='DAILY',
+        )
+        daily_fee_subtype = FeeType.objects.create(
+            school=self.school,
+            name='Daily Lunch Standard',
+            collection_frequency='DAILY',
+            parent_fee_type=daily_fee,
+        )
+        students = []
+        for student_code, first_name in (
+            ('DAILY-ROSTER-PAID', 'Ama'),
+            ('DAILY-ROSTER-UNPAID', 'Kojo'),
+        ):
+            student = Student(
+                school=self.school,
+                student_id=student_code,
+                first_name=first_name,
+                last_name='Student',
+                gender='F',
+                date_of_birth='2012-01-01',
+                current_class=self.class_room,
+                guardian_name='Guardian',
+                guardian_phone='0201111111',
+                guardian_address='Test address',
+                admission_date='2024-01-01',
+                user=None,
+            )
+            student._skip_account_creation = True
+            student.save()
+            students.append(student)
+
+        other_class = Class.objects.create(
+            school=self.school,
+            level='BASIC_2',
+            section='A',
+        )
+        other_class_student = Student(
+            school=self.school,
+            student_id='DAILY-ROSTER-OTHER-CLASS',
+            first_name='Other',
+            last_name='Student',
+            gender='M',
+            date_of_birth='2012-01-01',
+            current_class=other_class,
+            guardian_name='Guardian',
+            guardian_phone='0201111112',
+            guardian_address='Test address',
+            admission_date='2024-01-01',
+            user=None,
+        )
+        other_class_student._skip_account_creation = True
+        other_class_student.save()
+
+        FeePayment.objects.create(
+            student=students[0],
+            school=self.school,
+            fee_type=daily_fee_subtype,
+            amount_paid=Decimal('7.50'),
+            attendance_date=timezone.localdate(),
+            collected_by=self.admin,
+        )
+
+        client = APIClient()
+        client.force_authenticate(user=self.admin)
+        response = client.get(
+            '/api/fees/payments/daily-roster/',
+            {
+                'class_id': self.class_room.id,
+                'fee_type': daily_fee.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(
+            {student['student_id'] for student in response.data['students']},
+            {students[0].id, students[1].id},
+        )
+        roster_by_id = {
+            student['student_id']: student for student in response.data['students']
+        }
+        self.assertTrue(roster_by_id[students[0].id]['paid'])
+        self.assertEqual(roster_by_id[students[0].id]['amount_paid'], 7.5)
+        self.assertFalse(roster_by_id[students[1].id]['paid'])
+
+    def test_fee_reminder_preview_only_includes_selected_students(self):
+        year = AcademicYear.objects.create(
+            school=self.school,
+            name='2026/2027',
+            start_date=date(2026, 9, 1),
+            end_date=date(2027, 7, 31),
+        )
+        term = Term.objects.create(
+            academic_year=year,
+            name='FIRST',
+            start_date=date(2026, 9, 1),
+            end_date=date(2026, 12, 31),
+        )
+        fee_type = FeeType.objects.create(
+            school=self.school,
+            name='Tuition',
+            collection_frequency='TERM',
+        )
+        self.school.sms_enabled = True
+        self.school.sms_fee_reminder_enabled = True
+        self.school.save(update_fields=['sms_enabled', 'sms_fee_reminder_enabled'])
+
+        students = []
+        for index in range(2):
+            student = Student(
+                school=self.school,
+                student_id=f'REMINDER-{index}',
+                first_name=f'Student{index}',
+                last_name='Test',
+                gender='F',
+                date_of_birth='2012-01-01',
+                current_class=self.class_room,
+                guardian_name='Guardian',
+                guardian_phone=f'020111111{index}',
+                guardian_address='Test address',
+                admission_date='2024-01-01',
+                user=None,
+            )
+            student._skip_account_creation = True
+            student.save()
+            students.append(student)
+            TermBill.objects.create(
+                student=student,
+                school=self.school,
+                term=term,
+                fee_type=fee_type,
+                amount_billed=Decimal('100.00'),
+            )
+
+        client = APIClient()
+        client.force_authenticate(user=self.admin)
+        response = client.post(
+            '/api/fees/term-bills/send-fee-reminders/',
+            {
+                'term': term.id,
+                'fee_types': [fee_type.id],
+                'student_ids': [students[0].student_id],
+                'dry_run': True,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['sent'], 1)
+        self.assertEqual(response.data['details'][0]['student_ids'], [students[0].student_id])
 
     def test_fee_lists_serialize_students_without_portal_accounts(self):
         student = Student(

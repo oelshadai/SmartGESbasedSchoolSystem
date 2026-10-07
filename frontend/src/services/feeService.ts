@@ -47,6 +47,23 @@ export interface TeacherCollectionRosterEntry {
   paid_today?: number;
 }
 
+export interface DailyPaymentRosterEntry {
+  student_id: number;
+  student_code: string;
+  student_name: string;
+  paid: boolean;
+  amount_paid: number;
+}
+
+export interface DailyPaymentRoster {
+  date: string;
+  fee_type: number;
+  fee_type_name: string;
+  class_id: number;
+  class_name: string;
+  students: DailyPaymentRosterEntry[];
+}
+
 export const FREQUENCY_LABELS: Record<CollectionFrequency, string> = {
   DAILY: 'Daily (every school day)',
   WEEKLY: 'Weekly',
@@ -194,6 +211,7 @@ export interface TermBill {
   id: number;
   student_id: string;
   student_name: string;
+  class_id: number | null;
   class_level: string;
   class_section: string;
   fee_type: number;
@@ -387,6 +405,16 @@ class FeeService {
       const response = await secureApiClient.get<any>('/fees/payments/', { params });
       return { data: { results: response?.results || [], count: response?.count || 0 } };
     });
+  }
+
+  async getDailyPaymentRoster(params: {
+    class_id: number;
+    fee_type: number;
+    date: string;
+  }): Promise<DailyPaymentRoster> {
+    return this.makeRequest(() =>
+      secureApiClient.get('/fees/payments/daily-roster/', { params })
+    );
   }
 
   async createFeePayment(data: CreateFeePayment): Promise<FeePayment> {
@@ -612,8 +640,21 @@ class FeeService {
     ordering?: string;
   }): Promise<ApiResponse<TermBill>> {
     return this.makeRequest(async () => {
-      const response = await secureApiClient.get<any>('/fees/term-bills/', { params });
-      return { data: { results: response?.results || [], count: response?.count || 0 } };
+      const results: TermBill[] = [];
+      let page = 1;
+      let response: any;
+      do {
+        response = await secureApiClient.get<any>('/fees/term-bills/', {
+          params: { ...params, page },
+        });
+        if (Array.isArray(response)) {
+          results.push(...response);
+          break;
+        }
+        results.push(...(response?.results || []));
+        page += 1;
+      } while (response?.next);
+      return { data: { results, count: response?.count ?? results.length } };
     });
   }
 
