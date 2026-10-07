@@ -24,6 +24,17 @@ from .serializers import (
 )
 
 
+def _count_active_staff(school):
+    active_staff = Staff.objects.filter(school=school, status='ACTIVE')
+    active_teachers = Teacher.objects.filter(school=school, is_active=True)
+    teacher_user_ids = active_teachers.values_list('user_id', flat=True)
+    teacher_employee_ids = active_teachers.values_list('employee_id', flat=True)
+    staff_only_count = active_staff.exclude(
+        Q(user_id__in=teacher_user_ids) | Q(staff_id__in=teacher_employee_ids)
+    ).count()
+    return staff_only_count + active_teachers.count()
+
+
 class StaffViewSet(viewsets.ModelViewSet):
     serializer_class = StaffSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -542,10 +553,7 @@ class FinancialDashboardView(viewsets.ViewSet):
                 status__in=['DRAFT', 'APPROVED']
             ).aggregate(total=Sum('net_salary'))['total'] or Decimal('0')
             
-            # Staff count - include both Staff and Teachers (teachers are also staff)
-            active_staff = Staff.objects.filter(school=school, status='ACTIVE').count()
-            active_teachers = Teacher.objects.filter(school=school, is_active=True).count()
-            total_staff = active_staff + active_teachers
+            total_staff = _count_active_staff(school)
             
             # Pending approvals
             pending_expenses = Expense.objects.filter(

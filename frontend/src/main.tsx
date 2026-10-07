@@ -8,13 +8,20 @@ window.setTimeout(() => {
   sessionStorage.removeItem(STALE_CHUNK_RELOAD_KEY);
 }, 10000);
 
+const hasPushSubscription = async (registration: ServiceWorkerRegistration) => {
+  if (!('PushManager' in window)) return false;
+  return Boolean(await registration.pushManager.getSubscription());
+};
+
 const recoverFromStaleChunk = async () => {
   if (sessionStorage.getItem(STALE_CHUNK_RELOAD_KEY) === 'true') return;
   sessionStorage.setItem(STALE_CHUNK_RELOAD_KEY, 'true');
 
   if ('serviceWorker' in navigator) {
     const registrations = await navigator.serviceWorker.getRegistrations();
-    await Promise.all(registrations.map((reg) => reg.unregister()));
+    await Promise.all(registrations.map(async (registration) => {
+      if (!await hasPushSubscription(registration)) await registration.unregister();
+    }));
   }
 
   if ('caches' in window) {
@@ -52,16 +59,23 @@ const enableServiceWorker = import.meta.env.VITE_ENABLE_SW === 'true';
 
 if ('serviceWorker' in navigator && enableServiceWorker) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('/sw.js').catch((error) => {
+      console.error('Failed to register the service worker:', error);
+    });
   });
 } else if ('serviceWorker' in navigator) {
-  // Always unregister stale SW when disabled to prevent old cached chunks from breaking startup.
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    Promise.all(registrations.map((reg) => reg.unregister())).then(() => {
-      if (registrations.length > 0 && sessionStorage.getItem(STALE_CHUNK_RELOAD_KEY) !== 'true') {
-        sessionStorage.setItem(STALE_CHUNK_RELOAD_KEY, 'true');
-        window.location.reload();
-      }
-    });
+  // Keep workers with active push subscriptions so browser alerts remain enabled.
+  navigator.serviceWorker.getRegistrations().then(async (registrations) => {
+    const staleRegistrations = [];
+    for (const registration of registrations) {
+      if (!await hasPushSubscription(registration)) staleRegistrations.push(registration);
+    }
+    await Promise.all(staleRegistrations.map((registration) => registration.unregister()));
+    if (staleRegistrations.length > 0 && sessionStorage.getItem(STALE_CHUNK_RELOAD_KEY) !== 'true') {
+      sessionStorage.setItem(STALE_CHUNK_RELOAD_KEY, 'true');
+      window.location.reload();
+    }
+  }).catch((error) => {
+    console.error('Failed to inspect service worker registrations:', error);
   });
 }

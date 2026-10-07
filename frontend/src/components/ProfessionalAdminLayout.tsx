@@ -3,10 +3,11 @@ import NotificationPanel from '@/components/NotificationPanel';
 import usePushSubscription from '@/hooks/usePushSubscription';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Settings, Users, School, BarChart3, 
   HeadphonesIcon, FileText, Shield, 
-  LogOut, Bell, Search, Menu, X,
+  LogOut, Bell, BellRing, Loader2, Search, Menu, X,
   ChevronRight, ChevronLeft, Home, CalendarDays, BookOpen, GraduationCap, Briefcase, CreditCard, Receipt, TrendingUp, PieChart, Globe, ShieldCheck, MessageSquare,
   ClipboardList, Award, User, HelpCircle, CheckCheck, Clock, DollarSign, Sparkles
 } from 'lucide-react';
@@ -461,8 +462,11 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuthStore();
+  const { toast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  const { status: pushStatus, enablePushNotifications } = usePushSubscription(!!user);
 
   const sidebarRef = useRef<HTMLDivElement | null>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -510,7 +514,24 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
     navigate('/login');
   };
 
-  usePushSubscription(!!user);
+  const handleEnablePush = async () => {
+    setPushBusy(true);
+    try {
+      await enablePushNotifications();
+      toast({
+        title: 'Browser notifications enabled',
+        description: 'You can now receive alerts when SmartGES is not open.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Could not enable notifications',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   const isActivePath = (path: string) => {
     return location.pathname === path || location.pathname.startsWith(path + '/');
@@ -789,6 +810,25 @@ const ProfessionalAdminLayout = ({ children }: ProfessionalAdminLayoutProps) => 
             </div>
 
             <div className="flex items-center gap-3">
+              {user && pushStatus !== 'unsupported' && (
+                <button
+                  type="button"
+                  onClick={() => void handleEnablePush()}
+                  disabled={pushBusy || pushStatus === 'checking' || pushStatus === 'enabled'}
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-700 px-3 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white disabled:cursor-default disabled:opacity-70"
+                  aria-label={pushStatus === 'enabled' ? 'Browser notifications enabled' : 'Enable browser notifications'}
+                  title={pushStatus === 'denied' ? 'Allow notifications for this site in your browser settings' : 'Enable alerts when SmartGES is not open'}
+                >
+                  {pushBusy || pushStatus === 'checking'
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : pushStatus === 'enabled'
+                      ? <CheckCheck className="h-4 w-4 text-emerald-400" />
+                      : <BellRing className="h-4 w-4" />}
+                  <span className="hidden sm:inline">
+                    {pushStatus === 'enabled' ? 'Alerts on' : pushStatus === 'denied' ? 'Alerts blocked' : 'Enable alerts'}
+                  </span>
+                </button>
+              )}
               {/* Notifications — hidden for teacher/student (they use carousel on dashboard) */}
               {user?.role !== 'TEACHER' && user?.role !== 'STUDENT' && (
                 <NotificationPanel />

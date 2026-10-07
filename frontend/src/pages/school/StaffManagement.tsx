@@ -77,7 +77,11 @@ export default function StaffManagement() {
       }));
 
       const payrollUserIds = new Set(normalizedStaff.map(item => item.user_id).filter(Boolean));
-      const unlinkedTeachers = normalizedTeachers.filter(item => !payrollUserIds.has((item as any).user_id));
+      const payrollStaffIds = new Set(normalizedStaff.map(item => item.staff_id?.trim().toLowerCase()).filter(Boolean));
+      const unlinkedTeachers = normalizedTeachers.filter(item =>
+        !payrollUserIds.has(item.user_id) &&
+        !payrollStaffIds.has(item.employee_id?.trim().toLowerCase())
+      );
       setStaff([...normalizedStaff, ...unlinkedTeachers].sort((a, b) =>
         `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`)
       ));
