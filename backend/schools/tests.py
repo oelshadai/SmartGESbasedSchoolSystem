@@ -1,10 +1,49 @@
 from datetime import date
 
+from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
+from rest_framework.test import APIClient
 
 from schools.calendar import count_school_days, public_holidays_between
 from schools.models import Class, School
 from students.promotion_views import _get_next_class
+
+
+class SmsSettingsPersistenceTests(TestCase):
+    def setUp(self):
+        self.school = School.objects.create(
+            name='SMS Settings School',
+            address='Test address',
+            location='Test location',
+            phone_number='0200000000',
+            email='sms-settings@example.edu',
+        )
+        user_model = get_user_model()
+        self.admin = user_model.objects.create_user(
+            email='sms-admin@example.edu',
+            password='test-password',
+            role='SCHOOL_ADMIN',
+            school=self.school,
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.admin)
+
+    def test_enabling_sms_persists_and_is_returned_by_settings_endpoint(self):
+        response = self.client.patch(
+            '/api/schools/sms-settings/',
+            {'sms_enabled': True},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data['data']['sms_enabled'])
+
+        self.school.refresh_from_db()
+        self.assertTrue(self.school.sms_enabled)
+
+        settings_response = self.client.get('/api/schools/sms-settings/')
+        self.assertEqual(settings_response.status_code, 200)
+        self.assertTrue(settings_response.data['sms_enabled'])
 
 
 class SchoolCalendarTests(SimpleTestCase):

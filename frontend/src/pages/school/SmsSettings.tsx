@@ -23,6 +23,14 @@ interface SmsSettings {
   sms_fee_reminder_enabled: boolean;
 }
 
+interface SmsSettingsUpdateResponse {
+  message: string;
+  data: SmsSettings;
+}
+
+const getUpdatedSettings = (response: SmsSettingsUpdateResponse | SmsSettings): SmsSettings =>
+  'data' in response ? response.data : response;
+
 interface SmsLogEntry {
   id: number;
   sms_type: 'fee_reminder' | 'attendance' | 'general';
@@ -148,11 +156,11 @@ const SmsSettings = () => {
         sms_sender_name: senderName,
       };
 
-      console.log(`Saving ${field} toggle with payload:`, payload);
-
-      const updated: SmsSettings = await secureApiClient.patch('/schools/sms-settings/', payload);
-      
-      console.log('Received updated SMS settings:', updated);
+      const response = await secureApiClient.patch<SmsSettingsUpdateResponse | SmsSettings>(
+        '/schools/sms-settings/',
+        payload
+      );
+      const updated = getUpdatedSettings(response);
       
       // Update all state to match server response
       setSettings(updated);
@@ -165,11 +173,16 @@ const SmsSettings = () => {
       console.error(`Failed to save ${field} toggle:`, error);
       
       // Revert the toggle on error
-      if (field === 'sms_enabled') setSmsEnabled(!!(!value));
-      else if (field === 'sms_attendance_enabled') setAttendanceEnabled(!!(!value));
-      else if (field === 'sms_fee_reminder_enabled') setFeeReminderEnabled(!!(!value));
+      if (field === 'sms_enabled') setSmsEnabled(!value);
+      else if (field === 'sms_attendance_enabled') setAttendanceEnabled(!value);
+      else if (field === 'sms_fee_reminder_enabled') setFeeReminderEnabled(!value);
       
-      toast.error(`Failed to save ${field === 'sms_enabled' ? 'SMS' : field === 'sms_attendance_enabled' ? 'Attendance' : 'Fee reminder'} setting`);
+      const reason = error?.response?.data?.error
+        || error?.response?.data?.detail
+        || error?.message;
+      toast.error(
+        `Failed to save ${field === 'sms_enabled' ? 'SMS' : field === 'sms_attendance_enabled' ? 'Attendance' : 'Fee reminder'} setting${reason ? `: ${reason}` : ''}`
+      );
     }
   };
 
@@ -191,14 +204,21 @@ const SmsSettings = () => {
         sms_sender_name: senderName,
       };
 
-      const updated: SmsSettings = await secureApiClient.patch('/schools/sms-settings/', payload);
+      const response = await secureApiClient.patch<SmsSettingsUpdateResponse | SmsSettings>(
+        '/schools/sms-settings/',
+        payload
+      );
+      const updated = getUpdatedSettings(response);
       setSettings(updated);
       setSenderName(updated.sms_sender_name || '');
       
       toast.success('Sender name saved successfully');
     } catch (error: any) {
       console.error('Failed to save sender name:', error);
-      toast.error('Failed to save sender name');
+      const reason = error?.response?.data?.error
+        || error?.response?.data?.detail
+        || error?.message;
+      toast.error(`Failed to save sender name${reason ? `: ${reason}` : ''}`);
     } finally {
       setSaving(false);
     }
