@@ -46,6 +46,32 @@ class SmsSettingsPersistenceTests(TestCase):
         self.assertTrue(settings_response.data['sms_enabled'])
 
 
+class MyStaffPermissionsTests(TestCase):
+    def setUp(self):
+        self.school = School.objects.create(
+            name='Staff Permissions School',
+            address='Test address',
+            location='Test location',
+            phone_number='0200000000',
+            email='staff-permissions@example.edu',
+        )
+        user_model = get_user_model()
+        self.teacher = user_model.objects.create_user(
+            email='teacher@example.edu',
+            password='test-password',
+            role='TEACHER',
+            school=self.school,
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.teacher)
+
+    def test_missing_permission_returns_null_without_not_found_status(self):
+        response = self.client.get('/api/schools/staff-permissions/my-permissions/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.data)
+
+
 class SchoolCalendarTests(SimpleTestCase):
     def test_counts_weekdays_and_excludes_confirmed_school_closures(self):
         self.assertEqual(

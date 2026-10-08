@@ -444,6 +444,7 @@ const AttendanceManagement = () => {
                           const remainingAmount = rosterEntry?.amount == null
                             ? 0
                             : Math.max(0, rosterEntry.amount - paidToday);
+                          const paid = hasFee && remainingAmount === 0 && paidToday > 0;
                           const willAutoMarkPaid = ['present', 'late'].includes(attendance[student.id]) && remainingAmount > 0;
                           return (
                             <tr key={student.id} className={`hover:bg-muted/50 ${paid ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''}`}>

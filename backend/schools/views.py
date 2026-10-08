@@ -1400,13 +1400,13 @@ class StaffPermissionViewSet(viewsets.ModelViewSet):
     def my_permissions(self, request):
         user = request.user
         if not user.school:
-            return Response({'detail': 'No school attached.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(None)
         try:
             perm = StaffPermission.objects.prefetch_related('collect_fee_types', 'cover_classes').get(
                 school=user.school, teacher=user
             )
         except StaffPermission.DoesNotExist:
-            return Response({'detail': 'No staff permission record found.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(None)
         data = StaffPermissionSerializer(perm).data
         data['school_fee_collection_enabled'] = perm.school.special_fee_collection_enabled
         data['cover_class_ids'] = list(perm.cover_classes.values_list('id', flat=True))
