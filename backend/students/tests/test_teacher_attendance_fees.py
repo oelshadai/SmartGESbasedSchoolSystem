@@ -28,6 +28,14 @@ class TeacherAttendanceDailyFeeTests(TestCase):
             role='TEACHER',
             school=self.school,
         )
+        self.admin = User.objects.create_user(
+            email='attendance-admin@example.edu',
+            password='secret123',
+            first_name='School',
+            last_name='Admin',
+            role='SCHOOL_ADMIN',
+            school=self.school,
+        )
         self.class_room = Class.objects.create(
             school=self.school,
             level='BASIC_1',
@@ -136,3 +144,31 @@ class TeacherAttendanceDailyFeeTests(TestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data['daily_fee_count'], 0)
         self.assertFalse(FeePayment.objects.filter(student=self.student, fee_type=self.daily_fee).exists())
+
+    def test_teacher_daily_attendance_is_visible_to_school_admin(self):
+        save_response = self.save_attendance('present')
+        self.assertEqual(save_response.status_code, 200, save_response.data)
+
+        self.client.force_authenticate(user=self.admin)
+        date_query = {'date': date.today().isoformat()}
+        daily_response = self.client.get(
+            '/api/students/attendance/admin/daily/',
+            {**date_query, 'class': 'all'},
+        )
+        summary_response = self.client.get(
+            '/api/students/attendance/admin/class-summary/',
+            date_query,
+        )
+        stats_response = self.client.get(
+            '/api/students/attendance/admin/daily-stats/',
+            date_query,
+        )
+
+        self.assertEqual(daily_response.status_code, 200, daily_response.data)
+        self.assertEqual(len(daily_response.data['records']), 1)
+        self.assertEqual(daily_response.data['records'][0]['student_id'], self.student.student_id)
+        self.assertEqual(daily_response.data['records'][0]['status'], 'present')
+        self.assertEqual(summary_response.status_code, 200, summary_response.data)
+        self.assertEqual(summary_response.data['summaries'][0]['present'], 1)
+        self.assertEqual(stats_response.status_code, 200, stats_response.data)
+        self.assertEqual(stats_response.data['stats']['present'], 1)

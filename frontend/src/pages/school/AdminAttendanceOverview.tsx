@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Users, Search, UserCheck, UserX, Clock, Filter } from 'lucide-react';
+import { Calendar, Users, Search, UserCheck, UserX, Clock, RefreshCw } from 'lucide-react';
+import { format } from 'date-fns';
 import { secureApiClient } from '@/lib/secureApiClient';
 
 interface AttendanceRecord {
@@ -36,6 +37,21 @@ interface DailyStats {
   attendance_rate: number;
 }
 
+interface StudentHistory {
+  student?: {
+    name?: string;
+    student_id?: string;
+    class?: string;
+  };
+  summary?: {
+    attendance_rate?: number;
+    total_days?: number;
+    present_days?: number;
+    absent_days?: number;
+    late_days?: number;
+  };
+}
+
 const statusColors = {
   present: 'bg-success/10 text-success border-success/20',
   absent: 'bg-destructive/10 text-destructive border-destructive/20',
@@ -53,39 +69,44 @@ const AdminAttendanceOverview = () => {
   const [classSummaries, setClassSummaries] = useState<ClassAttendanceSummary[]>([]);
   const [dailyStats, setDailyStats] = useState<DailyStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [studentSearchResults, setStudentSearchResults] = useState<any[]>([]);
+  const [studentSearchResults, setStudentSearchResults] = useState<StudentHistory[]>([]);
   const [showStudentSearch, setShowStudentSearch] = useState(false);
 
-  useEffect(() => {
-    fetchAttendanceData();
-  }, [selectedDate, selectedClass]);
-
-  const fetchAttendanceData = async () => {
+  const fetchAttendanceData = useCallback(async (showLoader = false) => {
     try {
-      setLoading(true);
-      
-      // Fetch daily attendance records
-      const recordsResponse = await secureApiClient.get(`/students/attendance/admin/daily/?date=${selectedDate}&class=${selectedClass}`);
+      if (showLoader) setLoading(true);
+      else setRefreshing(true);
+      const [recordsResponse, summariesResponse, statsResponse] = await Promise.all([
+        secureApiClient.get(`/students/attendance/admin/daily/?date=${selectedDate}&class=${selectedClass}`),
+        secureApiClient.get(`/students/attendance/admin/class-summary/?date=${selectedDate}`),
+        secureApiClient.get(`/students/attendance/admin/daily-stats/?date=${selectedDate}`),
+      ]);
       setAttendanceRecords(recordsResponse.records || []);
-      
-      // Fetch class summaries
-      const summariesResponse = await secureApiClient.get(`/students/attendance/admin/class-summary/?date=${selectedDate}`);
       setClassSummaries(summariesResponse.summaries || []);
-      
-      // Fetch daily stats
-      const statsResponse = await secureApiClient.get(`/students/attendance/admin/daily-stats/?date=${selectedDate}`);
       setDailyStats(statsResponse.stats || null);
-      
+      setLoadError(null);
     } catch (error) {
       console.error('Failed to fetch attendance data:', error);
+      setLoadError('Could not refresh attendance. Check your connection and try again.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, [selectedDate, selectedClass]);
+
+  useEffect(() => {
+    void fetchAttendanceData(true);
+    const refreshInterval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void fetchAttendanceData(false);
+    }, 30_000);
+    return () => window.clearInterval(refreshInterval);
+  }, [fetchAttendanceData]);
 
   const searchStudentHistory = async (studentId: string) => {
     try {
@@ -123,6 +144,16 @@ const AdminAttendanceOverview = () => {
           <p className="text-muted-foreground mt-1">Monitor daily attendance across all classes</p>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void fetchAttendanceData(true)}
+            disabled={loading || refreshing}
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
           <Input
             type="date"
             value={selectedDate}
@@ -131,6 +162,12 @@ const AdminAttendanceOverview = () => {
           />
         </div>
       </div>
+
+      {loadError && (
+        <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {loadError}
+        </div>
+      )}
 
       {/* Daily Stats Cards */}
       {dailyStats && (
