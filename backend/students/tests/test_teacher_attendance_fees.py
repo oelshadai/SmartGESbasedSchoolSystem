@@ -73,19 +73,38 @@ class TeacherAttendanceDailyFeeTests(TestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.teacher)
 
-    def save_attendance(self, status):
+    def save_attendance(self, status, collect_daily_fee=False):
         return self.client.post(
             '/api/students/teacher-attendance/save-attendance/',
             {
                 'class_id': self.class_room.id,
                 'date': date.today().isoformat(),
-                'attendance': [{'student_id': self.student.id, 'status': status}],
+                'attendance': [{
+                    'student_id': self.student.id,
+                    'status': status,
+                    'collect_daily_fee': collect_daily_fee,
+                }],
             },
             format='json',
         )
 
-    def test_present_and_late_attendance_record_daily_fee_once(self):
-        response = self.save_attendance('present')
+    def test_present_attendance_without_confirmation_does_not_record_daily_fee(self):
+        response = self.client.post(
+            '/api/students/teacher-attendance/save-attendance/',
+            {
+                'class_id': self.class_room.id,
+                'date': date.today().isoformat(),
+                'attendance': [{'student_id': self.student.id, 'status': 'present'}],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['daily_fee_count'], 0)
+        self.assertFalse(FeePayment.objects.filter(student=self.student, fee_type=self.daily_fee).exists())
+
+    def test_teacher_confirmed_daily_fee_is_recorded_once(self):
+        response = self.save_attendance('present', collect_daily_fee=True)
 
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data['daily_fee_count'], 1)
@@ -96,7 +115,7 @@ class TeacherAttendanceDailyFeeTests(TestCase):
         self.assertTrue(payment.is_verified)
         self.assertEqual(StudentFee.objects.get(student=self.student).amount_paid, Decimal('12.50'))
 
-        response = self.save_attendance('late')
+        response = self.save_attendance('late', collect_daily_fee=True)
 
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data['daily_fee_count'], 0)
@@ -106,7 +125,7 @@ class TeacherAttendanceDailyFeeTests(TestCase):
         self.daily_fee.allow_class_teacher_collection = False
         self.daily_fee.save(update_fields=['allow_class_teacher_collection'])
 
-        response = self.save_attendance('present')
+        response = self.save_attendance('present', collect_daily_fee=True)
 
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data['daily_fee_count'], 0)
@@ -132,14 +151,14 @@ class TeacherAttendanceDailyFeeTests(TestCase):
             amount=Decimal('7.50'),
         )
 
-        response = self.save_attendance('late')
+        response = self.save_attendance('late', collect_daily_fee=True)
 
         self.assertEqual(response.status_code, 200, response.data)
         payment = FeePayment.objects.get(student=self.student, fee_type=self.daily_fee)
         self.assertEqual(payment.amount_paid, Decimal('7.50'))
 
     def test_absent_attendance_does_not_record_daily_fee(self):
-        response = self.save_attendance('absent')
+        response = self.save_attendance('absent', collect_daily_fee=True)
 
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data['daily_fee_count'], 0)

@@ -253,7 +253,7 @@ def teacher_attendance_save(request):
                 }
             )
 
-            if status_value in ('present', 'late'):
+            if status_value in ('present', 'late') and item.get('collect_daily_fee') is True:
                 recorded_amount = _auto_record_daily_fee(
                     student,
                     selected_date,

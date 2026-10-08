@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { secureApiClient } from "@/lib/secureApiClient";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { feeService, type FeeType, type TeacherCollectionRosterEntry } from "@/services/feeService";
 import { staffPermissionService } from "@/services/staffPermissionService";
 import { useSearchParams } from "react-router-dom";
@@ -35,6 +36,7 @@ const AttendanceManagement = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [date, setDate] = useState<Date>(new Date());
   const [attendance, setAttendance] = useState<Record<number, string>>({});
+  const [dailyFeeCollection, setDailyFeeCollection] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [attendanceAlreadyTaken, setAttendanceAlreadyTaken] = useState(false);
   // Daily fees enabled for class teachers are recorded when attendance is saved.
@@ -105,6 +107,7 @@ const AttendanceManagement = () => {
         initialAttendance[student.id] = student.current_status;
       });
       setAttendance(initialAttendance);
+      setDailyFeeCollection({});
       
     } catch (error) {
       console.error('Error fetching students:', error);
@@ -213,6 +216,9 @@ const AttendanceManagement = () => {
 
   const markAttendance = (studentId: number, status: string) => {
     setAttendance(prev => ({ ...prev, [studentId]: status }));
+    if (status === 'absent') {
+      setDailyFeeCollection(prev => ({ ...prev, [studentId]: false }));
+    }
   };
 
   const markAllPresent = () => {
@@ -229,6 +235,7 @@ const AttendanceManagement = () => {
       allAbsentAttendance[student.id] = 'absent';
     });
     setAttendance(allAbsentAttendance);
+    setDailyFeeCollection({});
   };
 
   const saveAttendance = async () => {
@@ -241,7 +248,8 @@ const AttendanceManagement = () => {
     try {
       const attendanceData = students.map(student => ({
         student_id: student.id,
-        status: attendance[student.id] || 'absent'
+        status: attendance[student.id] || 'absent',
+        collect_daily_fee: dailyFeeCollection[student.id] === true
       }));
 
       const response = await secureApiClient.post("/students/teacher-attendance/save-attendance/", {
@@ -252,7 +260,7 @@ const AttendanceManagement = () => {
 
       let feeMsg = "";
       if (response.daily_fee_count > 0) {
-        feeMsg = ` ${response.daily_fee_count} daily fee payment(s) recorded automatically (GH₵${response.daily_fee_total.toFixed(2)}).`;
+        feeMsg = ` ${response.daily_fee_count} daily fee payment(s) recorded (GH₵${response.daily_fee_total.toFixed(2)}).`;
       }
 
       const attendanceMessage = `Attendance saved. ${response.saved_count} new records, ${response.updated_count} updated.${feeMsg}`;
@@ -293,9 +301,9 @@ const AttendanceManagement = () => {
   };
 
   const summary = getAttendanceSummary();
-  const pendingDailyFeeAmount = feeRoster.reduce((total, entry) => {
+  const selectedDailyFeeAmount = feeRoster.reduce((total, entry) => {
     const isPresent = attendance[entry.student_id] === 'present' || attendance[entry.student_id] === 'late';
-    if (!isPresent || entry.amount == null) return total;
+    if (!dailyFeeCollection[entry.student_id] || !isPresent || entry.amount == null) return total;
     return total + Math.max(0, entry.amount - (entry.paid_today || 0));
   }, 0);
 
@@ -311,6 +319,11 @@ const AttendanceManagement = () => {
           <p className="text-xs sm:text-sm text-muted-foreground">
             Take attendance for your assigned classes.
           </p>
+          {dailyFeeType && (
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Mark the fee checkbox only after collecting payment. Attendance alone does not record a fee as paid.
+            </p>
+          )}
         </CardHeader>
         <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -389,14 +402,11 @@ const AttendanceManagement = () => {
                   <p className="text-xs sm:text-sm text-muted-foreground">Late</p>
                 </div>
                 {dailyFeeType && (() => {
-                  const roster = feeRoster || [];
-                  const withAmount = roster.filter(r => r.amount != null);
-                  const totalCollectable = withAmount.reduce((s, r) => s + (r.amount || 0), 0);
                   return (
                     <div className="text-center col-span-2 sm:col-span-1">
-                      <p className="text-xl sm:text-2xl font-bold text-emerald-600">GH₵{pendingDailyFeeAmount.toFixed(2)}</p>
+                      <p className="text-xl sm:text-2xl font-bold text-emerald-600">GH₵{selectedDailyFeeAmount.toFixed(2)}</p>
                       <p className="text-xs sm:text-sm text-muted-foreground">
-                        {totalCollectable > 0 ? 'Daily fee to mark paid' : 'Daily fee'}
+                        Selected to collect
                       </p>
                     </div>
                   );
@@ -445,7 +455,8 @@ const AttendanceManagement = () => {
                             ? 0
                             : Math.max(0, rosterEntry.amount - paidToday);
                           const paid = hasFee && remainingAmount === 0 && paidToday > 0;
-                          const willAutoMarkPaid = ['present', 'late'].includes(attendance[student.id]) && remainingAmount > 0;
+                          const canCollectFee = ['present', 'late'].includes(attendance[student.id]) && remainingAmount > 0;
+                          const collectFee = dailyFeeCollection[student.id] === true;
                           return (
                             <tr key={student.id} className={`hover:bg-muted/50 ${paid ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''}`}>
                               <td className="px-4 py-3 text-sm font-medium">{student.student_id}</td>
@@ -497,17 +508,26 @@ const AttendanceManagement = () => {
                                         Paid GH₵{paidToday.toFixed(2)}
                                       </span>
                                     ) : (
-                                      <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border ${
-                                        willAutoMarkPaid
-                                          ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                                          : 'bg-card border-border text-muted-foreground'
-                                      }`}>
-                                        {willAutoMarkPaid
-                                          ? `Paid on save GH₵${remainingAmount.toFixed(2)}`
-                                          : paidToday > 0
-                                            ? `GH₵${paidToday.toFixed(2)} paid`
-                                            : 'Not charged'}
-                                      </span>
+                                      <label htmlFor={`collect-daily-fee-${student.id}`} className="inline-flex items-center justify-center gap-2 text-xs">
+                                        <Checkbox
+                                          id={`collect-daily-fee-${student.id}`}
+                                          checked={collectFee}
+                                          disabled={!canCollectFee}
+                                          onCheckedChange={checked => setDailyFeeCollection(prev => ({
+                                            ...prev,
+                                            [student.id]: checked === true
+                                          }))}
+                                        />
+                                        <span className={collectFee ? "font-semibold text-emerald-700" : "text-muted-foreground"}>
+                                          {collectFee
+                                            ? `Collected · GH₵${remainingAmount.toFixed(2)}`
+                                            : canCollectFee
+                                              ? `Collect GH₵${remainingAmount.toFixed(2)}`
+                                              : paidToday > 0
+                                                ? `GH₵${paidToday.toFixed(2)} paid`
+                                                : 'Mark present to collect'}
+                                        </span>
+                                      </label>
                                     )
                                   ) : rosterEntry && rosterEntry.amount == null ? (
                                     <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
@@ -536,7 +556,8 @@ const AttendanceManagement = () => {
                   const remainingAmount = rosterEntry?.amount == null
                     ? 0
                     : Math.max(0, rosterEntry.amount - paidToday);
-                  const willAutoMarkPaid = ['present', 'late'].includes(status) && remainingAmount > 0;
+                  const canCollectFee = ['present', 'late'].includes(status) && remainingAmount > 0;
+                  const collectFee = dailyFeeCollection[student.id] === true;
                   return (
                     <div key={student.id} className="border rounded-xl p-3 space-y-2.5 bg-card">
                       {/* Student info row */}
@@ -598,16 +619,27 @@ const AttendanceManagement = () => {
                         </span>
                       )}
                       {dailyFeeType && hasFee && remainingAmount > 0 && (
-                        <span className={`w-full inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold border ${
-                          willAutoMarkPaid
+                        <label htmlFor={`collect-daily-fee-mobile-${student.id}`} className={`w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold border ${
+                          collectFee
                             ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
                             : 'bg-muted border-border text-muted-foreground'
                         }`}>
+                          <Checkbox
+                            id={`collect-daily-fee-mobile-${student.id}`}
+                            checked={collectFee}
+                            disabled={!canCollectFee}
+                            onCheckedChange={checked => setDailyFeeCollection(prev => ({
+                              ...prev,
+                              [student.id]: checked === true
+                            }))}
+                          />
                           <DollarSign className="h-3 w-3" />
-                          {willAutoMarkPaid
-                            ? `Will be marked paid on save: GH₵${remainingAmount.toFixed(2)}`
-                            : `Daily fee: GH₵${remainingAmount.toFixed(2)}`}
-                        </span>
+                          {collectFee
+                            ? `Collected · GH₵${remainingAmount.toFixed(2)}`
+                            : canCollectFee
+                              ? `Collect GH₵${remainingAmount.toFixed(2)}`
+                              : 'Mark present to collect'}
+                        </label>
                       )}
                       {dailyFeeType && !hasFee && rosterEntry && rosterEntry.amount == null && (
                         <div className="w-full text-center text-xs text-amber-600 font-medium flex items-center justify-center gap-1 py-1">
@@ -623,16 +655,16 @@ const AttendanceManagement = () => {
               {/* Fee collection summary before save */}
               {dailyFeeType && (() => {
                 const unassignedCount = (feeRoster || []).filter(r => r.amount == null).length;
-                return (pendingDailyFeeAmount > 0 || unassignedCount > 0) ? (
+                return (selectedDailyFeeAmount > 0 || unassignedCount > 0) ? (
                   <div className="p-3 sm:p-4 rounded-lg border space-y-2 bg-emerald-50 border-emerald-200">
                     <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
                       <DollarSign className="h-4 w-4" />
-                      Attendance-linked daily fee
+                      Daily fee collection
                     </div>
-                    {pendingDailyFeeAmount > 0 && (
+                    {selectedDailyFeeAmount > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-emerald-700">To be marked paid when attendance is saved:</span>
-                        <span className="font-bold text-emerald-800 text-base">GH₵{pendingDailyFeeAmount.toFixed(2)}</span>
+                        <span className="text-emerald-700">Selected to record as collected:</span>
+                        <span className="font-bold text-emerald-800 text-base">GH₵{selectedDailyFeeAmount.toFixed(2)}</span>
                       </div>
                     )}
                     {unassignedCount > 0 && (
@@ -653,8 +685,8 @@ const AttendanceManagement = () => {
               >
                 {loading
                   ? "Saving..."
-                  : pendingDailyFeeAmount > 0
-                    ? `Save Attendance · Mark GH₵${pendingDailyFeeAmount.toFixed(2)} paid`
+                  : selectedDailyFeeAmount > 0
+                    ? `Save Attendance · Record GH₵${selectedDailyFeeAmount.toFixed(2)} collected`
                     : "Save Attendance"}
               </Button>
             </>
