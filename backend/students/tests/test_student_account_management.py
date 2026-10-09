@@ -212,6 +212,8 @@ class StudentAccountManagementTests(TestCase):
         User = get_user_model()
         student = Student.objects.create(
             **self.student_data('UPDATESTUDENT01'),
+            other_names='Old',
+            guardian_email='old-guardian@example.edu',
             school=self.school,
         )
         other_school = School.objects.create(
@@ -234,9 +236,11 @@ class StudentAccountManagementTests(TestCase):
             for key, value in self.student_data(student.student_id).items()
         }
         payload['first_name'] = 'Abena'
+        payload['other_names'] = ''
+        payload['guardian_email'] = ''
         payload['school'] = other_school.pk
 
-        response = client.put(
+        response = client.patch(
             f'/api/students/{student.id}/',
             payload,
             format='multipart',
@@ -245,4 +249,6 @@ class StudentAccountManagementTests(TestCase):
         self.assertEqual(response.status_code, 200, response.data)
         student.refresh_from_db()
         self.assertEqual(student.first_name, 'Abena')
+        self.assertEqual(student.other_names, '')
+        self.assertEqual(student.guardian_email, '')
         self.assertEqual(student.school_id, self.school.id)

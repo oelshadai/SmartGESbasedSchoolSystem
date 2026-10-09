@@ -25,6 +25,7 @@ interface StudentData {
   guardian_name: string;
   guardian_phone: string;
   guardian_email: string | null;
+  guardian_address: string;
   admission_date: string | null;
 }
 
@@ -99,7 +100,7 @@ const StudentProfile = () => {
           guardian_name: s.guardian_name || '',
           guardian_phone: s.guardian_phone || '',
           guardian_email: s.guardian_email || '',
-          guardian_address: '',
+          guardian_address: s.guardian_address || '',
         });
       }
       setPendingRequest(pendingRes ?? null);

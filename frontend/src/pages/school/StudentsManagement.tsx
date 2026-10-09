@@ -247,6 +247,7 @@ const StudentsManagement = () => {
 
   const handleEditStudent = (student: any) => {
     setEditingStudent(student);
+    setFormError(null);
     setForm({
       student_id: student.student_id || '',
       first_name: student.first_name || '',
@@ -585,18 +586,23 @@ const StudentsManagement = () => {
     try {
       const formData = new FormData();
       Object.entries(form).forEach(([key, value]) => {
-        if (value !== null && value !== '') {
-          if (key === 'photo' && value instanceof File) {
-            formData.append(key, value);
-          } else if (key !== 'photo') {
-            formData.append(key, value as string);
-          }
+        if (key === 'photo') {
+          if (value instanceof File) formData.append(key, value);
+        } else if (key === 'current_class' && value === '') {
+          // An empty class selection means "leave unchanged"; DRF expects a
+          // primary key or null, not an empty string.
+        } else if (value !== null) {
+          formData.append(key, value as string);
         }
       });
-      await secureApiClient.put(`/students/${editingStudent.id}/`, formData);
+      await secureApiClient.patch(`/students/${editingStudent.id}/`, formData);
       setShowDialog(false);
       setEditingStudent(null);
       await fetchStudents();
+      toast({
+        title: 'Student Updated',
+        description: `${form.first_name} ${form.last_name}'s details have been saved.`,
+      });
     } catch (err: any) {
       setFormError(getStudentIdConflictMessage(err) || err.message || 'Failed to update student');
     } finally {

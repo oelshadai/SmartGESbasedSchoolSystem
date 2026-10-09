@@ -160,6 +160,7 @@ def student_dashboard(request):
                 'guardian_name': student.guardian_name,
                 'guardian_phone': student.guardian_phone,
                 'guardian_email': student.guardian_email,
+                'guardian_address': student.guardian_address,
                 'admission_date': student.admission_date.isoformat() if student.admission_date else None,
                 'is_active': student.is_active,
                 'role': 'STUDENT'
@@ -198,6 +199,7 @@ def student_dashboard(request):
                     'guardian_name': student.guardian_name,
                     'guardian_phone': student.guardian_phone,
                     'guardian_email': student.guardian_email,
+                    'guardian_address': student.guardian_address,
                     'admission_date': student.admission_date.isoformat() if student.admission_date else None,
                     'is_active': student.is_active,
                     'role': 'STUDENT'

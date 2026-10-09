@@ -68,6 +68,14 @@ class MobileParentAndPushApiTests(TestCase):
         self.assertEqual(response.data['student_id'], self.student.student_id)
         self.assertEqual(response.data['full_name'], self.student.get_full_name())
 
+    def test_student_dashboard_includes_guardian_address_for_profile_editing(self):
+        self.client.force_authenticate(user=self.student_user)
+
+        response = self.client.get('/api/students/auth/dashboard/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['student']['guardian_address'], self.student.guardian_address)
+
     def test_parent_can_access_child_assignments_via_student_id(self):
         response = self.client.get('/api/students/assignments/', {'student_id': self.student.student_id})
 
