@@ -768,12 +768,6 @@ class StudentSearchForFeeViewSet(viewsets.ViewSet):
         query = request.query_params.get('q', '')
         class_id = request.query_params.get('class_id')
         
-        if not query and not class_id:
-            return Response(
-                {'error': 'Provide search query or class_id'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
         # Build queryset
         queryset = Student.objects.filter(
             current_class__school=request.user.school

@@ -1,10 +1,11 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.db.models import F
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from rest_framework.test import APIClient
 
 from notifications.models import Notification, SmsLog
+from notifications.sms_service import SmsService
 from schools.models import School
 
 
@@ -25,6 +26,31 @@ class SmsLogFilterTests(TestCase):
         )
         self.client = APIClient()
         self.client.force_authenticate(user=self.admin)
+
+    @patch('notifications.sms_service.SmsService.send', return_value=True)
+    def test_payment_receipt_sends_non_empty_plain_text_body(self, mock_send):
+        self.school.sms_enabled = True
+        student = Mock()
+        student.guardian_phone = '0240001111'
+        student.guardian_name = 'Ama Parent'
+        student.student_id = 'STU-001'
+        student.get_full_name.return_value = 'Ama Student'
+        payment = Mock()
+        payment.pk = 1
+        payment.student = student
+        payment.amount_paid = '25.00'
+        payment.fee_type.name = 'Term Fees'
+        payment.reference_number = 'RCP-123'
+
+        self.assertTrue(SmsService.send_payment_receipt(payment, self.school))
+
+        recipients, message, school = mock_send.call_args.args
+        self.assertEqual(recipients, ['0240001111'])
+        self.assertTrue(message.strip())
+        self.assertIn('GHS 25.00', message)
+        self.assertIn('Ama Student (Term Fees)', message)
+        self.assertIn('Receipt: RCP-123', message)
+        self.assertIs(school, self.school)
 
     def test_sms_logs_accept_comma_separated_types(self):
         reminder = SmsLog.objects.create(

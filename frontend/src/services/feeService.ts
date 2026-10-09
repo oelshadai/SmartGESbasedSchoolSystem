@@ -458,9 +458,6 @@ class FeeService {
     q?: string;
     class_id?: number;
   }): Promise<StudentSearchResult[]> {
-    if (!params.q && !params.class_id) {
-      throw new Error('Please provide either a search query or select a class');
-    }
     return this.makeRequest(async () => {
       const response = await secureApiClient.get('/fees/search/search/', { params });
       return { data: response || [] };

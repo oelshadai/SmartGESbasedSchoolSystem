@@ -192,10 +192,16 @@ class SmsService:
             return False
 
         guardian_name = getattr(student, 'guardian_name', '') or 'Parent/Guardian'
-        student_name = student.get_full_name()
+        student_name = student.get_full_name() or getattr(student, 'student_id', 'Student')
+        fee_type_name = getattr(payment.fee_type, 'name', '') or 'school fees'
+        reference_number = getattr(payment, 'reference_number', '') or 'N/A'
+        school_name = getattr(school, 'name', '') or 'your school'
         message = (
-            f'Dear {guardian_name}, payment of GH₵{payment.amount_paid} received for '
-            f'{student_name} ({payment.fee_type.name}). Receipt: {payment.reference_number}. '
-            f'Thank you, {school.name}.'
+            f'Dear {guardian_name}, GHS {payment.amount_paid} payment received for '
+            f'{student_name} ({fee_type_name}). Receipt: {reference_number}. '
+            f'Thank you, {school_name}.'
         )
+        if not message.strip():
+            logger.warning('Payment receipt SMS body is empty for payment %s.', payment.pk)
+            return False
         return cls.send([phone], message, school)

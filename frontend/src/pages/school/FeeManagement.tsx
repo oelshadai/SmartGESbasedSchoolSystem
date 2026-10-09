@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
 import DataTable from '@/components/shared/DataTable';
@@ -97,6 +97,10 @@ const FeeManagement = () => {
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedFeeType, setSelectedFeeType] = useState('all');
   const [selectedStudent, setSelectedStudent] = useState<StudentSearchResult | null>(null);
+  const [termBillForPayment, setTermBillForPayment] = useState<TermBill | null>(null);
+  const [loadingTermBill, setLoadingTermBill] = useState(false);
+  const [termBillError, setTermBillError] = useState('');
+  const paymentFormRef = useRef<HTMLDivElement>(null);
   const [paymentFeeTypeId, setPaymentFeeTypeId] = useState('');
   const [dailyPaidStudentIds, setDailyPaidStudentIds] = useState<number[]>([]);
   const [dailyStatusLoading, setDailyStatusLoading] = useState(false);
@@ -278,6 +282,48 @@ const FeeManagement = () => {
 
   const selectedPaymentFeeType = feeTypes.find(type => String(type.id) === paymentFeeTypeId);
   const isDailyPaymentSelected = selectedPaymentFeeType?.collection_frequency === 'DAILY';
+  const isTermBillFeeSelected = ['TERM', 'YEAR'].includes(selectedPaymentFeeType?.collection_frequency ?? '');
+
+  useEffect(() => {
+    if (!selectedStudent || !paymentFeeTypeId || !isTermBillFeeSelected) {
+      setTermBillForPayment(null);
+      setLoadingTermBill(false);
+      setTermBillError('');
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingTermBill(true);
+    setTermBillForPayment(null);
+    setTermBillError('');
+
+    const loadTermBill = async () => {
+      try {
+        const currentTerm = await secureApiClient.get<{ id: number }>('/schools/terms/current/');
+        const bills = await feeService.getTermBills({
+          term: currentTerm.id,
+          fee_type: Number(paymentFeeTypeId),
+          search: selectedStudent.student_id,
+        });
+        if (cancelled) return;
+
+        const bill = bills.results.find(item =>
+          item.student_id === selectedStudent.student_id && item.fee_type === Number(paymentFeeTypeId)
+        );
+        setTermBillForPayment(bill ?? null);
+        if (!bill) setTermBillError('No current-term bill was found for this student and fee type.');
+      } catch (error) {
+        if (!cancelled) {
+          setTermBillError(error instanceof Error ? error.message : 'Could not load the current-term bill.');
+        }
+      } finally {
+        if (!cancelled) setLoadingTermBill(false);
+      }
+    };
+
+    void loadTermBill();
+    return () => { cancelled = true; };
+  }, [selectedStudent, paymentFeeTypeId, isTermBillFeeSelected]);
 
   useEffect(() => {
     if (!isDailyPaymentSelected || !paymentFeeTypeId) {
@@ -520,16 +566,12 @@ const FeeManagement = () => {
   };
 
   const searchStudents = useCallback(async () => {
-    if (!searchQuery && selectedClass === 'all') {
-      setStudents([]);
-      return;
-    }
-
     try {
       setSearchLoading(true);
       setError(null);
       const params: { q?: string; class_id?: number } = {};
-      if (searchQuery) params.q = searchQuery;
+      const query = searchQuery.trim();
+      if (query) params.q = query;
       if (selectedClass && selectedClass !== 'all') params.class_id = parseInt(selectedClass);
 
       const data = await feeService.searchStudents(params);
@@ -551,8 +593,8 @@ const FeeManagement = () => {
   useEffect(() => {
     if (selectedClass !== 'all') {
       searchStudents();
-    } else if (!searchQuery) {
-      setStudents([]);
+    } else if (!searchQuery.trim()) {
+      searchStudents();
     }
   }, [selectedClass, searchStudents]);
 
@@ -560,6 +602,7 @@ const FeeManagement = () => {
     const errors: Record<string, string> = {};
     const selectedFeeTypeObj = feeTypes.find(type => String(type.id) === paymentFeeTypeId);
     const isDaily = selectedFeeTypeObj?.collection_frequency === 'DAILY';
+    const isTermBillFee = ['TERM', 'YEAR'].includes(selectedFeeTypeObj?.collection_frequency ?? '');
     
     if (!selectedStudent) {
       errors.student = 'Please select a student';
@@ -571,6 +614,8 @@ const FeeManagement = () => {
     
     if (isDaily && (resolvedStructureAmount == null || resolvedStructureAmount <= 0)) {
       errors.amount = 'No valid daily fee structure is configured for this student';
+    } else if (isTermBillFee && (!termBillForPayment || loadingTermBill)) {
+      errors.amount = 'A current-term bill is required before collecting this fee';
     } else if (!isDaily && !paymentAmount) {
       errors.amount = 'Please enter an amount';
     } else if (!isDaily) {
@@ -579,6 +624,8 @@ const FeeManagement = () => {
         errors.amount = 'Please enter a valid amount greater than 0';
       } else if (amount > 999999.99) {
         errors.amount = 'Amount cannot exceed GH₵ 999,999.99';
+      } else if (isTermBillFee && termBillForPayment && amount > Number(termBillForPayment.balance)) {
+        errors.amount = `Amount cannot exceed the outstanding balance of ${formatCurrency(Number(termBillForPayment.balance))}`;
       }
     }
     
@@ -727,6 +774,7 @@ const FeeManagement = () => {
     setStudentFeeAssignments([]);
     setStudentFeeAssignmentsError(false);
     setValidationErrors({});
+    paymentFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleRefresh = async () => {
@@ -1670,7 +1718,7 @@ const FeeManagement = () => {
                       {dailyStatusError || 'Daily fee status is shown for the selected fee and today.'}
                     </div>
                   )}
-                  <div className="max-h-60 overflow-y-auto border rounded-md">
+                  <div className="max-h-96 overflow-y-auto border rounded-md">
                     {students.map((student) => (
                       <div
                         key={student.id}
@@ -1721,8 +1769,12 @@ const FeeManagement = () => {
               {(() => {
                 const selFeeTypeObj = feeTypes.find(ft => String(ft.id) === paymentFeeTypeId) ?? null;
                 const isDaily = selFeeTypeObj?.collection_frequency === 'DAILY';
+                const isTermBillFee = ['TERM', 'YEAR'].includes(selFeeTypeObj?.collection_frequency ?? '');
+                const fullPaymentAmount = isTermBillFee
+                  ? (termBillForPayment ? Number(termBillForPayment.balance) : null)
+                  : resolvedStructureAmount;
                 return (
-              <div className="fees-collection-form border rounded-lg p-4 bg-muted/20">
+              <div ref={paymentFormRef} className="fees-collection-form scroll-mt-24 border rounded-lg p-4 bg-muted/20">
                 <h4 className="font-medium mb-3">
                   {selectedStudent ? `Collect Fee from ${selectedStudent.first_name} ${selectedStudent.last_name}` : 'Fee Collection Form'}
                 </h4>
@@ -1784,6 +1836,22 @@ const FeeManagement = () => {
                     </div>
                   )}
 
+                  {selectedStudent && selFeeTypeObj && isTermBillFee && (
+                    <div className="md:col-span-2 rounded-md border bg-muted/40 p-3">
+                      {loadingTermBill ? (
+                        <div className="h-5 animate-pulse rounded bg-muted" />
+                      ) : termBillForPayment ? (
+                        <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+                          <div><span className="text-muted-foreground">Billed:</span> {formatCurrency(Number(termBillForPayment.amount_billed))}</div>
+                          <div><span className="text-muted-foreground">Paid:</span> {formatCurrency(Number(termBillForPayment.amount_paid))}</div>
+                          <div className="font-semibold"><span className="text-muted-foreground">Balance / arrears:</span> {formatCurrency(Number(termBillForPayment.balance))}</div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-destructive">{termBillError || 'No current-term bill was found for this student and fee type.'}</p>
+                      )}
+                    </div>
+                  )}
+
                   {/* DAILY fee: static amount display — no amount input */}
                   {isDaily ? (
                     resolvedStructureAmount != null && (
@@ -1811,7 +1879,7 @@ const FeeManagement = () => {
                         type="number"
                         step="0.01"
                         min="0.01"
-                        max="999999.99"
+                        max={fullPaymentAmount != null ? Math.min(999999.99, fullPaymentAmount) : 999999.99}
                         placeholder={resolvedStructureAmount != null ? String(resolvedStructureAmount) : '0.00'}
                         value={paymentAmount}
                         onChange={(e) => {
@@ -1824,13 +1892,13 @@ const FeeManagement = () => {
                         <p className="text-sm text-red-500">{validationErrors.amount}</p>
                       )}
                       {/* Pre-fill helper */}
-                      {resolvedStructureAmount != null && !paymentAmount && (
+                      {fullPaymentAmount != null && fullPaymentAmount > 0 && !paymentAmount && (
                         <button
                           type="button"
                           className="text-xs text-primary hover:underline"
-                          onClick={() => setPaymentAmount(String(resolvedStructureAmount))}
+                          onClick={() => setPaymentAmount(String(fullPaymentAmount))}
                         >
-                          Fill full amount ({formatCurrency(resolvedStructureAmount)})
+                          Fill full amount ({formatCurrency(fullPaymentAmount)})
                         </button>
                       )}
                     </div>
@@ -1892,7 +1960,7 @@ const FeeManagement = () => {
                   <Button 
                     onClick={collectFee} 
                     className={`flex-1 ${isDaily ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white' : ''}`}
-                    disabled={paymentLoading || !selectedStudent || !paymentFeeTypeId || loadingStudentFeeAssignments || studentFeeAssignmentsError || (isDaily && (dailyStatusLoading || Boolean(dailyStatusError) || dailyPaidStudentIds.includes(selectedStudent?.id ?? -1))) || (isDaily ? resolvedStructureAmount == null : !paymentAmount)}
+                    disabled={paymentLoading || !selectedStudent || !paymentFeeTypeId || loadingStudentFeeAssignments || studentFeeAssignmentsError || (isDaily && (dailyStatusLoading || Boolean(dailyStatusError) || dailyPaidStudentIds.includes(selectedStudent?.id ?? -1))) || (isTermBillFeeSelected && (loadingTermBill || !termBillForPayment || Number(termBillForPayment.balance) <= 0)) || (isDaily ? resolvedStructureAmount == null : !paymentAmount)}
                   >
                     {paymentLoading ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
