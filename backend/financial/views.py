@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from django.db.models import Sum, Q, Count
 from django.db import transaction
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from datetime import datetime, timedelta, date
 from decimal import Decimal
 from calendar import month_name
@@ -365,6 +366,27 @@ class ExpenseViewSet(viewsets.ModelViewSet):
             return super().destroy(request, *args, **kwargs)
         finally:
             clear_audit_context()
+
+    @action(detail=False, methods=['get'], url_path='daily-summary')
+    def daily_summary(self, request):
+        report_date = parse_date(request.query_params.get('date', '')) if request.query_params.get('date') else timezone.localdate()
+        if report_date is None:
+            return Response(
+                {'date': ['Use a valid date in YYYY-MM-DD format.']},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        expenses = self.get_queryset().filter(
+            date=report_date,
+            status__in=['APPROVED', 'PAID'],
+        ).order_by('category', 'id')
+        total_expenses = expenses.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        return Response({
+            'date': report_date.isoformat(),
+            'total_expenses': float(total_expenses),
+            'expenses': ExpenseSerializer(expenses, many=True).data,
+        })
     
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):

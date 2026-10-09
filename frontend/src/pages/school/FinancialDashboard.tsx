@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { feeService, type DailyFeeCollectionReport } from '@/services/feeService';
 import {
   DollarSign, TrendingUp, TrendingDown, Users, AlertCircle, Wallet,
-  Receipt, PieChart as PieChartIcon, CreditCard, ArrowRight
+  Receipt, PieChart as PieChartIcon, CreditCard, ArrowRight, Printer
 } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '@/lib/api';
@@ -41,6 +43,23 @@ interface DashboardData {
   expense_by_category: CategoryData[];
   cash_flow: MonthlyData[];
 }
+
+interface DailyExpenseSummary {
+  date: string;
+  total_expenses: number;
+  expenses: Array<{
+    id: number;
+    category: string;
+    description: string;
+    amount: number;
+    date: string;
+    status: string;
+    paid_to: string;
+  }>;
+}
+
+const localDateValue = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 const COLORS = ['#f97316', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e'];
 
@@ -97,10 +116,38 @@ export default function FinancialDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dailyDate, setDailyDate] = useState(() => localDateValue(new Date()));
+  const [dailyFees, setDailyFees] = useState<DailyFeeCollectionReport | null>(null);
+  const [dailyExpenses, setDailyExpenses] = useState<DailyExpenseSummary | null>(null);
+  const [dailyLoading, setDailyLoading] = useState(true);
+  const [dailyError, setDailyError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDashboard();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDailyLoading(true);
+    setDailyError(null);
+    Promise.all([
+      feeService.getDailyCollectionReport(dailyDate),
+      api.get('/schools/financial/expenses/daily-summary/', { params: { date: dailyDate } }),
+    ]).then(([feeReport, expenseReport]) => {
+      if (cancelled) return;
+      setDailyFees(feeReport);
+      setDailyExpenses(expenseReport as DailyExpenseSummary);
+    }).catch((error: any) => {
+      if (!cancelled) {
+        setDailyFees(null);
+        setDailyExpenses(null);
+        setDailyError(error?.message || 'Unable to load daily cashflow details.');
+      }
+    }).finally(() => {
+      if (!cancelled) setDailyLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [dailyDate]);
 
   const fetchDashboard = async () => {
     try {
@@ -146,6 +193,44 @@ export default function FinancialDashboard() {
   const expenseGrowth = data.monthly_trend && data.monthly_trend.length > 1
     ? ((data.monthly_trend[data.monthly_trend.length - 1].expenses - data.monthly_trend[data.monthly_trend.length - 2].expenses) / data.monthly_trend[data.monthly_trend.length - 2].expenses * 100)
     : 0;
+
+  const dailyFeeIncome = dailyFees?.total_collected ?? 0;
+  const dailyExpenseTotal = dailyExpenses?.total_expenses ?? 0;
+  const dailyNet = dailyFeeIncome - dailyExpenseTotal;
+
+  const printDailyCashflow = () => {
+    if (!dailyFees || !dailyExpenses) return;
+    const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, character => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[character] || character));
+    const currency = (amount: number) => `GH₵${amount.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const reportLabel = new Date(`${dailyDate}T00:00:00`).toLocaleDateString();
+    const feeRows = dailyFees.payments.map(payment => `
+      <tr><td>${escapeHtml(payment.paid_at)}</td><td>${escapeHtml(payment.student_name)}</td><td>${escapeHtml(payment.fee_type_name)}</td><td>${escapeHtml(payment.payment_method)}</td><td class="amount">${currency(payment.amount_paid)}</td></tr>
+    `).join('') || '<tr><td colspan="5" class="empty">No daily fee payments recorded.</td></tr>';
+    const expenseRows = dailyExpenses.expenses.map(expense => `
+      <tr><td>${escapeHtml(expense.category)}</td><td>${escapeHtml(expense.description)}</td><td>${escapeHtml(expense.paid_to || '-')}</td><td>${escapeHtml(expense.status)}</td><td class="amount">${currency(Number(expense.amount))}</td></tr>
+    `).join('') || '<tr><td colspan="5" class="empty">No approved or paid expenses recorded.</td></tr>';
+    const reportHtml = `<!doctype html><html><head><meta charset="utf-8"><title>Daily Cashflow - ${escapeHtml(reportLabel)}</title><style>
+      body{font-family:Arial,sans-serif;color:#172033;margin:32px}h1{font-size:22px;margin:0}h2{font-size:15px;margin:28px 0 8px}.date{color:#64748b;margin:6px 0 24px}.totals{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid #cbd5e1}.total{padding:14px;border-right:1px solid #cbd5e1}.total:last-child{border:0}.label{display:block;color:#64748b;font-size:11px;text-transform:uppercase}.value{display:block;margin-top:6px;font-size:19px;font-weight:700}table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:left;border-bottom:1px solid #dbe3ed;padding:8px}th{background:#f1f5f9}.amount{text-align:right;white-space:nowrap}.empty{text-align:center;color:#64748b;padding:16px}.net-positive{color:#047857}.net-negative{color:#b91c1c}.footer{margin-top:24px;color:#64748b;font-size:10px}@media print{body{margin:12mm}}
+    </style></head><body><h1>Daily Cashflow Report</h1><p class="date">${escapeHtml(reportLabel)}</p>
+      <div class="totals"><div class="total"><span class="label">Daily fee income</span><span class="value">${currency(dailyFeeIncome)}</span></div><div class="total"><span class="label">Approved / paid expenses</span><span class="value">${currency(dailyExpenseTotal)}</span></div><div class="total"><span class="label">Net daily cashflow</span><span class="value ${dailyNet >= 0 ? 'net-positive' : 'net-negative'}">${currency(dailyNet)}</span></div></div>
+      <h2>Daily fee payments</h2><table><thead><tr><th>Time</th><th>Student</th><th>Fee type</th><th>Method</th><th class="amount">Amount</th></tr></thead><tbody>${feeRows}</tbody></table>
+      <h2>Daily expenses</h2><table><thead><tr><th>Category</th><th>Description</th><th>Paid to</th><th>Status</th><th class="amount">Amount</th></tr></thead><tbody>${expenseRows}</tbody></table>
+      <p class="footer">Income includes collected DAILY fee payments. Expenses include approved or paid records dated ${escapeHtml(reportLabel)}.</p></body></html>`;
+    const reportUrl = URL.createObjectURL(new Blob([reportHtml], { type: 'text/html' }));
+    const printWindow = window.open(reportUrl, '_blank', 'width=1000,height=800');
+    if (!printWindow) {
+      URL.revokeObjectURL(reportUrl);
+      window.alert('Please allow pop-ups to print the daily cashflow report.');
+      return;
+    }
+    printWindow.focus();
+    printWindow.setTimeout(() => {
+      printWindow.print();
+      URL.revokeObjectURL(reportUrl);
+    }, 600);
+  };
 
   return (
     <div className="min-h-full w-full max-w-full overflow-x-hidden">
@@ -298,6 +383,54 @@ export default function FinancialDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card variant="elevated">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle className="theme-card-title">Daily Fee Cashflow</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">Daily fee payments collected minus approved or paid expenses.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor="daily-cashflow-date" className="text-sm text-muted-foreground">Date</label>
+            <input
+              id="daily-cashflow-date"
+              type="date"
+              value={dailyDate}
+              onChange={event => setDailyDate(event.target.value || localDateValue(new Date()))}
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            />
+            <Button onClick={printDailyCashflow} disabled={dailyLoading || !dailyFees || !dailyExpenses}>
+              <Printer className="mr-2 h-4 w-4" />
+              Print report
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {dailyError ? (
+            <p className="text-sm text-destructive">{dailyError}</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-md border p-4">
+                <p className="text-sm text-muted-foreground">Daily fee income</p>
+                <p className="mt-1 text-xl font-semibold text-green-700">GH₵{dailyLoading ? '...' : dailyFeeIncome.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">{dailyFees?.transaction_count ?? 0} payments</p>
+              </div>
+              <div className="rounded-md border p-4">
+                <p className="text-sm text-muted-foreground">Approved / paid expenses</p>
+                <p className="mt-1 text-xl font-semibold text-red-700">GH₵{dailyLoading ? '...' : dailyExpenseTotal.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">{dailyExpenses?.expenses.length ?? 0} expense records</p>
+              </div>
+              <div className="rounded-md border p-4">
+                <p className="text-sm text-muted-foreground">Net daily cashflow</p>
+                <p className={`mt-1 text-xl font-semibold ${dailyNet >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                  GH₵{dailyLoading ? '...' : dailyNet.toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground">Income minus expenses</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Charts Row 1 */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
