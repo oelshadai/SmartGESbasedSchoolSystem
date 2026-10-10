@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { feeService, FeeType } from '@/services/feeService';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuthStore } from '@/stores/authStore';
+import { formatClassName, formatDisplayName } from '@/lib/displayFormat';
 
 const studentIdConflictMessage = 'This student ID is already in use. Please enter a different ID.';
 
@@ -323,8 +324,8 @@ const StudentsManagement = () => {
   });
   const selectedClass = classes.find((cls: any) => cls.id.toString() === selectedClassFilter);
   const selectedClassName = selectedClass
-    ? selectedClass.full_name || `${selectedClass.level_display || selectedClass.level}${selectedClass.section ? ` ${selectedClass.section}` : ''}`
-    : 'All classes';
+    ? formatClassName(selectedClass.full_name || `${selectedClass.level_display || selectedClass.level}${selectedClass.section ? ` ${selectedClass.section}` : ''}`)
+    : 'All Classes';
 
   const handleDownloadRoster = async () => {
     setDownloadingRoster(true);
@@ -376,8 +377,8 @@ const StudentsManagement = () => {
 
   const columns = [
     { key: 'student_id', label: 'ID', render: (s: any) => <span className="font-mono text-foreground/70">{s.student_id}</span> },
-    { key: 'full_name', label: 'Name', render: (s: any) => <span className="font-medium text-foreground">{s.full_name}</span> },
-    { key: 'class_name', label: 'Class', render: (s: any) => <Badge variant="outline">{s.class_name || 'No Class'}</Badge> },
+    { key: 'full_name', label: 'Name', render: (s: any) => <span className="font-medium text-foreground">{formatDisplayName(s.full_name)}</span> },
+    { key: 'class_name', label: 'Class', render: (s: any) => <Badge variant="outline">{formatClassName(s.class_name || 'No Class')}</Badge> },
     { key: 'has_user_account', label: 'Portal Account', render: (s: any) => (
       <Badge variant="outline" className={Boolean(s.has_user_account ?? s.user)
         ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
@@ -803,7 +804,7 @@ const StudentsManagement = () => {
                     <SelectItem value="__all__">All classes</SelectItem>
                     {classes.map((cls: any) => (
                       <SelectItem key={cls.id} value={cls.id.toString()}>
-                        {cls.full_name || `${cls.level_display || cls.level}${cls.section ? ` ${cls.section}` : ''}`}
+                        {formatClassName(cls.full_name || `${cls.level_display || cls.level}${cls.section ? ` ${cls.section}` : ''}`)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -940,7 +941,7 @@ const StudentsManagement = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {classes.map((cls: any) => (
-                      <SelectItem key={cls.id} value={cls.id.toString()}>{cls.full_name || `${cls.level_display || cls.level} ${cls.section || ''}`.trim()}</SelectItem>
+                      <SelectItem key={cls.id} value={cls.id.toString()}>{formatClassName(cls.full_name || `${cls.level_display || cls.level} ${cls.section || ''}`.trim())}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -991,9 +992,9 @@ const StudentsManagement = () => {
             <div className="space-y-4">
               <div className="student-details-fields grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
                 <div><strong>Student ID:</strong> {selectedStudent.student_id}</div>
-                <div><strong>Name:</strong> {selectedStudent.full_name}</div>
+                <div><strong>Name:</strong> {formatDisplayName(selectedStudent.full_name)}</div>
                 <div><strong>Gender:</strong> {selectedStudent.gender === 'M' ? 'Male' : 'Female'}</div>
-                <div><strong>Class:</strong> {selectedStudent.class_name || 'No Class'}</div>
+                <div><strong>Class:</strong> {formatClassName(selectedStudent.class_name || 'No Class')}</div>
                 <div><strong>Guardian:</strong> {selectedStudent.guardian_name}</div>
                 <div><strong>Phone:</strong> {selectedStudent.guardian_phone}</div>
               </div>

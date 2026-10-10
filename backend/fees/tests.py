@@ -78,6 +78,32 @@ class FeeSearchApiTests(TestCase):
         self.assertEqual(response.data[0]['first_name'], 'Ada')
         self.assertEqual(response.data[0]['last_name'], 'Lovelace')
 
+    def test_search_matches_case_insensitive_partial_full_name_without_user_account(self):
+        student = Student(
+            school=self.school,
+            student_id='STD-ADA-002',
+            first_name='Ada',
+            last_name='Lovelace',
+            gender='F',
+            date_of_birth='2012-01-01',
+            current_class=self.class_room,
+            guardian_name='Guardian',
+            guardian_phone='0201111111',
+            guardian_address='Test address',
+            admission_date='2024-01-01',
+            user=None,
+        )
+        student._skip_account_creation = True
+        student.save()
+
+        client = APIClient()
+        client.force_authenticate(user=self.admin)
+        response = client.get('/api/fees/search/search/', {'q': 'aDA lov'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['student_id'], 'STD-ADA-002')
+
     def test_daily_status_returns_students_paid_for_that_daily_fee(self):
         student = Student(
             school=self.school,

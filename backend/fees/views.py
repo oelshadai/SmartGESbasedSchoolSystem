@@ -779,12 +779,15 @@ class StudentSearchForFeeViewSet(viewsets.ViewSet):
         
         # Search by query
         if query:
-            queryset = queryset.filter(
-                Q(student_id__icontains=query) |
-                Q(user__first_name__icontains=query) |
-                Q(user__last_name__icontains=query) |
-                Q(user__email__icontains=query)
-            )
+            for term in query.split():
+                queryset = queryset.filter(
+                    Q(student_id__icontains=term) |
+                    Q(first_name__icontains=term) |
+                    Q(last_name__icontains=term) |
+                    Q(user__first_name__icontains=term) |
+                    Q(user__last_name__icontains=term) |
+                    Q(user__email__icontains=term)
+                )
         
         # Build response with fee info
         results = []

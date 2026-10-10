@@ -19,6 +19,7 @@ import {
 } from "@/services/feeService";
 import { staffPermissionService } from "@/services/staffPermissionService";
 import { useToast } from "@/hooks/use-toast";
+import { formatClassName, formatDisplayName } from "@/lib/displayFormat";
 
 interface MyClass {
   id: number;
@@ -287,7 +288,7 @@ const FeeCollection = () => {
             {isSpecialCollector
               ? "School-wide fee collection"
               : myClass
-              ? `Class: ${myClass.name}`
+              ? `Class: ${formatClassName(myClass.name)}`
               : "Record fee payments for your students"}
           </p>
         </div>
@@ -309,7 +310,7 @@ const FeeCollection = () => {
             </SelectTrigger>
             <SelectContent>
               {allClasses.map((c) => (
-                <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                <SelectItem key={c.id} value={String(c.id)}>{formatClassName(c.name)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -383,8 +384,8 @@ const FeeCollection = () => {
                     onClick={() => selectStudent(s)}
                   >
                     <div>
-                      <p className="text-sm font-medium">{s.first_name} {s.last_name}</p>
-                      <p className="text-xs text-muted-foreground">{s.student_id} · {s.class_level} {s.section}</p>
+                      <p className="text-sm font-medium">{formatDisplayName(`${s.first_name} ${s.last_name}`)}</p>
+                      <p className="text-xs text-muted-foreground">{s.student_id} · {formatClassName(`${s.class_level} ${s.section}`)}</p>
                     </div>
                   </div>
                 ))}
@@ -396,8 +397,8 @@ const FeeCollection = () => {
           {selectedStudent && (
             <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
               <div>
-                <p className="font-medium text-sm">{selectedStudent.first_name} {selectedStudent.last_name}</p>
-                <p className="text-xs text-muted-foreground">{selectedStudent.student_id} · {selectedStudent.class_level}</p>
+                <p className="font-medium text-sm">{formatDisplayName(`${selectedStudent.first_name} ${selectedStudent.last_name}`)}</p>
+                <p className="text-xs text-muted-foreground">{selectedStudent.student_id} · {formatClassName(selectedStudent.class_level)}</p>
               </div>
               <button type="button" onClick={resetForm} className="text-muted-foreground hover:text-destructive transition-colors">
                 <XCircle className="h-4 w-4" />

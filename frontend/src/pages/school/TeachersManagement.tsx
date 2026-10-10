@@ -9,9 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { formatClassName, formatDisplayName } from '@/lib/displayFormat';
 
 const columns = [
-  { key: 'full_name', label: 'Name', render: (t: any) => <span className="font-medium text-foreground">{t.full_name || `${t.first_name} ${t.last_name}`}</span> },
+  { key: 'full_name', label: 'Name', render: (t: any) => <span className="font-medium text-foreground">{formatDisplayName(t.full_name || `${t.first_name} ${t.last_name}`)}</span> },
   { key: 'email', label: 'Email', render: (t: any) => <span className="text-foreground text-sm">{t.email}</span> },
   { key: 'phone_number', label: 'Phone', render: (t: any) => <span className="text-foreground/70 text-xs">{t.phone_number || '-'}</span> },
   { key: 'qualification', label: 'Qualification', render: (t: any) => <span className="text-foreground/70 text-xs">{t.qualification || '-'}</span> },
@@ -19,7 +20,7 @@ const columns = [
     <span className="text-foreground/70 text-xs">
       {t.assigned_class ? (
         <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300">
-          {t.assigned_class}
+          {formatClassName(t.assigned_class)}
         </Badge>
       ) : (
         <span className="text-gray-400 dark:text-gray-600">Unassigned</span>
@@ -276,7 +277,7 @@ const TeachersManagement = () => {
       
       // Show success message
       const className = response.class_name || 'the selected class';
-      toast({ title: 'Success', description: `Assigned ${selectedTeacher.full_name || `${selectedTeacher.first_name} ${selectedTeacher.last_name}`} to ${className}` });
+      toast({ title: 'Success', description: `Assigned ${formatDisplayName(selectedTeacher.full_name || `${selectedTeacher.first_name} ${selectedTeacher.last_name}`)} to ${formatClassName(className)}` });
       
       setShowAssignDialog(false);
       await fetchTeachers(); // Refresh the teacher list
@@ -498,7 +499,7 @@ const TeachersManagement = () => {
               <>
                 <div>
                   <p className="text-xs font-semibold text-foreground/60 mb-1">NAME</p>
-                  <p className="text-sm font-medium text-foreground">{viewingTeacher.first_name} {viewingTeacher.last_name}</p>
+                  <p className="text-sm font-medium text-foreground">{formatDisplayName(`${viewingTeacher.first_name} ${viewingTeacher.last_name}`)}</p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-foreground/60 mb-1">EMPLOYEE ID</p>
@@ -522,7 +523,7 @@ const TeachersManagement = () => {
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-foreground/60 mb-1">ASSIGNED CLASS</p>
-                  <p className="text-sm text-foreground">{viewingTeacher.assigned_class || 'Unassigned'}</p>
+                  <p className="text-sm text-foreground">{formatClassName(viewingTeacher.assigned_class || 'Unassigned')}</p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-foreground/60 mb-1">STATUS</p>
@@ -750,7 +751,7 @@ const TeachersManagement = () => {
                 <SelectContent>
                   {availableClasses.map((cls: any) => (
                     <SelectItem key={cls.id} value={cls.id.toString()}>
-                      {cls.full_name || `${cls.level} ${cls.section || ''}`.trim()}
+                      {formatClassName(cls.full_name || `${cls.level} ${cls.section || ''}`.trim())}
                     </SelectItem>
                   ))}
                 </SelectContent>

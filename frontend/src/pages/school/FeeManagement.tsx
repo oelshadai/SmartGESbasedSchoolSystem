@@ -27,6 +27,7 @@ import {
 } from 'recharts';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
+import { formatClassName, formatDisplayName } from '@/lib/displayFormat';
 import {
   feeService,
   type StudentSearchResult, type FeeType, type StudentFee, type FeePayment,
@@ -1671,7 +1672,7 @@ const FeeManagement = () => {
                       <SelectItem value="all">All Classes</SelectItem>
                       {(classes || []).map((cls) => (
                         <SelectItem key={cls.id} value={cls.id.toString()}>
-                          {cls.full_name || `${cls.level} ${cls.section}`.trim()}
+                          {formatClassName(cls.full_name || `${cls.level} ${cls.section}`.trim())}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1730,10 +1731,10 @@ const FeeManagement = () => {
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="font-medium">
-                              {student.first_name} {student.last_name}
+                              {formatDisplayName(`${student.first_name} ${student.last_name}`)}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {student.student_id} • {student.class_level} {student.section}
+                              {student.student_id} • {formatClassName(`${student.class_level} ${student.section}`)}
                             </div>
                           </div>
                           <div className="text-right">
@@ -1776,7 +1777,7 @@ const FeeManagement = () => {
                 return (
               <div ref={paymentFormRef} className="fees-collection-form scroll-mt-24 border rounded-lg p-4 bg-muted/20">
                 <h4 className="font-medium mb-3">
-                  {selectedStudent ? `Collect Fee from ${selectedStudent.first_name} ${selectedStudent.last_name}` : 'Fee Collection Form'}
+                  {selectedStudent ? `Collect Fee from ${formatDisplayName(`${selectedStudent.first_name} ${selectedStudent.last_name}`)}` : 'Fee Collection Form'}
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -2004,7 +2005,7 @@ const FeeManagement = () => {
                     <SelectContent>
                       {classes.map(cls => (
                         <SelectItem key={cls.id} value={String(cls.id)}>
-                          {cls.full_name || `${cls.level} ${cls.section}`.trim()}
+                          {formatClassName(cls.full_name || `${cls.level} ${cls.section}`.trim())}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -4018,7 +4019,7 @@ const FeeManagement = () => {
                                 <SelectItem value="all">All classes</SelectItem>
                                 {classes.map(cls => (
                                   <SelectItem key={cls.id} value={String(cls.id)}>
-                                    {cls.full_name || `${cls.level} ${cls.section}`.trim()}
+                                    {formatClassName(cls.full_name || `${cls.level} ${cls.section}`.trim())}
                                   </SelectItem>
                                 ))}
                                 {reminderRecipients.some(recipient => recipient.class_id == null) && (
