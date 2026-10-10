@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -457,6 +457,28 @@ class FeeSearchApiTests(TestCase):
             'daily_fee_closed_dates',
         ])
 
+        term_fee_type = FeeType.objects.create(
+            school=self.school,
+            name='Term Tuition',
+            collection_frequency='TERM',
+        )
+        payments = [
+            (fee_type, Decimal('5.00'), datetime(2026, 10, 6, 9, 0)),
+            (fee_type, Decimal('100.00'), datetime(2026, 10, 10, 9, 0)),
+            (term_fee_type, Decimal('200.00'), datetime(2026, 10, 6, 10, 0)),
+        ]
+        for payment_fee_type, amount, paid_at in payments:
+            payment = FeePayment.objects.create(
+                student=student,
+                school=self.school,
+                fee_type=payment_fee_type,
+                amount_paid=amount,
+                collected_by=self.admin,
+            )
+            FeePayment.objects.filter(pk=payment.pk).update(
+                payment_date=timezone.make_aware(paid_at),
+            )
+
         client = APIClient()
         client.force_authenticate(user=self.admin)
         response = client.get('/api/fees/reports/collection_summary/')
@@ -464,6 +486,7 @@ class FeeSearchApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['daily_school_days'], 4)
         self.assertEqual(response.data['daily_expected'], 40.0)
+        self.assertEqual(response.data['daily_collected'], 5.0)
 
     def test_daily_expected_income_uses_main_fee_for_unassigned_students(self):
         parent_fee = FeeType.objects.create(

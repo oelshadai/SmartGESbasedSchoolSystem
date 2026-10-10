@@ -827,11 +827,25 @@ class FeeReportViewSet(viewsets.ViewSet):
         school = request.user.school
 
         # --- Daily fee stats ---
-        # Collected: sum of payments whose fee_type is DAILY
-        daily_collected = FeePayment.objects.filter(
+        # Compare collections and expected income over the same term window.
+        current_term = school.current_term
+        daily_payments = FeePayment.objects.filter(
             school=school,
             fee_type__collection_frequency='DAILY',
-        ).aggregate(total=Sum('amount_paid'))['total'] or 0
+        )
+        if school.term_reopening_date and school.term_closing_date:
+            daily_payments = daily_payments.filter(
+                payment_date__date__gte=school.term_reopening_date,
+                payment_date__date__lte=school.term_closing_date,
+            )
+        elif current_term:
+            daily_payments = daily_payments.filter(
+                payment_date__date__gte=current_term.start_date,
+                payment_date__date__lte=current_term.end_date,
+            )
+        else:
+            daily_payments = daily_payments.none()
+        daily_collected = daily_payments.aggregate(total=Sum('amount_paid'))['total'] or 0
 
         # Expected daily fees: for each active DAILY fee type, sum the
         # FeeStructure amount × number of active students at that level.
@@ -866,7 +880,6 @@ class FeeReportViewSet(viewsets.ViewSet):
             else:
                 fee_structures = [(None, structure) for structure in main_fee_structures]
 
-            current_term = school.current_term
             billable_days = daily_school_days
             if billable_days is None:
                 billable_days = current_term.total_days if current_term and current_term.total_days > 0 else 0
